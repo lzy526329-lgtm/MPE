@@ -674,4 +674,609 @@ input[type="range"] {
   .primary-button {
     margin-top: 4px;
   }
+
+  .trainer-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .trainer-settings {
+    height: auto;
+  }
+}
+
+.trainer-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(260px, 0.75fr);
+  gap: 18px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.trainer-arena {
+  position: relative;
+  height: min(620px, calc(100vh - 240px));
+  min-height: 420px;
+  overflow: hidden;
+  border: 1px solid #111;
+  border-radius: 16px;
+  background: #050505;
+  box-shadow: 0 16px 40px rgba(8, 10, 18, 0.18);
+  cursor: none;
+  user-select: none;
+}
+
+.trainer-arena canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.trainer-hud {
+  position: absolute;
+  inset: 14px 14px auto;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  pointer-events: none;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.trainer-hud strong {
+  display: block;
+  margin-top: 2px;
+  font-size: 20px;
+  letter-spacing: -0.04em;
+}
+
+.trainer-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  text-align: center;
+  cursor: default;
+}
+
+.trainer-overlay[hidden] {
+  display: none !important;
+}
+
+.trainer-overlay p {
+  margin: 8px 0 0;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 13px;
+}
+
+.trainer-overlay button {
+  margin-top: 18px;
+  min-height: 40px;
+  padding: 0 18px;
+  border-radius: 9px;
+  color: #111;
+  background: #fff;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.trainer-settings {
+  display: flex;
+  flex-direction: column;
+  height: min(620px, calc(100vh - 240px));
+  min-height: 420px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 8px 28px rgba(32, 40, 58, 0.05);
+}
+
+.trainer-settings h2 {
+  margin: 0 0 22px;
+  font-size: 16px;
+}
+
+.trainer-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.trainer-actions .primary-button,
+.trainer-actions .secondary-button {
+  flex: 1;
+  margin-top: 0;
+}
+
+.trainer-stat-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.trainer-stat-row strong {
+  color: var(--ink);
+}
+
+.watermark-input-card,
+.watermark-editor .preview-card,
+.watermark-editor .settings-card {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 8px 28px rgba(32, 40, 58, 0.05);
+}
+
+.watermark-input-card {
+  display: flex;
+  flex-direction: column;
+  padding: 22px;
+  margin-bottom: 18px;
+}
+
+.watermark-input-card .primary-button {
+  margin-top: 16px;
+  max-width: 180px;
+}
+
+#watermark-input {
+  width: 100%;
+  min-height: 110px;
+  padding: 12px 11px;
+  border: 1px solid #dfe3ea;
+  border-radius: 8px;
+  color: var(--ink);
+  outline: none;
+  background: #fff;
+  resize: vertical;
+  font: inherit;
+  line-height: 1.6;
+}
+
+#watermark-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(100, 87, 231, 0.1);
+}
+
+.watermark-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.85fr);
+  gap: 18px;
+}
+
+.watermark-preview {
+  height: 360px;
+  background: #111;
+}
+
+.watermark-preview video,
+.watermark-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.watermark-gallery {
+  display: flex;
+  gap: 8px;
+  padding: 12px 2px 0;
+  overflow-x: auto;
+}
+
+.watermark-thumb {
+  width: 64px;
+  height: 64px;
+  flex: none;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #eceef3;
+  border-radius: 8px;
+  background: #f4f5f8;
+  cursor: pointer;
+}
+
+.watermark-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.watermark-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0 0 18px;
+}
+
+.watermark-meta div {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 10px;
+  font-size: 13px;
+}
+
+.watermark-meta dt {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.watermark-meta dd {
+  margin: 0;
+  overflow: hidden;
+  word-break: break-all;
+}
+
+.watermark-link-row dd {
+  font-size: 12px;
+}
+
+.watermark-meta a {
+  color: var(--accent);
+}
+
+.watermark-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.watermark-actions .primary-button,
+.watermark-actions .secondary-button {
+  flex: 1;
+  margin-top: 0;
+}
+
+@media (max-width: 900px) {
+  .watermark-editor {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Disk Clean Page ─────────────────────────────────────── */
+
+#disk-clean-page header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.dc-scan-top-btn {
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.dc-summary-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 13px;
+  margin-bottom: 12px;
+  min-height: 44px;
+}
+
+.dc-toolbar {
+  display: flex;
+  gap: 4px;
+}
+
+.dc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+/* each category row */
+.dc-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  user-select: none;
+}
+
+.dc-row:hover:not(.dc-row--dim) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+}
+
+.dc-row--dim {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.dc-checkbox {
+  margin-top: 3px;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.dc-row-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.dc-row-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.dc-row-label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.dc-row-size {
+  margin-left: auto;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.dc-row-size--zero {
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.dc-row-desc {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 4px;
+  line-height: 1.5;
+}
+
+.dc-row-meta {
+  font-size: 11px;
+  color: var(--muted);
+  margin: 0;
+  opacity: 0.7;
+}
+
+.dc-row-meta code {
+  background: color-mix(in srgb, var(--muted) 12%, transparent);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+  word-break: break-all;
+}
+
+/* risk tags */
+.dc-tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+
+.dc-tag--safe {
+  background: color-mix(in srgb, #22c55e 15%, transparent);
+  color: #16a34a;
+}
+
+.dc-tag--caution {
+  background: color-mix(in srgb, #f59e0b 15%, transparent);
+  color: #b45309;
+}
+
+/* footer */
+.dc-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+
+.dc-sel-summary {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.dc-result-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+
+/* ── System Info Page ─────────────────────────────────────── */
+
+#sysinfo-page header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.sysinfo-refresh-btn {
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+
+.sysinfo-loading {
+  color: var(--muted);
+  font-size: 14px;
+  padding: 24px 0;
+  text-align: center;
+}
+
+.sysinfo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.sysinfo-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.sysinfo-card--wide {
+  grid-column: span 3;
+}
+
+.sysinfo-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 16px;
+}
+
+.sysinfo-icon {
+  font-size: 15px;
+}
+
+.sysinfo-dl {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+}
+
+.sysinfo-dl div {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 8px;
+  font-size: 13px;
+}
+
+.sysinfo-dl dt {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.sysinfo-dl dd {
+  margin: 0;
+  word-break: break-word;
+}
+
+.sysinfo-long {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* Memory */
+.sysinfo-mem-summary {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.sysinfo-mem-summary em {
+  color: var(--muted);
+  font-style: normal;
+}
+
+.sysinfo-mem-bar {
+  margin-bottom: 16px;
+}
+
+.sysinfo-mem-dl div {
+  grid-template-columns: 56px minmax(0, 1fr);
+}
+
+/* Disk bars */
+.sysinfo-disk-item {
+  margin-bottom: 16px;
+}
+
+.sysinfo-disk-item:last-child {
+  margin-bottom: 0;
+}
+
+.sysinfo-disk-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.sysinfo-disk-mount {
+  font-weight: 600;
+}
+
+.sysinfo-disk-stats {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.sysinfo-disk-stats em {
+  font-style: normal;
+  margin-left: 4px;
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.disk-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.disk-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+  transition: width 0.4s ease;
+}
+
+.disk-bar-fill--warn {
+  background: #e5a50a;
+}
+
+.disk-bar-fill--danger {
+  background: #e5533d;
+}
+
+.sysinfo-empty {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .sysinfo-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sysinfo-card--wide {
+    grid-column: span 1;
+  }
 }

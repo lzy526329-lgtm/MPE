@@ -1,6 +1,10 @@
 import './style.css'
 import type { CompressRequest } from '../electron/compress'
 import type { ArchiveInfo, CompressionSource } from '../electron/archive'
+import { AimTrainer, type AimTrainerDifficulty } from './aimTrainer'
+import { mountWatermarkPage } from './watermarkPage'
+import { mountSystemInfoPage } from './systemInfoPage'
+import { mountDiskCleanPage } from './diskCleanPage'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
@@ -16,6 +20,10 @@ app.innerHTML = `
           <span>▧</span>
           图片压缩
         </button>
+        <button class="nav-item" data-page="watermark-page" type="button">
+          <span>▷</span>
+          视频去水印
+        </button>
         <button class="nav-item" data-page="compression-page" type="button">
           <span>◇</span>
           文件压缩
@@ -24,8 +32,20 @@ app.innerHTML = `
           <span>▣</span>
           文件解压
         </button>
+        <button class="nav-item" data-page="trainer-page" type="button">
+          <span>○</span>
+          瞄准训练
+        </button>
+        <button class="nav-item" data-page="sysinfo-page" type="button">
+          <span>▦</span>
+          电脑信息
+        </button>
+        <button class="nav-item" data-page="disk-clean-page" type="button">
+          <span>◈</span>
+          磁盘瘦身
+        </button>
       </nav>
-      <p class="local-tip">所有文件仅在本地处理</p>
+      <p class="local-tip">文件处理均在本地完成</p>
     </aside>
 
     <main class="workspace">
@@ -94,6 +114,86 @@ app.innerHTML = `
           <button class="download-button" id="download-button" type="button">下载图片</button>
         </div>
         <p class="error-message" id="error-message" role="alert"></p>
+        </div>
+      </section>
+
+      <section class="tool-page" id="watermark-page" hidden>
+        <header>
+          <div>
+            <p class="eyebrow">视频工具</p>
+            <h1>视频去水印</h1>
+            <p class="subtitle">粘贴抖音或快手分享链接，解析无水印地址并保存到本地。</p>
+          </div>
+        </header>
+        <div class="panel">
+          <div class="watermark-input-card">
+            <label class="field" for="watermark-input">
+              <span>分享链接 / 分享文案</span>
+              <textarea
+                id="watermark-input"
+                placeholder="例如：0.20 复制打开抖音，看看【xxx的作品】... https://v.douyin.com/xxxxxxx/"
+              ></textarea>
+            </label>
+            <p class="field-hint">
+              支持抖音、快手。可直接粘贴 App 分享出来的整段文案；解析出的地址带时效签名，过期后需重新解析。
+            </p>
+            <button class="primary-button" id="watermark-parse-button" type="button">开始解析</button>
+          </div>
+
+          <div class="watermark-editor" id="watermark-editor" hidden>
+            <div class="preview-card">
+              <div class="preview-heading">
+                <span>预览</span>
+              </div>
+              <div class="preview-frame watermark-preview">
+                <video id="watermark-player" controls playsinline preload="metadata"></video>
+                <img id="watermark-picture" alt="图集预览" hidden />
+              </div>
+              <div class="watermark-gallery" id="watermark-gallery" hidden></div>
+            </div>
+
+            <div class="settings-card">
+              <h2>解析结果</h2>
+              <dl class="watermark-meta">
+                <div>
+                  <dt>作者</dt>
+                  <dd id="watermark-author">-</dd>
+                </div>
+                <div>
+                  <dt>描述</dt>
+                  <dd id="watermark-desc">-</dd>
+                </div>
+                <div>
+                  <dt>类型</dt>
+                  <dd id="watermark-type">-</dd>
+                </div>
+                <div>
+                  <dt>平台</dt>
+                  <dd id="watermark-platform">-</dd>
+                </div>
+                <div class="watermark-link-row">
+                  <dt>地址</dt>
+                  <dd><a id="watermark-link" href="#" target="_blank" rel="noopener">-</a></dd>
+                </div>
+              </dl>
+              <div class="watermark-actions">
+                <button class="primary-button" id="watermark-save-button" type="button">保存到本地</button>
+                <button class="secondary-button" id="watermark-copy-button" type="button">复制地址</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="result" id="watermark-result" hidden>
+            <div class="result-copy">
+              <span class="success-icon">✓</span>
+              <div>
+                <strong>已完成</strong>
+                <span id="watermark-result-detail"></span>
+              </div>
+            </div>
+            <button class="download-button" id="watermark-reveal-button" type="button">查看文件</button>
+          </div>
+          <p class="error-message" id="watermark-error" role="alert"></p>
         </div>
       </section>
 
@@ -246,6 +346,126 @@ app.innerHTML = `
             <button class="download-button" id="show-archive-button" type="button">查看文件</button>
           </div>
           <p class="error-message" id="compression-error" role="alert"></p>
+        </div>
+      </section>
+
+      <section class="tool-page" id="trainer-page" hidden>
+        <header>
+          <div>
+            <p class="eyebrow">反应训练</p>
+            <h1>瞄准训练</h1>
+            <p class="subtitle">黑底上会随机出现白色小球，移动鼠标瞄准并点击射击，打中得分。</p>
+          </div>
+        </header>
+
+        <div class="trainer-layout">
+          <div class="trainer-arena">
+            <canvas id="trainer-canvas"></canvas>
+            <div class="trainer-hud">
+              <div>
+                得分
+                <strong id="trainer-score">0</strong>
+              </div>
+              <div>
+                连击
+                <strong id="trainer-combo">0</strong>
+              </div>
+              <div>
+                命中率
+                <strong id="trainer-accuracy">0%</strong>
+              </div>
+              <div>
+                <span id="trainer-time-label">剩余时间</span>
+                <strong id="trainer-time">60.0s</strong>
+              </div>
+            </div>
+            <div class="trainer-overlay" id="trainer-overlay">
+              <div>
+                <strong id="trainer-overlay-title">点击开始训练</strong>
+                <p id="trainer-overlay-copy">移动准星，点击白色小球。未打中或超时消失都会中断连击。</p>
+                <button id="trainer-overlay-button" type="button">开始训练</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="trainer-settings">
+            <h2>训练设置</h2>
+            <label class="field">
+              <span>时长</span>
+              <select id="trainer-duration">
+                <option value="30000">30 秒</option>
+                <option value="60000" selected>60 秒</option>
+                <option value="0">无尽模式</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>难度</span>
+              <select id="trainer-difficulty">
+                <option value="easy">简单 · 大球、较慢</option>
+                <option value="normal" selected>普通 · 适中</option>
+                <option value="hard">困难 · 小球、较快</option>
+              </select>
+            </label>
+            <p class="field-hint">命中 +100 分，连击额外加分；点空或小球消失记一次未命中。</p>
+            <div class="trainer-stat-row">
+              <span>命中 / 未中</span>
+              <strong id="trainer-hit-miss">0 / 0</strong>
+            </div>
+            <div class="trainer-stat-row">
+              <span>最高连击</span>
+              <strong id="trainer-best-combo">0</strong>
+            </div>
+            <div class="trainer-actions">
+              <button class="primary-button" id="trainer-start-button" type="button">开始</button>
+              <button class="secondary-button" id="trainer-reset-button" type="button">重置</button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="tool-page" id="disk-clean-page" hidden>
+        <header>
+          <div>
+            <p class="eyebrow">系统工具</p>
+            <h1>磁盘瘦身</h1>
+            <p class="subtitle">扫描并清理系统缓存、临时文件、垃圾文件，安全释放磁盘空间。</p>
+          </div>
+          <button class="primary-button dc-scan-top-btn" id="dc-scan-btn" type="button">开始扫描</button>
+        </header>
+        <div class="panel">
+          <p class="sysinfo-loading" id="dc-spinner" hidden>正在扫描，请稍候…</p>
+
+          <div class="dc-summary-bar" id="dc-summary-bar">
+            <span id="dc-summary"></span>
+            <div class="dc-toolbar">
+              <button class="text-button" id="dc-select-all" type="button">全选</button>
+              <button class="text-button" id="dc-deselect-all" type="button">取消全选</button>
+            </div>
+          </div>
+
+          <div class="dc-list" id="dc-list"></div>
+
+          <div class="dc-footer">
+            <span class="dc-sel-summary" id="dc-sel-summary">请先扫描</span>
+            <button class="primary-button" id="dc-clean-btn" type="button" hidden disabled>开始清理</button>
+          </div>
+
+          <div class="result dc-result-banner" id="dc-result-banner" hidden></div>
+          <p class="error-message" id="dc-error" role="alert"></p>
+        </div>
+      </section>
+
+      <section class="tool-page" id="sysinfo-page" hidden>
+        <header>
+          <div>
+            <p class="eyebrow">系统工具</p>
+            <h1>电脑信息</h1>
+            <p class="subtitle">查看本机硬件配置与存储使用情况。</p>
+          </div>
+          <button class="secondary-button sysinfo-refresh-btn" id="sysinfo-refresh" type="button">刷新</button>
+        </header>
+        <div class="panel">
+          <p class="sysinfo-loading" id="sysinfo-loading" hidden>正在读取系统信息…</p>
+          <div id="sysinfo-container"></div>
         </div>
       </section>
     </main>
@@ -713,7 +933,101 @@ openFolderButton.addEventListener('click', () => {
   if (extractedPath) void window.electronAPI.openPath(extractedPath)
 })
 
+const trainerCanvas = document.querySelector<HTMLCanvasElement>('#trainer-canvas')!
+const trainerScore = document.querySelector<HTMLElement>('#trainer-score')!
+const trainerCombo = document.querySelector<HTMLElement>('#trainer-combo')!
+const trainerAccuracy = document.querySelector<HTMLElement>('#trainer-accuracy')!
+const trainerTime = document.querySelector<HTMLElement>('#trainer-time')!
+const trainerTimeLabel = document.querySelector<HTMLElement>('#trainer-time-label')!
+const trainerOverlay = document.querySelector<HTMLElement>('#trainer-overlay')!
+const trainerOverlayTitle = document.querySelector<HTMLElement>('#trainer-overlay-title')!
+const trainerOverlayCopy = document.querySelector<HTMLElement>('#trainer-overlay-copy')!
+const trainerOverlayButton = document.querySelector<HTMLButtonElement>('#trainer-overlay-button')!
+const trainerDuration = document.querySelector<HTMLSelectElement>('#trainer-duration')!
+const trainerDifficulty = document.querySelector<HTMLSelectElement>('#trainer-difficulty')!
+const trainerHitMiss = document.querySelector<HTMLElement>('#trainer-hit-miss')!
+const trainerBestCombo = document.querySelector<HTMLElement>('#trainer-best-combo')!
+const trainerStartButton = document.querySelector<HTMLButtonElement>('#trainer-start-button')!
+const trainerResetButton = document.querySelector<HTMLButtonElement>('#trainer-reset-button')!
+
+const formatTrainerTime = (remainingMs: number, elapsedMs: number) => {
+  if (remainingMs < 0) return `${(elapsedMs / 1000).toFixed(1)}s`
+  return `${(remainingMs / 1000).toFixed(1)}s`
+}
+
+const trainerEngine = new AimTrainer(trainerCanvas, (stats) => {
+  trainerScore.textContent = String(stats.score)
+  trainerCombo.textContent = String(stats.combo)
+  trainerAccuracy.textContent = `${stats.accuracy}%`
+  trainerTime.textContent = formatTrainerTime(stats.remainingMs, stats.elapsedMs)
+  trainerTimeLabel.textContent = stats.remainingMs < 0 ? '已用时间' : '剩余时间'
+  trainerHitMiss.textContent = `${stats.hits} / ${stats.misses}`
+  trainerBestCombo.textContent = String(stats.bestCombo)
+
+  if (stats.status === 'running') {
+    trainerOverlay.hidden = true
+    trainerStartButton.textContent = '暂停'
+    return
+  }
+
+  trainerOverlay.hidden = false
+  if (stats.status === 'paused') {
+    trainerOverlayTitle.textContent = '已暂停'
+    trainerOverlayCopy.textContent = '回到训练场后可继续当前这一局。'
+    trainerOverlayButton.textContent = '继续'
+    trainerStartButton.textContent = '继续'
+  } else if (stats.status === 'ended') {
+    trainerOverlayTitle.textContent = `本轮结束 · ${stats.score} 分`
+    trainerOverlayCopy.textContent =
+      `命中 ${stats.hits}，未中 ${stats.misses}，最高连击 ${stats.bestCombo}。`
+    trainerOverlayButton.textContent = '再来一局'
+    trainerStartButton.textContent = '再来一局'
+  } else {
+    trainerOverlayTitle.textContent = '点击开始训练'
+    trainerOverlayCopy.textContent = '移动准星，点击白色小球。未打中或超时消失都会中断连击。'
+    trainerOverlayButton.textContent = '开始训练'
+    trainerStartButton.textContent = '开始'
+  }
+})
+
+const startTrainer = () => {
+  trainerEngine.start(
+    Number(trainerDuration.value),
+    trainerDifficulty.value as AimTrainerDifficulty,
+  )
+}
+
+navItems.forEach((item) => {
+  item.addEventListener('click', () => {
+    if (item.dataset.page === 'trainer-page') {
+      trainerEngine.refreshLayout()
+      return
+    }
+    if (trainerEngine.getStatus() === 'running') trainerEngine.pause()
+  })
+})
+
+trainerStartButton.addEventListener('click', () => {
+  const status = trainerEngine.getStatus()
+  if (status === 'running') trainerEngine.pause()
+  else if (status === 'paused') trainerEngine.resume()
+  else startTrainer()
+})
+
+trainerOverlayButton.addEventListener('click', () => {
+  const status = trainerEngine.getStatus()
+  if (status === 'paused') trainerEngine.resume()
+  else startTrainer()
+})
+
+trainerResetButton.addEventListener('click', () => trainerEngine.reset())
+
 window.addEventListener('beforeunload', () => {
   if (sourceUrl) URL.revokeObjectURL(sourceUrl)
   if (compressedUrl) URL.revokeObjectURL(compressedUrl)
+  trainerEngine.destroy()
 })
+
+mountWatermarkPage()
+mountSystemInfoPage()
+mountDiskCleanPage()

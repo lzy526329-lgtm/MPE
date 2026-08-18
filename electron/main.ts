@@ -1,5 +1,8 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, session, shell } from 'electron'
 import path from 'node:path'
+import os from 'node:os'
+import { execSync } from 'node:child_process'
+import fs from 'node:fs'
 import { compressImage, type CompressRequest } from './compress'
 import {
   archiveFilters,
@@ -10,6 +13,15 @@ import {
   type CompressArchiveRequest,
   type ExtractRequest,
 } from './archive'
+import {
+  attachWatermarkMediaHeaders,
+  parseWatermark,
+  saveWatermarkMedia,
+  suggestedFileName,
+  type SaveWatermarkRequest,
+  type WatermarkResult,
+} from './watermark'
+import { scanDisk, cleanCategories } from './diskClean'
 
 process.env.DIST = path.join(__dirname, '../dist')
 process.env.VITE_PUBLIC = app.isPackaged
@@ -88,5 +100,118 @@ ipcMain.handle('archive:compress', (_event, request: CompressArchiveRequest) =>
   compressArchive(request))
 ipcMain.handle('path:open', (_event, targetPath: string) => shell.openPath(targetPath))
 ipcMain.handle('path:reveal', (_event, targetPath: string) => shell.showItemInFolder(targetPath))
+ipcMain.handle('watermark:parse', (_event, url: string) => parseWatermark(url))
+ipcMain.handle('watermark:save', async (_event, result: WatermarkResult) => {
+  const defaultName = suggestedFileName(result)
+  const selection = await dialog.showSaveDialog(win!, {
+    title: '保存无水印文件',
+    defaultPath: defaultName,
+    filters: result.type === 'picture'
+      ? [{ name: '图片', extensions: ['jpg', 'jpeg', 'png', 'webp'] }]
+      : [{ name: '视频', extensions: ['mp4'] }],
+  })
+  if (selection.canceled || !selection.filePath) return null
+  const request: SaveWatermarkRequest = {
+    url: result.video_url,
+    referer: result.referer,
+    suggestedName: defaultName,
+  }
+  return saveWatermarkMedia({ ...request, outputPath: selection.filePath })
+})
 
-app.whenReady().then(createWindow)
+function getSystemInfo() {
+  const platform = process.platform
+  const cpus = os.cpus()
+  const totalMem = os.totalmem()
+  const freeMem = os.freemem()
+
+  // CPU info
+  const cpuModel = cpus[0]?.model?.trim() ?? '未知'
+  const cpuCores = cpus.length
+
+  // Disk info (cross-platform)
+  const diskInfo: { mount: string; total: number; used: number; free: number }[] = []
+  try {
+    if (platform === 'darwin' || platform === 'linux') {
+      const raw = execSync('df -k', { encoding: 'utf8' })
+      for (const line of raw.split('\n').slice(1)) {
+        const parts = line.trim().split(/\s+/)
+        if (parts.length < 6) continue
+        const mount = parts[parts.length - 1]
+        if (!mount.startsWith('/') || mount.startsWith('/System/Volumes/') && mount !== '/System/Volumes/Data') continue
+        if (platform === 'darwin' && mount !== '/' && mount !== '/System/Volumes/Data') continue
+        const total = parseInt(parts[1]) * 1024
+        const used = parseInt(parts[2]) * 1024
+        const free = parseInt(parts[3]) * 1024
+        if (!isNaN(total) && total > 0) diskInfo.push({ mount, total, used, free })
+      }
+    } else if (platform === 'win32') {
+      const raw = execSync('wmic logicaldisk get size,freespace,caption /format:csv', { encoding: 'utf8' })
+      for (const line of raw.split('\n').slice(2)) {
+        const parts = line.trim().split(',')
+        if (parts.length < 4) continue
+        const mount = parts[1]
+        const free = parseInt(parts[2])
+        const total = parseInt(parts[3])
+        if (!isNaN(total) && total > 0) {
+          diskInfo.push({ mount, total, used: total - free, free })
+        }
+      }
+    }
+  } catch { /* ignore disk errors */ }
+
+  // GPU info (best-effort)
+  let gpuModel = '未知'
+  try {
+    if (platform === 'darwin') {
+      const raw = execSync('system_profiler SPDisplaysDataType 2>/dev/null', { encoding: 'utf8' })
+      const match = raw.match(/Chipset Model:\s*(.+)/i)
+      if (match) gpuModel = match[1].trim()
+    } else if (platform === 'win32') {
+      const raw = execSync('wmic path win32_VideoController get name /format:csv', { encoding: 'utf8' })
+      const lines = raw.split('\n').slice(2).filter(Boolean)
+      const parts = lines[0]?.split(',')
+      if (parts && parts[1]) gpuModel = parts[1].trim()
+    } else {
+      const raw = execSync('lspci | grep -i vga', { encoding: 'utf8' })
+      gpuModel = raw.split('\n')[0]?.replace(/.*:\s*/, '').trim() ?? '未知'
+    }
+  } catch { /* ignore gpu errors */ }
+
+  // macOS version
+  let osVersion = `${os.type()} ${os.release()}`
+  try {
+    if (platform === 'darwin') {
+      const raw = execSync('sw_vers', { encoding: 'utf8' })
+      const name = raw.match(/ProductName:\s*(.+)/)?.[1]?.trim() ?? 'macOS'
+      const ver = raw.match(/ProductVersion:\s*(.+)/)?.[1]?.trim() ?? ''
+      osVersion = `${name} ${ver}`
+    } else if (platform === 'win32') {
+      const raw = execSync('ver', { encoding: 'utf8', shell: 'cmd.exe' })
+      osVersion = raw.trim()
+    }
+  } catch { /* ignore */ }
+
+  return {
+    platform,
+    osVersion,
+    hostname: os.hostname(),
+    arch: os.arch(),
+    cpuModel,
+    cpuCores,
+    totalMem,
+    freeMem,
+    uptime: os.uptime(),
+    gpuModel,
+    diskInfo,
+  }
+}
+
+ipcMain.handle('system:info', () => getSystemInfo())
+ipcMain.handle('disk:scan', () => scanDisk())
+ipcMain.handle('disk:clean', (_event, ids: string[]) => cleanCategories(ids))
+
+app.whenReady().then(() => {
+  attachWatermarkMediaHeaders(session.defaultSession)
+  createWindow()
+})

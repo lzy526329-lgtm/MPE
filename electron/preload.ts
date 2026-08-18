@@ -8,6 +8,9 @@ import type {
   ExtractRequest,
   ExtractResult,
 } from './archive'
+import type { SaveWatermarkResult, WatermarkResult } from './watermark'
+import type { SystemInfo } from './systemInfo'
+import type { ScanResult, CleanResult } from './diskClean'
 
 contextBridge.exposeInMainWorld('electronAPI', {
   platform: process.platform,
@@ -29,4 +32,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('archive:compress', request),
   openPath: (targetPath: string): Promise<string> => ipcRenderer.invoke('path:open', targetPath),
   revealPath: (targetPath: string): Promise<void> => ipcRenderer.invoke('path:reveal', targetPath),
+  parseWatermark: (url: string): Promise<WatermarkResult> =>
+    ipcRenderer.invoke('watermark:parse', url),
+  saveWatermark: (result: WatermarkResult): Promise<SaveWatermarkResult | null> =>
+    ipcRenderer.invoke('watermark:save', result),
+  getSystemInfo: (): Promise<SystemInfo> => ipcRenderer.invoke('system:info'),
+  scanDisk: (): Promise<ScanResult> => ipcRenderer.invoke('disk:scan'),
+  cleanDisk: (ids: string[]): Promise<CleanResult> => ipcRenderer.invoke('disk:clean', ids),
 })
