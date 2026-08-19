@@ -1,7 +1,16 @@
 import './style.css'
 import type { CompressRequest } from '../electron/compress'
 import type { ArchiveInfo, CompressionSource } from '../electron/archive'
-import { AimTrainer, type AimTrainerDifficulty } from './aimTrainer'
+import {
+  AimTrainer,
+  AIM_GAMES,
+  DEFAULT_LOOK,
+  cmPer360,
+  type AimTrainerDifficulty,
+  type AimTrainerMode,
+  type AimGameId,
+  type AimLookSettings,
+} from './aimTrainer'
 import { mountWatermarkPage } from './watermarkPage'
 import { mountSystemInfoPage } from './systemInfoPage'
 import { mountDiskCleanPage } from './diskCleanPage'
@@ -543,7 +552,7 @@ app.innerHTML = `
           <div>
             <p class="eyebrow">反应训练</p>
             <h1>瞄准训练</h1>
-            <p class="subtitle">黑底上会随机出现白色小球，移动鼠标瞄准并点击射击，打中得分。</p>
+            <p class="subtitle">准星固定在画面中心，用游戏内灵敏度转动视角。支持点击瞄准和跟枪。</p>
           </div>
         </header>
 
@@ -556,11 +565,11 @@ app.innerHTML = `
                 <strong id="trainer-score">0</strong>
               </div>
               <div>
-                连击
+                <span id="trainer-combo-label">连击</span>
                 <strong id="trainer-combo">0</strong>
               </div>
               <div>
-                命中率
+                <span id="trainer-accuracy-label">命中率</span>
                 <strong id="trainer-accuracy">0%</strong>
               </div>
               <div>
@@ -571,7 +580,7 @@ app.innerHTML = `
             <div class="trainer-overlay" id="trainer-overlay">
               <div>
                 <strong id="trainer-overlay-title">点击开始训练</strong>
-                <p id="trainer-overlay-copy">移动准星，点击白色小球。未打中或超时消失都会中断连击。</p>
+                <p id="trainer-overlay-copy">开始后会锁定鼠标。用游戏灵敏度转动视角，把中心准星对准球体后点击。Esc 暂停。</p>
                 <button id="trainer-overlay-button" type="button">开始训练</button>
               </div>
             </div>
@@ -579,6 +588,10 @@ app.innerHTML = `
 
           <div class="trainer-settings">
             <h2>训练设置</h2>
+            <div class="trainer-mode" role="tablist" aria-label="训练模式">
+              <button class="trainer-mode-button active" data-mode="flick" type="button">点击瞄准</button>
+              <button class="trainer-mode-button" data-mode="track" type="button">跟枪训练</button>
+            </div>
             <label class="field">
               <span>时长</span>
               <select id="trainer-duration">
@@ -590,18 +603,31 @@ app.innerHTML = `
             <label class="field">
               <span>难度</span>
               <select id="trainer-difficulty">
-                <option value="easy">简单 · 大球、较慢</option>
+                <option value="easy">简单 · 大球、较近</option>
                 <option value="normal" selected>普通 · 适中</option>
-                <option value="hard">困难 · 小球、较快</option>
+                <option value="hard">困难 · 小球、较远</option>
               </select>
             </label>
-            <p class="field-hint">命中 +100 分，连击额外加分；点空或小球消失记一次未命中。</p>
+            <label class="field">
+              <span>游戏</span>
+              <select id="trainer-game"></select>
+            </label>
+            <label class="field">
+              <span>游戏内灵敏度</span>
+              <input id="trainer-sens" type="number" min="0.001" max="20" step="0.001" value="1">
+            </label>
+            <label class="field">
+              <span>鼠标 DPI</span>
+              <input id="trainer-dpi" type="number" min="100" max="32000" step="50" value="800">
+            </label>
+            <p class="field-hint" id="trainer-cm360">当前约 0 cm/360</p>
+            <p class="field-hint" id="trainer-hint">命中 +100 分，连击额外加分。远处的球更小；点空或超时消失记一次未命中。</p>
             <div class="trainer-stat-row">
-              <span>命中 / 未中</span>
+              <span id="trainer-hit-miss-label">命中 / 未中</span>
               <strong id="trainer-hit-miss">0 / 0</strong>
             </div>
             <div class="trainer-stat-row">
-              <span>最高连击</span>
+              <span id="trainer-best-combo-label">最高连击</span>
               <strong id="trainer-best-combo">0</strong>
             </div>
             <div class="trainer-actions">
@@ -1125,7 +1151,9 @@ openFolderButton.addEventListener('click', () => {
 const trainerCanvas = document.querySelector<HTMLCanvasElement>('#trainer-canvas')!
 const trainerScore = document.querySelector<HTMLElement>('#trainer-score')!
 const trainerCombo = document.querySelector<HTMLElement>('#trainer-combo')!
+const trainerComboLabel = document.querySelector<HTMLElement>('#trainer-combo-label')!
 const trainerAccuracy = document.querySelector<HTMLElement>('#trainer-accuracy')!
+const trainerAccuracyLabel = document.querySelector<HTMLElement>('#trainer-accuracy-label')!
 const trainerTime = document.querySelector<HTMLElement>('#trainer-time')!
 const trainerTimeLabel = document.querySelector<HTMLElement>('#trainer-time-label')!
 const trainerOverlay = document.querySelector<HTMLElement>('#trainer-overlay')!
@@ -1134,10 +1162,79 @@ const trainerOverlayCopy = document.querySelector<HTMLElement>('#trainer-overlay
 const trainerOverlayButton = document.querySelector<HTMLButtonElement>('#trainer-overlay-button')!
 const trainerDuration = document.querySelector<HTMLSelectElement>('#trainer-duration')!
 const trainerDifficulty = document.querySelector<HTMLSelectElement>('#trainer-difficulty')!
+const trainerHint = document.querySelector<HTMLElement>('#trainer-hint')!
 const trainerHitMiss = document.querySelector<HTMLElement>('#trainer-hit-miss')!
+const trainerHitMissLabel = document.querySelector<HTMLElement>('#trainer-hit-miss-label')!
 const trainerBestCombo = document.querySelector<HTMLElement>('#trainer-best-combo')!
+const trainerBestComboLabel = document.querySelector<HTMLElement>('#trainer-best-combo-label')!
 const trainerStartButton = document.querySelector<HTMLButtonElement>('#trainer-start-button')!
 const trainerResetButton = document.querySelector<HTMLButtonElement>('#trainer-reset-button')!
+const trainerModeButtons = document.querySelectorAll<HTMLButtonElement>('.trainer-mode-button')
+const trainerGame = document.querySelector<HTMLSelectElement>('#trainer-game')!
+const trainerSens = document.querySelector<HTMLInputElement>('#trainer-sens')!
+const trainerDpi = document.querySelector<HTMLInputElement>('#trainer-dpi')!
+const trainerCm360 = document.querySelector<HTMLElement>('#trainer-cm360')!
+
+let trainerMode: AimTrainerMode = 'flick'
+const LOOK_KEY = 'gognju.aim.look'
+
+AIM_GAMES.forEach((game) => {
+  const option = document.createElement('option')
+  option.value = game.id
+  option.textContent = game.label
+  trainerGame.append(option)
+})
+
+const loadLookSettings = (): AimLookSettings => {
+  try {
+    const raw = localStorage.getItem(LOOK_KEY)
+    if (!raw) return { ...DEFAULT_LOOK }
+    const parsed = JSON.parse(raw) as Partial<AimLookSettings>
+    const game = AIM_GAMES.some((item) => item.id === parsed.game)
+      ? (parsed.game as AimGameId)
+      : DEFAULT_LOOK.game
+    return {
+      game,
+      sensitivity: Number(parsed.sensitivity) || DEFAULT_LOOK.sensitivity,
+      dpi: Number(parsed.dpi) || DEFAULT_LOOK.dpi,
+    }
+  } catch {
+    return { ...DEFAULT_LOOK }
+  }
+}
+
+const readLookSettings = (): AimLookSettings => ({
+  game: trainerGame.value as AimGameId,
+  sensitivity: Number(trainerSens.value) || DEFAULT_LOOK.sensitivity,
+  dpi: Number(trainerDpi.value) || DEFAULT_LOOK.dpi,
+})
+
+const applyLookSettings = (settings = readLookSettings()) => {
+  trainerEngine.setLookSettings(settings)
+  trainerCm360.textContent = `当前约 ${cmPer360(settings).toFixed(1)} cm/360 · 开始后锁定鼠标，Esc 暂停`
+  localStorage.setItem(LOOK_KEY, JSON.stringify(settings))
+}
+
+const formatLockTime = (ms: number) => `${(ms / 1000).toFixed(1)}s`
+
+const applyTrainerModeCopy = (mode: AimTrainerMode) => {
+  const track = mode === 'track'
+  trainerComboLabel.textContent = track ? '锁定' : '连击'
+  trainerAccuracyLabel.textContent = track ? '覆盖率' : '命中率'
+  trainerHitMissLabel.textContent = track ? '锁定 / 丢失' : '命中 / 未中'
+  trainerBestComboLabel.textContent = track ? '最长锁定' : '最高连击'
+  trainerHint.textContent = track
+    ? '准星固定在画面中心。转动视角跟上球体，锁住会持续得分。'
+    : '准星固定在画面中心。转动视角瞄准后点击射击；点空或超时消失记一次未命中。'
+  trainerDifficulty.options[0].text = track ? '简单 · 大球、较慢' : '简单 · 大球、较近'
+  trainerDifficulty.options[1].text = track ? '普通 · 适中' : '普通 · 适中'
+  trainerDifficulty.options[2].text = track ? '困难 · 小球、较快' : '困难 · 小球、较远'
+}
+
+const idleTrainerCopy = (mode: AimTrainerMode) =>
+  mode === 'track'
+    ? '开始后会锁定鼠标。用游戏灵敏度转动视角，把中心准星跟上球体。Esc 暂停。'
+    : '开始后会锁定鼠标。用游戏灵敏度转动视角，把中心准星对准球体后点击。Esc 暂停。'
 
 const formatTrainerTime = (remainingMs: number, elapsedMs: number) => {
   if (remainingMs < 0) return `${(elapsedMs / 1000).toFixed(1)}s`
@@ -1145,13 +1242,14 @@ const formatTrainerTime = (remainingMs: number, elapsedMs: number) => {
 }
 
 const trainerEngine = new AimTrainer(trainerCanvas, (stats) => {
+  const track = stats.mode === 'track'
   trainerScore.textContent = String(stats.score)
-  trainerCombo.textContent = String(stats.combo)
+  trainerCombo.textContent = track ? formatLockTime(stats.combo) : String(stats.combo)
   trainerAccuracy.textContent = `${stats.accuracy}%`
   trainerTime.textContent = formatTrainerTime(stats.remainingMs, stats.elapsedMs)
   trainerTimeLabel.textContent = stats.remainingMs < 0 ? '已用时间' : '剩余时间'
   trainerHitMiss.textContent = `${stats.hits} / ${stats.misses}`
-  trainerBestCombo.textContent = String(stats.bestCombo)
+  trainerBestCombo.textContent = track ? formatLockTime(stats.bestCombo) : String(stats.bestCombo)
 
   if (stats.status === 'running') {
     trainerOverlay.hidden = true
@@ -1162,29 +1260,60 @@ const trainerEngine = new AimTrainer(trainerCanvas, (stats) => {
   trainerOverlay.hidden = false
   if (stats.status === 'paused') {
     trainerOverlayTitle.textContent = '已暂停'
-    trainerOverlayCopy.textContent = '回到训练场后可继续当前这一局。'
+    trainerOverlayCopy.textContent = '继续后会重新锁定鼠标。Esc 或切走页面会暂停。'
     trainerOverlayButton.textContent = '继续'
     trainerStartButton.textContent = '继续'
   } else if (stats.status === 'ended') {
     trainerOverlayTitle.textContent = `本轮结束 · ${stats.score} 分`
-    trainerOverlayCopy.textContent =
-      `命中 ${stats.hits}，未中 ${stats.misses}，最高连击 ${stats.bestCombo}。`
+    trainerOverlayCopy.textContent = track
+      ? `锁定 ${stats.hits} 次，丢失 ${stats.misses} 次，覆盖率 ${stats.accuracy}%，最长锁定 ${formatLockTime(stats.bestCombo)}。`
+      : `命中 ${stats.hits}，未中 ${stats.misses}，最高连击 ${stats.bestCombo}。`
     trainerOverlayButton.textContent = '再来一局'
     trainerStartButton.textContent = '再来一局'
   } else {
     trainerOverlayTitle.textContent = '点击开始训练'
-    trainerOverlayCopy.textContent = '移动准星，点击白色小球。未打中或超时消失都会中断连击。'
+    trainerOverlayCopy.textContent = idleTrainerCopy(trainerMode)
     trainerOverlayButton.textContent = '开始训练'
     trainerStartButton.textContent = '开始'
   }
 })
 
 const startTrainer = () => {
+  applyLookSettings()
   trainerEngine.start(
     Number(trainerDuration.value),
     trainerDifficulty.value as AimTrainerDifficulty,
+    trainerMode,
   )
 }
+
+trainerModeButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    const next = button.dataset.mode as AimTrainerMode
+    if (next === trainerMode) return
+    trainerMode = next
+    trainerEngine.setMode(trainerMode)
+    trainerModeButtons.forEach((item) => {
+      item.classList.toggle('active', item === button)
+    })
+    applyTrainerModeCopy(trainerMode)
+    trainerOverlayTitle.textContent = '点击开始训练'
+    trainerOverlayCopy.textContent = idleTrainerCopy(trainerMode)
+    trainerOverlayButton.textContent = '开始训练'
+    trainerStartButton.textContent = '开始'
+  })
+})
+
+applyTrainerModeCopy(trainerMode)
+
+const initialLook = loadLookSettings()
+trainerGame.value = initialLook.game
+trainerSens.value = String(initialLook.sensitivity)
+trainerDpi.value = String(initialLook.dpi)
+applyLookSettings(initialLook)
+trainerGame.addEventListener('change', () => applyLookSettings())
+trainerSens.addEventListener('input', () => applyLookSettings())
+trainerDpi.addEventListener('input', () => applyLookSettings())
 
 navItems.forEach((item) => {
   item.addEventListener('click', () => {

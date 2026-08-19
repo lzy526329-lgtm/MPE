@@ -340,6 +340,22 @@ select:focus {
   box-shadow: 0 0 0 3px rgba(100, 87, 231, 0.1);
 }
 
+.field input[type='number'] {
+  width: 100%;
+  height: 40px;
+  padding: 0 11px;
+  border: 1px solid #dfe3ea;
+  border-radius: 8px;
+  color: var(--ink);
+  outline: none;
+  background: #fff;
+}
+
+.field input[type='number']:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(100, 87, 231, 0.1);
+}
+
 input[type="range"] {
   width: 100%;
   accent-color: var(--accent);
@@ -711,6 +727,76 @@ input[type="range"] {
   height: 100%;
 }
 
+.trainer-crosshair {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  pointer-events: none;
+  border: 1.5px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.trainer-crosshair::before,
+.trainer-crosshair::after {
+  content: '';
+  position: absolute;
+  background: #fff;
+}
+
+.trainer-crosshair::before {
+  top: 50%;
+  left: 3px;
+  right: 3px;
+  height: 1.5px;
+  transform: translateY(-50%);
+  box-shadow:
+    10px 0 0 #07080c,
+    -10px 0 0 #07080c;
+}
+
+.trainer-crosshair::after {
+  left: 50%;
+  top: 3px;
+  bottom: 3px;
+  width: 1.5px;
+  transform: translateX(-50%);
+  box-shadow:
+    0 10px 0 #07080c,
+    0 -10px 0 #07080c;
+}
+
+.trainer-floater-layer,
+.trainer-flash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.trainer-flash {
+  background: #fff;
+  opacity: 0;
+}
+
+.trainer-floater {
+  position: absolute;
+  top: 0;
+  left: 0;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.45);
+  transform: translate(-50%, -50%);
+  will-change: transform, opacity;
+}
+
+.trainer-floater.is-miss {
+  color: #ff8a8a;
+}
+
 .trainer-hud {
   position: absolute;
   inset: 14px 14px auto;
@@ -768,6 +854,7 @@ input[type="range"] {
   height: min(620px, calc(100vh - 240px));
   min-height: 420px;
   padding: 22px;
+  overflow: auto;
   border: 1px solid var(--line);
   border-radius: 16px;
   background: var(--surface);
@@ -775,8 +862,52 @@ input[type="range"] {
 }
 
 .trainer-settings h2 {
-  margin: 0 0 22px;
+  margin: 0 0 16px;
   font-size: 16px;
+}
+
+.trainer-mode {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 18px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f4f6fa;
+}
+
+.trainer-mode-button {
+  height: 34px;
+  border: 0;
+  border-radius: 7px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.trainer-mode-button.active {
+  color: var(--ink);
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(24, 32, 47, 0.08);
+}
+
+.trainer-crosshair.is-fps {
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  transform: translate(-50%, -50%);
+}
+
+.trainer-crosshair.is-locked {
+  border-color: #7dffb8;
+}
+
+.trainer-crosshair.is-locked::before,
+.trainer-crosshair.is-locked::after {
+  background: #7dffb8;
 }
 
 .trainer-actions {
