@@ -25,6 +25,13 @@ export interface CleanResult {
   errors: string[]
 }
 
+interface CleanCategorySeed {
+  id: string
+  label: string
+  description: string
+  rawPaths: string[]
+}
+
 // ─── helpers ────────────────────────────────────────────────
 
 function dirSize(dirPath: string): { size: number; count: number } {
@@ -89,7 +96,7 @@ function deleteRecursive(targetPath: string): { freed: number; deleted: number }
 function scanMac(): CleanCategory[] {
   const home = os.homedir()
 
-  const categories: Array<Omit<CleanCategory, 'size' | 'fileCount' | 'canClean'> & { rawPaths: string[] }> = [
+  const categories: CleanCategorySeed[] = [
     {
       id: 'user-cache',
       label: '用户应用缓存',
@@ -190,7 +197,7 @@ function scanWindows(): CleanCategory[] {
   const temp = process.env.TEMP ?? process.env.TMP ?? `${localAppData}\\Temp`
   const home = os.homedir()
 
-  const categories: Array<Omit<CleanCategory, 'size' | 'fileCount' | 'canClean'> & { rawPaths: string[] }> = [
+  const categories: CleanCategorySeed[] = [
     {
       id: 'temp',
       label: '临时文件 (%TEMP%)',

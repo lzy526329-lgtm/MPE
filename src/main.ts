@@ -5,6 +5,7 @@ import { AimTrainer, type AimTrainerDifficulty } from './aimTrainer'
 import { mountWatermarkPage } from './watermarkPage'
 import { mountSystemInfoPage } from './systemInfoPage'
 import { mountDiskCleanPage } from './diskCleanPage'
+import { mountPdfPage } from './pdfPage'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
@@ -31,6 +32,10 @@ app.innerHTML = `
         <button class="nav-item" data-page="archive-page" type="button">
           <span>▣</span>
           文件解压
+        </button>
+        <button class="nav-item" data-page="pdf-page" type="button">
+          <span>◫</span>
+          PDF 工具箱
         </button>
         <button class="nav-item" data-page="trainer-page" type="button">
           <span>○</span>
@@ -264,6 +269,190 @@ app.innerHTML = `
             <button class="download-button" id="open-folder-button" type="button">打开文件夹</button>
           </div>
           <p class="error-message" id="archive-error" role="alert"></p>
+        </div>
+      </section>
+
+      <section class="tool-page" id="pdf-page" hidden>
+        <header>
+          <div>
+            <p class="eyebrow">文档工具</p>
+            <h1>PDF 工具箱</h1>
+            <p class="subtitle">本地完成 PDF 合并、拆分、转图片、压缩和图片转 PDF，不上传文件。</p>
+          </div>
+        </header>
+
+        <div class="panel pdf-panel">
+          <div class="pdf-tabs">
+            <button class="pdf-tab active" data-tab="merge" type="button">PDF 合并</button>
+            <button class="pdf-tab" data-tab="split" type="button">PDF 拆分</button>
+            <button class="pdf-tab" data-tab="image" type="button">图片转 PDF</button>
+            <button class="pdf-tab" data-tab="export" type="button">PDF 转图片</button>
+            <button class="pdf-tab" data-tab="compress" type="button">PDF 压缩</button>
+            <button class="pdf-tab" data-tab="extract" type="button">提取图片</button>
+            <button class="pdf-tab" data-tab="watermark" type="button">加水印</button>
+          </div>
+
+          <section class="pdf-pane" data-tab="merge">
+            <div class="pdf-tool-layout">
+              <div class="pdf-drop-card">
+                <input id="pdf-merge-input" type="file" accept="application/pdf,.pdf" multiple hidden />
+                <button class="secondary-button" id="pdf-merge-pick" type="button">选择多个 PDF</button>
+                <p class="field-hint">按选择顺序合并；建议先在系统文件选择器里排好顺序。</p>
+                <div class="source-list pdf-file-list" id="pdf-merge-list"></div>
+                <div class="source-summary" id="pdf-merge-summary">请先选择 PDF 文件</div>
+              </div>
+              <div class="archive-settings-card">
+                <h2>合并输出</h2>
+                <p class="field-hint">将多个 PDF 合并为一个新文件，原文件不会被修改。</p>
+                <button class="primary-button" id="pdf-merge-button" type="button">合并为一个 PDF</button>
+                <p class="error-message" id="pdf-merge-error" role="alert"></p>
+                <div class="result" id="pdf-merge-result" hidden></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="pdf-pane" data-tab="split" hidden>
+            <div class="pdf-tool-layout">
+              <div class="pdf-drop-card">
+                <input id="pdf-split-input" type="file" accept="application/pdf,.pdf" hidden />
+                <button class="secondary-button" id="pdf-split-pick" type="button">选择一个 PDF</button>
+                <p class="field-hint">支持输入 1-3,4,7-9 这种格式，逗号分隔多个范围。</p>
+                <div id="pdf-split-info"></div>
+              </div>
+              <div class="archive-settings-card">
+                <h2>拆分设置</h2>
+                <label class="field">
+                  <span>页码范围</span>
+                  <input class="password-input" id="pdf-split-ranges" type="text" placeholder="例如：1-3,4,7-9" />
+                </label>
+                <button class="primary-button" id="pdf-split-button" type="button">按页码拆分</button>
+                <p class="error-message" id="pdf-split-error" role="alert"></p>
+                <div class="result" id="pdf-split-result" hidden></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="pdf-pane" data-tab="image" hidden>
+            <div class="pdf-tool-layout">
+              <div class="pdf-drop-card">
+                <input
+                  id="image-pdf-input"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/avif,.jpg,.jpeg,.png,.webp,.avif"
+                  multiple
+                  hidden
+                />
+                <button class="secondary-button" id="image-pdf-pick" type="button">选择多张图片</button>
+                <p class="field-hint">支持 JPG、PNG、WebP、AVIF；会按选择顺序生成 PDF 页面。</p>
+                <div class="source-list pdf-file-list" id="image-pdf-list"></div>
+                <div class="source-summary" id="image-pdf-summary">请先选择图片</div>
+              </div>
+              <div class="archive-settings-card">
+                <h2>输出 PDF</h2>
+                <p class="field-hint">会保留每张图的原始宽高，每张图对应一页 PDF。</p>
+                <button class="primary-button" id="image-pdf-button" type="button">生成 PDF</button>
+                <p class="error-message" id="image-pdf-error" role="alert"></p>
+                <div class="result" id="image-pdf-result" hidden></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="pdf-pane" data-tab="export" hidden>
+            <div class="pdf-tool-layout">
+              <div class="pdf-drop-card">
+                <input id="pdf-export-input" type="file" accept="application/pdf,.pdf" hidden />
+                <button class="secondary-button" id="pdf-export-pick" type="button">选择一个 PDF</button>
+                <p class="field-hint">适合把文档页面导出成图片，便于发送、标注或做演示素材。</p>
+                <div id="pdf-export-info"></div>
+              </div>
+              <div class="archive-settings-card">
+                <h2>导出设置</h2>
+                <label class="field">
+                  <span>图片格式</span>
+                  <select id="pdf-export-format">
+                    <option value="png">PNG（更清晰）</option>
+                    <option value="jpeg">JPG（体积更小）</option>
+                  </select>
+                </label>
+                <button class="primary-button" id="pdf-export-button" type="button">导出页面为图片</button>
+                <p class="error-message" id="pdf-export-error" role="alert"></p>
+                <div class="result" id="pdf-export-result" hidden></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="pdf-pane" data-tab="compress" hidden>
+            <div class="pdf-tool-layout">
+              <div class="pdf-drop-card">
+                <input id="pdf-compress-input" type="file" accept="application/pdf,.pdf" hidden />
+                <button class="secondary-button" id="pdf-compress-pick" type="button">选择一个 PDF</button>
+                <p class="field-hint">更适合扫描件、图片型 PDF；会重建页面以减小体积，清晰度会随压缩等级变化。</p>
+                <div id="pdf-compress-info"></div>
+              </div>
+              <div class="archive-settings-card">
+                <h2>压缩设置</h2>
+                <label class="field">
+                  <span>压缩等级</span>
+                  <select id="pdf-compress-quality">
+                    <option value="small">更小体积</option>
+                    <option value="balanced" selected>均衡</option>
+                    <option value="clear">更清晰</option>
+                  </select>
+                </label>
+                <p class="field-hint">说明：文字型/矢量型 PDF 不一定变小，扫描件通常效果更明显。</p>
+                <button class="primary-button" id="pdf-compress-button" type="button">压缩 PDF</button>
+                <p class="error-message" id="pdf-compress-error" role="alert"></p>
+                <div class="result" id="pdf-compress-result" hidden></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="pdf-pane" data-tab="extract" hidden>
+            <div class="pdf-tool-layout">
+              <div class="pdf-drop-card">
+                <input id="pdf-extract-input" type="file" accept="application/pdf,.pdf" hidden />
+                <button class="secondary-button" id="pdf-extract-pick" type="button">选择一个 PDF</button>
+                <p class="field-hint">提取 PDF 内嵌的图片资源；如果文档主要是文字/矢量内容，可能提取不到图片。</p>
+                <div id="pdf-extract-info"></div>
+              </div>
+              <div class="archive-settings-card">
+                <h2>提取设置</h2>
+                <p class="field-hint">输出为 PNG 文件，按页码和图片顺序命名。</p>
+                <button class="primary-button" id="pdf-extract-button" type="button">提取图片</button>
+                <p class="error-message" id="pdf-extract-error" role="alert"></p>
+                <div class="result" id="pdf-extract-result" hidden></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="pdf-pane" data-tab="watermark" hidden>
+            <div class="pdf-tool-layout">
+              <div class="pdf-drop-card">
+                <input id="pdf-watermark-input" type="file" accept="application/pdf,.pdf" hidden />
+                <button class="secondary-button" id="pdf-watermark-pick" type="button">选择一个 PDF</button>
+                <p class="field-hint">为每一页添加居中斜向文字水印，适合标注“内部资料”“仅供预览”等。</p>
+                <div id="pdf-watermark-info"></div>
+              </div>
+              <div class="archive-settings-card">
+                <h2>水印设置</h2>
+                <label class="field">
+                  <span>水印文字</span>
+                  <input class="password-input" id="pdf-watermark-text" type="text" placeholder="例如：内部资料 / 仅供预览" />
+                </label>
+                <label class="field">
+                  <span>透明度</span>
+                  <select id="pdf-watermark-opacity">
+                    <option value="0.12">淡</option>
+                    <option value="0.18" selected>中</option>
+                    <option value="0.28">明显</option>
+                  </select>
+                </label>
+                <button class="primary-button" id="pdf-watermark-button" type="button">生成带水印 PDF</button>
+                <p class="error-message" id="pdf-watermark-error" role="alert"></p>
+                <div class="result" id="pdf-watermark-result" hidden></div>
+              </div>
+            </div>
+          </section>
         </div>
       </section>
 
@@ -1031,3 +1220,4 @@ window.addEventListener('beforeunload', () => {
 mountWatermarkPage()
 mountSystemInfoPage()
 mountDiskCleanPage()
+mountPdfPage()

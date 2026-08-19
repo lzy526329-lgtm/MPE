@@ -22,6 +22,24 @@ import {
   type WatermarkResult,
 } from './watermark'
 import { scanDisk, cleanCategories } from './diskClean'
+import {
+  addPdfWatermark,
+  compressPdfFile,
+  extractPdfImages,
+  inspectImageSource,
+  inspectPdf,
+  pdfToImages,
+  imagesToPdf,
+  mergePdfFiles,
+  splitPdfFile,
+  type CompressPdfRequest,
+  type ExtractPdfImagesRequest,
+  type ImagesToPdfRequest,
+  type MergePdfRequest,
+  type PdfToImagesRequest,
+  type SplitPdfRequest,
+  type WatermarkPdfRequest,
+} from './pdf'
 
 process.env.DIST = path.join(__dirname, '../dist')
 process.env.VITE_PUBLIC = app.isPackaged
@@ -100,6 +118,33 @@ ipcMain.handle('archive:compress', (_event, request: CompressArchiveRequest) =>
   compressArchive(request))
 ipcMain.handle('path:open', (_event, targetPath: string) => shell.openPath(targetPath))
 ipcMain.handle('path:reveal', (_event, targetPath: string) => shell.showItemInFolder(targetPath))
+ipcMain.handle('pdf:inspect', (_event, pdfPath: string) => inspectPdf(pdfPath))
+ipcMain.handle('pdf:inspect-image', (_event, imagePath: string) => inspectImageSource(imagePath))
+ipcMain.handle('pdf:merge', (_event, request: MergePdfRequest) => mergePdfFiles(request))
+ipcMain.handle('pdf:split', (_event, request: SplitPdfRequest) => splitPdfFile(request))
+ipcMain.handle('pdf:images-to-pdf', (_event, request: ImagesToPdfRequest) => imagesToPdf(request))
+ipcMain.handle('pdf:to-images', (_event, request: PdfToImagesRequest) => pdfToImages(request))
+ipcMain.handle('pdf:compress', (_event, request: CompressPdfRequest) => compressPdfFile(request))
+ipcMain.handle('pdf:extract-images', (_event, request: ExtractPdfImagesRequest) =>
+  extractPdfImages(request))
+ipcMain.handle('pdf:add-watermark', (_event, request: WatermarkPdfRequest) =>
+  addPdfWatermark(request))
+ipcMain.handle('pdf:choose-save', async (_event, options?: { defaultPath?: string; title?: string }) => {
+  const selection = await dialog.showSaveDialog(win!, {
+    title: options?.title ?? '保存 PDF 文件',
+    defaultPath: options?.defaultPath,
+    filters: [{ name: 'PDF 文件', extensions: ['pdf'] }],
+  })
+  return selection.canceled ? null : selection.filePath
+})
+ipcMain.handle('pdf:choose-folder', async (_event, defaultPath?: string) => {
+  const selection = await dialog.showOpenDialog(win!, {
+    title: '选择导出文件夹',
+    defaultPath,
+    properties: ['openDirectory', 'createDirectory'],
+  })
+  return selection.canceled ? null : selection.filePaths[0]
+})
 ipcMain.handle('watermark:parse', (_event, url: string) => parseWatermark(url))
 ipcMain.handle('watermark:save', async (_event, result: WatermarkResult) => {
   const defaultName = suggestedFileName(result)

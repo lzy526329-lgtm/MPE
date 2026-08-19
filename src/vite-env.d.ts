@@ -12,6 +12,20 @@ import type {
 import type { SaveWatermarkResult, WatermarkResult } from '../electron/watermark'
 import type { SystemInfo } from '../electron/systemInfo'
 import type { ScanResult, CleanResult } from '../electron/diskClean'
+import type {
+  ExtractPdfImagesRequest,
+  ExtractPdfImagesResult,
+  CompressPdfRequest,
+  ImagesToPdfRequest,
+  MergePdfRequest,
+  PdfFileInfo,
+  PdfOperationResult,
+  PdfToImagesRequest,
+  PdfToImagesResult,
+  SplitPdfRequest,
+  SplitPdfResult,
+  WatermarkPdfRequest,
+} from '../electron/pdf'
 
 declare global {
   interface Window {
@@ -28,6 +42,17 @@ declare global {
       compressArchive: (request: CompressArchiveRequest) => Promise<CompressArchiveResult>
       openPath: (targetPath: string) => Promise<string>
       revealPath: (targetPath: string) => Promise<void>
+      inspectPdf: (pdfPath: string) => Promise<PdfFileInfo>
+      inspectPdfImage: (imagePath: string) => Promise<PdfFileInfo>
+      mergePdf: (request: MergePdfRequest) => Promise<PdfOperationResult>
+      splitPdf: (request: SplitPdfRequest) => Promise<SplitPdfResult>
+      imagesToPdf: (request: ImagesToPdfRequest) => Promise<PdfOperationResult>
+      pdfToImages: (request: PdfToImagesRequest) => Promise<PdfToImagesResult>
+      compressPdf: (request: CompressPdfRequest) => Promise<PdfOperationResult>
+      extractPdfImages: (request: ExtractPdfImagesRequest) => Promise<ExtractPdfImagesResult>
+      addPdfWatermark: (request: WatermarkPdfRequest) => Promise<PdfOperationResult>
+      choosePdfSavePath: (options?: { defaultPath?: string; title?: string }) => Promise<string | null>
+      choosePdfOutputFolder: (defaultPath?: string) => Promise<string | null>
       parseWatermark: (url: string) => Promise<WatermarkResult>
       saveWatermark: (result: WatermarkResult) => Promise<SaveWatermarkResult | null>
       getSystemInfo: () => Promise<SystemInfo>
