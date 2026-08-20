@@ -1,4 +1,4 @@
-# Gognju 发布说明
+# MPT 发布说明
 
 ## 本地打包
 
@@ -16,16 +16,50 @@ npm run package:linux
 
 ## GitHub Actions 自动发布
 
-1. 将项目初始化为 Git 仓库并推送到 GitHub。
+1. 把代码推到 GitHub（远程名一般是 `github`）。
 2. 在 `package.json` 中更新 `version`。
-3. 创建并推送同版本标签：
+3. 任选一种触发方式：
+
+**手动跑（推荐试包）**
+
+- 打开 GitHub → Actions → **Build desktop installers** → **Run workflow**
+- 成功后会：
+  - 上传 Artifacts（临时下载）
+  - 创建/更新 GitHub Release（`v版本号`，手动触发时为 pre-release）
+  - 若配置了 `GITEE_TOKEN`，同步到 Gitee Release（国内下载通常更快）
+
+**打 tag 正式发版**
 
 ```bash
 git tag v1.0.0
+git push github v1.0.0
+# 如需同步 tag 到 Gitee：
 git push origin v1.0.0
 ```
 
-工作流会在 macOS、Windows、Linux 上分别构建，并把 DMG、ZIP、EXE、AppImage、DEB 上传到 GitHub Release。也可以在 Actions 页面手动运行，只生成工作流附件而不创建 Release。
+### 下载地址
+
+- GitHub Release：`https://github.com/lzy526329-lgtm/MPE/releases`
+- Gitee Release：`https://gitee.com/li_ziyang/gongju/releases`
+- 若 GitHub 很慢，优先用 Gitee；或用镜像加速 GitHub Release 直链（不要用 Artifact 链接）：
+
+```text
+https://ghfast.top/https://github.com/lzy526329-lgtm/MPE/releases/download/v1.0.0/<文件名>
+```
+
+## 配置 Gitee 同步（推荐）
+
+在 GitHub 仓库 **Settings → Secrets and variables → Actions** 中新增：
+
+| 名称 | 类型 | 说明 |
+| --- | --- | --- |
+| `GITEE_TOKEN` | Secret | Gitee 私人令牌（需要 `projects` 权限） |
+| `GITEE_OWNER` | Variable（可选） | 默认 `li_ziyang` |
+| `GITEE_REPO` | Variable（可选） | 默认 `gongju` |
+
+创建令牌：https://gitee.com/profile/personal_access_tokens
+
+> 注意：Gitee 单附件体积可能有上限（常见约 100MB）。若某个安装包上传失败，仍可从 GitHub Release / 镜像下载，或本机 `npm run package:mac` / `package:win`。
 
 ## 正式签名所需 Secrets
 
