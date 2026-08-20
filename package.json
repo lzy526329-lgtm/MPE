@@ -2,7 +2,10 @@
   "name": "mpt",
   "version": "1.0.0",
   "description": "MY PET · 以桌面宠物为中心的本地工具箱",
-  "author": "MPT",
+  "author": {
+    "name": "MPT",
+    "email": "mpt@users.noreply.github.com"
+  },
   "license": "MIT",
   "main": "dist-electron/main.js",
   "scripts": {

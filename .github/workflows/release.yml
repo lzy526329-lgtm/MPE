@@ -51,11 +51,8 @@ jobs:
       - name: Build installers
         run: npm run ${{ matrix.command }}
         env:
-          CSC_LINK: ${{ matrix.os == 'macos-latest' && secrets.MAC_CERTIFICATE || matrix.os == 'windows-latest' && secrets.WIN_CERTIFICATE || '' }}
-          CSC_KEY_PASSWORD: ${{ matrix.os == 'macos-latest' && secrets.MAC_CERTIFICATE_PASSWORD || matrix.os == 'windows-latest' && secrets.WIN_CERTIFICATE_PASSWORD || '' }}
-          APPLE_ID: ${{ matrix.os == 'macos-latest' && secrets.APPLE_ID || '' }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ matrix.os == 'macos-latest' && secrets.APPLE_APP_PASSWORD || '' }}
-          APPLE_TEAM_ID: ${{ matrix.os == 'macos-latest' && secrets.APPLE_TEAM_ID || '' }}
+          # 无证书时关闭自动签名。不要设置空的 CSC_LINK，否则 mac 会报 “not a file”
+          CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
