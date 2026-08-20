@@ -1,11 +1,13 @@
 import type { PetElement } from './petProfile'
 
-export type ProactiveKind = 'hungry' | 'dirty' | 'weak' | 'lonely'
+export type ProactiveKind = 'hungry' | 'dirty' | 'weak' | 'lonely' | 'sing'
 
-export type ProactiveLatches = Partial<Record<ProactiveKind, boolean>>
+export type ProactiveLatches = Partial<Record<Exclude<ProactiveKind, 'sing'>, boolean>>
 
 /** 全局两次主动搭话最小间隔 */
 export const PROACTIVE_COOLDOWN_MS = 30 * 60 * 1000
+/** 心情好唱歌：约一小时一句 */
+export const PROACTIVE_SING_COOLDOWN_MS = 60 * 60 * 1000
 /** 多久没互动算「寂寞」 */
 export const PROACTIVE_LONELY_MS = 30 * 60 * 1000
 /** 主动搭话检查节流 */
@@ -15,6 +17,8 @@ const THRESHOLD = {
   hungry: 25,
   dirty: 30,
   weak: 40,
+  /** 与「心情很好」文案对齐 */
+  happy: 85,
   /** 恢复后清 latch，避免同一状态反复刷 */
   hungryRecover: 40,
   dirtyRecover: 45,
@@ -42,6 +46,12 @@ const LINES: Record<ProactiveKind, string[]> = {
     '一个人好无聊呀，来找我玩嘛～',
     '好久没理我了，是不是把我忘了？',
   ],
+  sing: [
+    '今生戴花～ 世世漂亮 你簪一朵春天衣食无忧伤～',
+    '雨纷纷～ 旧故里草木深～ 我听闻你始终一个人～',
+    '天青色等烟雨～ 而我在等你～ 炊烟袅袅升起～ 隔江千万里～',
+    '你撑把小纸伞～ 叹姻缘太婉转 ～',
+  ],
 }
 
 /** 性格微调：只换措辞倾向，仍走本地模板 */
@@ -68,6 +78,7 @@ export type ProactiveInput = {
   satiety: number
   hygiene: number
   health: number
+  mood: number
   lastInteractAt: number
   lastProactiveAt?: number
   latches: ProactiveLatches
@@ -79,6 +90,8 @@ export type ProactiveDecision = {
   kind: ProactiveKind
   text: string
   latches: ProactiveLatches
+  /** 唱歌等场景可附带动画名 */
+  animation?: string
 }
 
 function pickLine(kind: ProactiveKind, element?: PetElement) {
@@ -101,15 +114,16 @@ function clearRecoveredLatches(
 
 /**
  * 纯规则决策：不调用 LLM。
- * 优先级：饿 > 脏 > 虚弱 > 寂寞。
+ * 优先级：饿 > 脏 > 虚弱 > 寂寞 > 心情好唱歌。
  */
 export function decideProactiveChat(input: ProactiveInput): ProactiveDecision | null {
   const now = input.now ?? Date.now()
   const latches = clearRecoveredLatches(input.latches, input)
+  const lastProactiveAt = input.lastProactiveAt
 
   if (
-    typeof input.lastProactiveAt === 'number' &&
-    now - input.lastProactiveAt < PROACTIVE_COOLDOWN_MS
+    typeof lastProactiveAt === 'number' &&
+    now - lastProactiveAt < PROACTIVE_COOLDOWN_MS
   ) {
     return null
   }
@@ -121,14 +135,25 @@ export function decideProactiveChat(input: ProactiveInput): ProactiveDecision | 
   if (now - input.lastInteractAt >= PROACTIVE_LONELY_MS && !latches.lonely) {
     candidates.push('lonely')
   }
+  // 唱歌不 latch：靠约 1 小时冷却，心情好时可周期性唱
+  if (
+    input.mood >= THRESHOLD.happy &&
+    (typeof lastProactiveAt !== 'number' || now - lastProactiveAt >= PROACTIVE_SING_COOLDOWN_MS)
+  ) {
+    candidates.push('sing')
+  }
 
   const kind = candidates[0]
   if (!kind) return null
 
+  const nextLatches =
+    kind === 'sing' ? latches : { ...latches, [kind]: true as const }
+
   return {
     kind,
     text: pickLine(kind, input.element),
-    latches: { ...latches, [kind]: true },
+    latches: nextLatches,
+    animation: kind === 'sing' ? 'skill_touch' : undefined,
   }
 }
 

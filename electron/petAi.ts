@@ -1,7 +1,7 @@
 import { app, ipcMain, type BrowserWindow } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
-import { buildPetSystemPrompt } from './petContextBuilder'
+import { buildPetSystemPrompt, buildSituationalLineSystemPrompt, buildSituationalLineUserPrompt } from './petContextBuilder'
 import { getPetStatus, markPetInteracted } from './pet'
 import type { AppPageId } from './appPages'
 import {
@@ -17,6 +17,8 @@ import {
   type PetSkillId,
   type PetSkillPrefill,
 } from './petSkills'
+import type { CareKind } from './petCareLines'
+import type { ProactiveKind } from './petProactiveChat'
 
 /** DeepSeek 最便宜档，适合桌宠短对话 */
 export const PET_AI_MODEL = 'deepseek-v4-flash'
@@ -27,6 +29,8 @@ export type PetAiSettingsView = {
   hasApiKey: boolean
   apiKeyHint: string
   model: typeof PET_AI_MODEL
+  /** 控制板「确认 AI 对话」：主动搭话/照顾反馈走大模型 */
+  proactiveAiEnabled: boolean
 }
 
 export type PetAiReply = {
@@ -45,6 +49,8 @@ export type PetChatHistoryItem = {
 type StoredAiSettings = {
   apiKey: string
   baseUrl: string
+  /** 开启后主动说话/照顾反馈用 LLM 生成文案 */
+  proactiveAiEnabled: boolean
 }
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string }
@@ -101,9 +107,10 @@ function readAiSettings(): StoredAiSettings {
     return {
       apiKey: String(raw.apiKey ?? ''),
       baseUrl: String(raw.baseUrl ?? DEFAULT_BASE_URL),
+      proactiveAiEnabled: Boolean(raw.proactiveAiEnabled),
     }
   } catch {
-    return { apiKey: '', baseUrl: DEFAULT_BASE_URL }
+    return { apiKey: '', baseUrl: DEFAULT_BASE_URL, proactiveAiEnabled: false }
   }
 }
 
@@ -196,6 +203,59 @@ function settingsView(): PetAiSettingsView {
     hasApiKey: settings.apiKey.length > 0,
     apiKeyHint: hint,
     model: PET_AI_MODEL,
+    proactiveAiEnabled: settings.proactiveAiEnabled,
+  }
+}
+
+/** 已配置 Key 且控制板打开「确认 AI 对话」 */
+export function isProactiveAiEnabled() {
+  const settings = readAiSettings()
+  return settings.proactiveAiEnabled && settings.apiKey.trim().length > 0
+}
+
+function sanitizeSituationalLine(raw: string, fallback: string, maxLen = 80) {
+  let text = raw
+    .replace(/^[\s"'「」『』【】]+|[\s"'「」『』【】]+$/g, '')
+    .trim()
+  const lines = text
+    .split(/\n+/)
+    .map((line) => line.replace(/^[\d*・\-\s]+/, '').trim())
+    .filter(Boolean)
+  text = lines.slice(0, 2).join(' ').trim()
+  if (text.length > maxLen) text = `${text.slice(0, maxLen - 1)}…`
+  return text || fallback
+}
+
+/**
+ * 按场景生成一句桌宠台词；失败或未开启时由调用方使用本地模板。
+ */
+export async function generateSituationalLine(
+  kind: ProactiveKind | CareKind,
+  fallback: string,
+): Promise<string> {
+  if (!isProactiveAiEnabled()) return fallback
+
+  const status = getPetStatus()
+  const memorySnippets = getRecentMemorySnippets(status.profile.id)
+  const maxLen = kind === 'sing' ? 100 : 80
+
+  try {
+    const message = await callDeepSeek(
+      [
+        {
+          role: 'system',
+          content: buildSituationalLineSystemPrompt(status, memorySnippets),
+        },
+        {
+          role: 'user',
+          content: buildSituationalLineUserPrompt(kind),
+        },
+      ],
+      false,
+    )
+    return sanitizeSituationalLine(message.content ?? '', fallback, maxLen)
+  } catch {
+    return fallback
   }
 }
 
@@ -421,9 +481,12 @@ export function registerPetAiIpc(
 
   ipcMain.handle('pet:ai-get-settings', () => settingsView())
 
-  ipcMain.handle('pet:ai-save-settings', (_event, input: { apiKey?: string }) => {
+  ipcMain.handle('pet:ai-save-settings', (_event, input: { apiKey?: string; proactiveAiEnabled?: boolean }) => {
     const patch: Partial<StoredAiSettings> = {}
     if (input.apiKey !== undefined) patch.apiKey = String(input.apiKey).trim()
+    if (input.proactiveAiEnabled !== undefined) {
+      patch.proactiveAiEnabled = Boolean(input.proactiveAiEnabled)
+    }
     writeAiSettings(patch)
     return settingsView()
   })

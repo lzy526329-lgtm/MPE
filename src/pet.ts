@@ -319,6 +319,9 @@ function showChatMessage(message: PetChatMessage) {
   chatConfirmButton.hidden = !message.requireConfirm
   chatBubble.hidden = false
   requestAnimationFrame(layoutChatBubble)
+  if (message.animation) {
+    playNamedAnimation(message.animation)
+  }
   if (!message.requireConfirm && message.dismissAfterMs) {
     chatHideTimer = window.setTimeout(() => {
       hideChatMessage()
@@ -354,6 +357,10 @@ function preferredTouch(character: Spine) {
   return pickAnimation(character, ['touch', 'skill_touch', 'hit', 'click'])
 }
 
+function preferredSkillTouch(character: Spine) {
+  return pickAnimation(character, ['skill_touch', 'touch', 'hit', 'click'])
+}
+
 function preferredVictory(character: Spine) {
   return pickAnimation(character, ['victory', 'skill_01', 'touch', 'skill_touch', 'hit', 'click'])
 }
@@ -374,6 +381,29 @@ function playTouch() {
   const touch = preferredTouch(spine) ?? preferredIdle(spine)
   if (!touch) return
   spine.state.setAnimation(0, touch, false)
+}
+
+function playNamedAnimation(name: string) {
+  if (!spine) return
+  const preferred =
+    name === 'skill_touch'
+      ? preferredSkillTouch(spine)
+      : name === 'victory'
+        ? preferredVictory(spine)
+        : name === 'touch'
+          ? preferredTouch(spine)
+          : pickAnimation(spine, [name])
+  const animName = preferred ?? preferredIdle(spine)
+  if (!animName) return
+  walkTarget = null
+  const durationMs = Math.max(
+    900,
+    Math.round((animationDuration(spine, animName) || 1.2) * 1000) + 200,
+  )
+  clickLockUntil = performance.now() + durationMs
+  // 走 click 锁：tick / complete 会回到 idle，避免定在最后一帧
+  anim = 'click'
+  spine.state.setAnimation(0, animName, false)
 }
 
 function playVictory() {
@@ -552,7 +582,12 @@ async function loadCharacter(id: string) {
       complete: (entry) => {
         const name = (entry as { animation?: { name: string } }).animation?.name
         if (!name || !spine) return
-        if (preferredTouch(spine) === name && anim === 'click') setAnim('idle')
+        if (
+          anim === 'click' &&
+          (preferredTouch(spine) === name || preferredSkillTouch(spine) === name)
+        ) {
+          setAnim('idle')
+        }
         if (preferredVictory(spine) === name && anim === 'victory') setAnim('idle')
       },
     })

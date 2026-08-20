@@ -2,7 +2,7 @@ import { BrowserWindow, Menu, app, ipcMain, screen } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 import { APP_HOME_PAGE, PET_TOOL_MENU, type AppPageId } from './appPages'
-import { registerPetAiIpc } from './petAi'
+import { registerPetAiIpc, generateSituationalLine, isProactiveAiEnabled } from './petAi'
 import { getPetCharacter, listPetCharacters } from './petCharacters'
 import {
   createDefaultProfile,
@@ -145,6 +145,8 @@ export type PetChatMessage = {
   text: string
   requireConfirm: boolean
   dismissAfterMs: number | null
+  /** 可选：展示气泡时播放的 Spine 动画名 */
+  animation?: string
 }
 
 let petWin: BrowserWindow | null = null
@@ -156,6 +158,7 @@ let chatQueue: PetChatMessage[] = []
 let activeChatMessage: PetChatMessage | null = null
 let activeChatTimer: ReturnType<typeof setTimeout> | null = null
 let lastProactiveCheckAt = 0
+let proactiveSpeechBusy = false
 
 function settingsFile() {
   return path.join(app.getPath('userData'), 'pet.json')
@@ -740,6 +743,7 @@ function tickProactiveChat() {
   // 有待确认提醒或当前气泡时不插队
   if (activeChatMessage?.requireConfirm) return
   if (activeChatMessage || chatQueue.length > 0) return
+  if (proactiveSpeechBusy) return
 
   const settings = ensurePetData()
   if (!settings.enabled) return
@@ -750,6 +754,7 @@ function tickProactiveChat() {
     satiety: stats.satiety,
     hygiene: stats.hygiene,
     health: stats.health,
+    mood: computeMood(stats, profile),
     lastInteractAt: settings.lastInteractAt ?? now,
     lastProactiveAt: settings.lastProactiveAt,
     latches: settings.proactiveLatches ?? {},
@@ -758,16 +763,36 @@ function tickProactiveChat() {
   })
   if (!decision) return
 
+  // 先落盘冷却/latch，避免 LLM 等待期间重复触发
   writeSettings({
     lastProactiveAt: now,
     proactiveLatches: decision.latches,
   })
-  enqueueChatMessage({
-    reminderId: proactiveReminderId(decision.kind),
-    text: decision.text,
-    requireConfirm: false,
-    dismissAfterMs: 8_000,
-  })
+
+  const deliver = (text: string) => {
+    enqueueChatMessage({
+      reminderId: proactiveReminderId(decision.kind),
+      text,
+      requireConfirm: false,
+      dismissAfterMs: decision.kind === 'sing' ? 12_000 : 8_000,
+      animation: decision.animation,
+    })
+  }
+
+  if (!isProactiveAiEnabled()) {
+    deliver(decision.text)
+    return
+  }
+
+  proactiveSpeechBusy = true
+  void generateSituationalLine(decision.kind, decision.text)
+    .then((text) => {
+      if (!isPetOpen()) return
+      deliver(text)
+    })
+    .finally(() => {
+      proactiveSpeechBusy = false
+    })
 }
 
 function tickVitals() {
@@ -913,12 +938,23 @@ function openMainPage(pageId: AppPageId) {
 
 function emitCareReact(kind: CareKind) {
   if (!petWin || petWin.isDestroyed()) return
-  const payload: PetCareReactPayload = {
-    kind,
-    text: pickCareLine(kind),
-    animation: 'victory',
+  const fallback = pickCareLine(kind)
+  const send = (text: string) => {
+    if (!petWin || petWin.isDestroyed()) return
+    const payload: PetCareReactPayload = {
+      kind,
+      text,
+      animation: 'victory',
+    }
+    petWin.webContents.send('pet:care-react', payload)
   }
-  petWin.webContents.send('pet:care-react', payload)
+
+  if (!isProactiveAiEnabled()) {
+    send(fallback)
+    return
+  }
+
+  void generateSituationalLine(kind, fallback).then(send)
 }
 
 function feedPetAction() {

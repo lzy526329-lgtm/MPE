@@ -108,7 +108,7 @@ declare global {
       onPetChatMessage: (callback: (message: PetChatMessage) => void) => () => void
       onPetChatClear: (callback: () => void) => () => void
       petAiGetSettings: () => Promise<PetAiSettingsView>
-      petAiSaveSettings: (input: { apiKey?: string }) => Promise<PetAiSettingsView>
+      petAiSaveSettings: (input: { apiKey?: string; proactiveAiEnabled?: boolean }) => Promise<PetAiSettingsView>
       petAiClearSettings: () => Promise<PetAiSettingsView>
       petAiGetHistory: () => Promise<PetChatHistoryItem[]>
       petAiClearHistory: () => Promise<PetChatHistoryItem[]>

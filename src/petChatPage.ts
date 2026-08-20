@@ -26,6 +26,7 @@ export function mountPetChatPage() {
   const modelChip = root.querySelector<HTMLElement>('#pet-ai-model-chip')!
   const saveKeyButton = root.querySelector<HTMLButtonElement>('#pet-ai-save-key')!
   const clearKeyButton = root.querySelector<HTMLButtonElement>('#pet-ai-clear-key')!
+  const proactiveAiToggle = root.querySelector<HTMLInputElement>('#pet-ai-proactive-enabled')!
   const statusBar = root.querySelector<HTMLElement>('#pet-chat-status')!
   const messagesEl = root.querySelector<HTMLElement>('#pet-chat-messages')!
   const inputEl = root.querySelector<HTMLTextAreaElement>('#pet-chat-input')!
@@ -38,6 +39,7 @@ export function mountPetChatPage() {
     hasApiKey: false,
     apiKeyHint: '',
     model: 'deepseek-v4-flash',
+    proactiveAiEnabled: false,
   }
   let messages: ChatItem[] = []
   let sending = false
@@ -69,6 +71,8 @@ export function mountPetChatPage() {
     modelChip.classList.toggle('is-ready', settings.hasApiKey)
     settingsToggle.classList.toggle('is-ready', settings.hasApiKey)
     sendButton.disabled = sending || !settings.hasApiKey
+    proactiveAiToggle.checked = settings.proactiveAiEnabled
+    proactiveAiToggle.disabled = !settings.hasApiKey
   }
 
   function renderMessages() {
@@ -161,6 +165,20 @@ export function mountPetChatPage() {
       setSettingsOpen(true)
     } catch (error) {
       setError(error instanceof Error ? error.message : '清除失败')
+    }
+  })
+
+  proactiveAiToggle.addEventListener('change', async () => {
+    setError('')
+    const next = proactiveAiToggle.checked
+    try {
+      settings = await window.electronAPI.petAiSaveSettings({
+        proactiveAiEnabled: next,
+      })
+      updateKeyUi()
+    } catch (error) {
+      proactiveAiToggle.checked = settings.proactiveAiEnabled
+      setError(error instanceof Error ? error.message : '保存失败')
     }
   })
 

@@ -629,6 +629,13 @@ app.innerHTML = `
                 <button class="secondary-button" id="pet-ai-save-key" type="button">保存</button>
                 <button class="text-button" id="pet-ai-clear-key" type="button">清除</button>
               </div>
+              <label class="pet-config-switch pet-chat-ai-toggle">
+                <input id="pet-ai-proactive-enabled" type="checkbox" />
+                <span>
+                  <strong>确认 AI 对话</strong>
+                  <em>开启后，主动搭话与喂食/清洁反馈由大模型生成可爱文案（需已配置 Key；失败时自动用本地台词）。</em>
+                </span>
+              </label>
             </div>
           </section>
 

@@ -159,7 +159,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('pet:chat-clear', listener)
   },
   petAiGetSettings: (): Promise<PetAiSettingsView> => ipcRenderer.invoke('pet:ai-get-settings'),
-  petAiSaveSettings: (input: { apiKey?: string }): Promise<PetAiSettingsView> =>
+  petAiSaveSettings: (input: { apiKey?: string; proactiveAiEnabled?: boolean }): Promise<PetAiSettingsView> =>
     ipcRenderer.invoke('pet:ai-save-settings', input),
   petAiClearSettings: (): Promise<PetAiSettingsView> => ipcRenderer.invoke('pet:ai-clear-settings'),
   petAiGetHistory: (): Promise<PetChatHistoryItem[]> => ipcRenderer.invoke('pet:ai-get-history'),

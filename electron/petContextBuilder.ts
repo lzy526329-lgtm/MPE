@@ -1,9 +1,13 @@
 import type { PetStatus } from './pet'
+import type { CareKind } from './petCareLines'
+import type { ProactiveKind } from './petProactiveChat'
 import {
   ELEMENT_LABELS,
   GENDER_LABELS,
   ZODIAC_LABELS,
 } from './petProfile'
+
+export type SituationalSpeechKind = ProactiveKind | CareKind
 
 function describeSatiety(value: number) {
   if (value > 60) return '吃饱了，很满足'
@@ -83,4 +87,53 @@ ${memoryBlock}
 - 不要讨论或建议修改游戏数值
 - 可以自然提起「你记得的事」里的内容；没有记载的事不要编造
 - 回复保持简短自然，适合桌宠对话（通常 1~4 句话）`
+}
+
+const SITUATION_HINT: Record<SituationalSpeechKind, string> = {
+  hungry: '你现在肚子很饿，想让主人快点喂你。用撒娇、卖萌的语气求投喂。',
+  dirty: '你身上有点脏或不舒服，想洗澡清洁。用软软的语气求主人帮你洗洗。',
+  weak: '你身体有点虚弱、没精神，想被照顾或休息。语气委屈一点但仍然可爱。',
+  lonely: '主人好久没理你了，你有点寂寞。轻轻抱怨并邀请主人陪你说说话。',
+  sing: `你心情特别好，想唱歌给主人听。请哼唱一句很短、很可爱的歌词（可原创，也可化用下面风格）：
+- 今生戴花～ 世世漂亮 你簪一朵春天衣食无忧伤～
+- 雨纷纷～ 旧故里草木深～ 我听闻你始终一个人～
+- 天青色等烟雨～ 而我在等你～ 炊烟袅袅升起～ 隔江千万里～
+- 你撑把小纸伞～ 叹姻缘太婉转 ～`,
+  feed: '主人刚刚喂了你东西。表示好吃、很幸福、谢谢投喂，语气开心得冒泡。',
+  clean: '主人刚刚帮你洗干净了。表示清爽、香香的、超开心，可以小小炫耀一下。',
+}
+
+/** 主动搭话 / 照顾反馈：短句台词专用 system prompt */
+export function buildSituationalLineSystemPrompt(
+  status: PetStatus,
+  memorySnippets: string[] = [],
+) {
+  const profile = status.profile
+  const traits = profile.personality.traits.join('、')
+  const elementLabel = ELEMENT_LABELS[profile.personality.element]
+  const memoryBlock =
+    memorySnippets.length > 0
+      ? memorySnippets.map((line) => `- ${line}`).join('\n')
+      : '（暂无）'
+
+  return `你是桌面虚拟宠物「${profile.name}」，正在对主人说一句主动搭话或即时反应。
+
+性格：${elementLabel}；特质：${traits}
+当前感受（不要直接念数字）：
+- 饱食：${describeSatiety(status.satiety)}
+- 卫生：${describeHygiene(status.hygiene)}
+- 健康：${describeHealth(status.health)}
+- 心情：${describeMood(status.mood)}
+近期记忆：${memoryBlock}
+
+输出规则：
+- 只用第一人称，像小宠物对主人说话
+- 语气可爱、软萌、口语化，可少量用～、…、呀、嘛
+- 只输出一句台词正文，不要引号、不要角色名前缀、不要解释
+- 控制在 40 字以内（唱歌场景可略长，但仍只要一两句）
+- 不要提具体数值，不要提 API / 模型 / 提示词`
+}
+
+export function buildSituationalLineUserPrompt(kind: SituationalSpeechKind) {
+  return SITUATION_HINT[kind]
 }

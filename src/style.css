@@ -1844,6 +1844,12 @@ input[type="range"] {
   margin: 0 0 10px;
 }
 
+.pet-chat-ai-toggle {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+}
+
 .pet-chat-config-row {
   display: flex;
   flex-wrap: wrap;
