@@ -36,12 +36,24 @@ export type PetAiReply = {
   openPage?: AppPageId
 }
 
+/** 对话页展示用消息（含工具提示） */
+export type PetChatHistoryItem = {
+  role: 'user' | 'assistant' | 'skill'
+  text: string
+}
+
 type StoredAiSettings = {
   apiKey: string
   baseUrl: string
 }
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string }
+
+type StoredChatHistory = {
+  llm: ChatMessage[]
+  display: PetChatHistoryItem[]
+  updatedAt: string
+}
 
 type ApiMessage =
   | { role: 'system' | 'user' | 'assistant' | 'tool'; content: string; tool_call_id?: string }
@@ -67,13 +79,20 @@ type DeepSeekMessage = {
 
 const DEFAULT_BASE_URL = 'https://api.deepseek.com'
 const MAX_HISTORY = 20
+const MAX_DISPLAY_HISTORY = 100
 const MAX_TOOL_ROUNDS = 3
 
 let conversationHistory: ChatMessage[] = []
+let displayHistory: PetChatHistoryItem[] = []
 let ipcRegistered = false
+let historyHydrated = false
 
 function aiSettingsFile() {
   return path.join(app.getPath('userData'), 'ai-settings.json')
+}
+
+function chatHistoryFile() {
+  return path.join(app.getPath('userData'), 'chat-history.json')
 }
 
 function readAiSettings(): StoredAiSettings {
@@ -92,6 +111,82 @@ function writeAiSettings(patch: Partial<StoredAiSettings>) {
   const next = { ...readAiSettings(), ...patch }
   fs.mkdirSync(path.dirname(aiSettingsFile()), { recursive: true })
   fs.writeFileSync(aiSettingsFile(), JSON.stringify(next, null, 2))
+}
+
+function persistChatHistory() {
+  const payload: StoredChatHistory = {
+    llm: conversationHistory.slice(-MAX_HISTORY),
+    display: displayHistory.slice(-MAX_DISPLAY_HISTORY),
+    updatedAt: new Date().toISOString(),
+  }
+  fs.mkdirSync(path.dirname(chatHistoryFile()), { recursive: true })
+  fs.writeFileSync(chatHistoryFile(), JSON.stringify(payload, null, 2))
+}
+
+function hydrateChatHistory() {
+  if (historyHydrated) return
+  historyHydrated = true
+  try {
+    const raw = JSON.parse(fs.readFileSync(chatHistoryFile(), 'utf8')) as Partial<StoredChatHistory>
+    const llm = Array.isArray(raw.llm) ? raw.llm : []
+    const display = Array.isArray(raw.display) ? raw.display : []
+    conversationHistory = llm
+      .filter(
+        (item): item is ChatMessage =>
+          Boolean(item) &&
+          (item.role === 'user' || item.role === 'assistant') &&
+          typeof item.content === 'string',
+      )
+      .slice(-MAX_HISTORY)
+    displayHistory = display
+      .filter(
+        (item): item is PetChatHistoryItem =>
+          Boolean(item) &&
+          (item.role === 'user' || item.role === 'assistant' || item.role === 'skill') &&
+          typeof item.text === 'string',
+      )
+      .slice(-MAX_DISPLAY_HISTORY)
+
+    // 旧文件只有 llm 时，用它回填展示列表
+    if (displayHistory.length === 0 && conversationHistory.length > 0) {
+      displayHistory = conversationHistory.map((item) => ({
+        role: item.role,
+        text: item.content,
+      }))
+    }
+  } catch {
+    conversationHistory = []
+    displayHistory = []
+  }
+}
+
+function clearPersistedChatHistory() {
+  conversationHistory = []
+  displayHistory = []
+  historyHydrated = true
+  try {
+    if (fs.existsSync(chatHistoryFile())) fs.unlinkSync(chatHistoryFile())
+  } catch {
+    persistChatHistory()
+  }
+}
+
+function appendDisplayTurn(
+  playerText: string,
+  replyText: string,
+  usedSkills?: Array<{ id: string; label: string }>,
+) {
+  displayHistory.push({ role: 'user', text: playerText })
+  if (usedSkills?.length) {
+    for (const skill of usedSkills) {
+      displayHistory.push({ role: 'skill', text: skill.label })
+    }
+  }
+  displayHistory.push({ role: 'assistant', text: replyText })
+  if (displayHistory.length > MAX_DISPLAY_HISTORY) {
+    displayHistory = displayHistory.slice(-MAX_DISPLAY_HISTORY)
+  }
+  persistChatHistory()
 }
 
 function settingsView(): PetAiSettingsView {
@@ -191,6 +286,7 @@ async function storeTurnMemory(petId: string, userText: string, assistantText: s
 }
 
 async function runChatWithSkills(playerText: string, openMainPage?: OpenMainPageFn) {
+  hydrateChatHistory()
   const status = getPetStatus()
   const memorySnippets = getRecentMemorySnippets(status.profile.id)
   const systemPrompt = buildPetSystemPrompt(status, memorySnippets)
@@ -209,88 +305,100 @@ async function runChatWithSkills(playerText: string, openMainPage?: OpenMainPage
 
   let replyText = ''
 
-  for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
-    const message = await callDeepSeek(messages, true)
-    const toolCalls = message.tool_calls?.filter((item) => item.function?.name) ?? []
+  try {
+    for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
+      const message = await callDeepSeek(messages, true)
+      const toolCalls = message.tool_calls?.filter((item) => item.function?.name) ?? []
 
-    if (toolCalls.length === 0) {
-      replyText = message.content?.trim() ?? ''
-      break
+      if (toolCalls.length === 0) {
+        replyText = message.content?.trim() ?? ''
+        break
+      }
+
+      messages.push({
+        role: 'assistant',
+        content: message.content ?? null,
+        tool_calls: toolCalls.map((item) => ({
+          id: item.id,
+          type: 'function' as const,
+          function: {
+            name: item.function?.name ?? '',
+            arguments: item.function?.arguments ?? '{}',
+          },
+        })),
+      })
+
+      for (const toolCall of toolCalls) {
+        const name = toolCall.function?.name ?? ''
+        let result = await runPetSkill(name, toolCall.function?.arguments ?? '{}')
+        if (result.id === 'open_watermark_tool' && !result.prefill?.input) {
+          result = await runPetSkill(
+            'open_watermark_tool',
+            JSON.stringify({ share_text: playerText }),
+          )
+        }
+        usedSkills.push({
+          id: result.id,
+          label: PET_SKILL_LABELS[result.id as PetSkillId] ?? result.label,
+        })
+        openPage = applySkillOpen(result, openMainPage) ?? openPage
+        messages.push({
+          role: 'tool',
+          tool_call_id: toolCall.id,
+          content: result.content,
+        })
+      }
     }
 
-    messages.push({
-      role: 'assistant',
-      content: message.content ?? null,
-      tool_calls: toolCalls.map((item) => ({
-        id: item.id,
-        type: 'function' as const,
-        function: {
-          name: item.function?.name ?? '',
-          arguments: item.function?.arguments ?? '{}',
-        },
-      })),
-    })
-
-    for (const toolCall of toolCalls) {
-      const name = toolCall.function?.name ?? ''
-      let result = await runPetSkill(name, toolCall.function?.arguments ?? '{}')
-      if (result.id === 'open_watermark_tool' && !result.prefill?.input) {
-        result = await runPetSkill(
-          'open_watermark_tool',
-          JSON.stringify({ share_text: playerText }),
-        )
-      }
+    // 模型没调工具时：识别去水印意图并兜底打开工具页
+    if (
+      !usedSkills.some((item) => item.id === 'open_watermark_tool') &&
+      looksLikeWatermarkRequest(playerText)
+    ) {
+      const result = await runPetSkill(
+        'open_watermark_tool',
+        JSON.stringify({ share_text: playerText }),
+      )
       usedSkills.push({
         id: result.id,
-        label: PET_SKILL_LABELS[result.id as PetSkillId] ?? result.label,
+        label: PET_SKILL_LABELS[result.id] ?? result.label,
       })
       openPage = applySkillOpen(result, openMainPage) ?? openPage
-      messages.push({
-        role: 'tool',
-        tool_call_id: toolCall.id,
-        content: result.content,
-      })
+      replyText = `${status.profile.name}帮你打开去水印工具啦，链接也填好了，点「开始解析」就行~`
     }
-  }
 
-  // 模型没调工具时：识别去水印意图并兜底打开工具页
-  if (
-    !usedSkills.some((item) => item.id === 'open_watermark_tool') &&
-    looksLikeWatermarkRequest(playerText)
-  ) {
-    const result = await runPetSkill(
-      'open_watermark_tool',
-      JSON.stringify({ share_text: playerText }),
-    )
-    usedSkills.push({
-      id: result.id,
-      label: PET_SKILL_LABELS[result.id] ?? result.label,
-    })
-    openPage = applySkillOpen(result, openMainPage) ?? openPage
-    replyText = `${status.profile.name}帮你打开去水印工具啦，链接也填好了，点「开始解析」就行~`
-  }
+    if (!replyText) {
+      const fallback = await callDeepSeek(messages, false)
+      replyText = fallback.content?.trim() ?? ''
+    }
 
-  if (!replyText) {
-    const fallback = await callDeepSeek(messages, false)
-    replyText = fallback.content?.trim() ?? ''
+    if (!replyText) throw new Error('DeepSeek 返回了空回复')
+  } catch (error) {
+    // 请求失败时回滚本轮刚写入的 user，避免脏历史
+    const last = conversationHistory[conversationHistory.length - 1]
+    if (last?.role === 'user' && last.content === playerText) {
+      conversationHistory.pop()
+    }
+    throw error
   }
-
-  if (!replyText) throw new Error('DeepSeek 返回了空回复')
 
   conversationHistory.push({ role: 'assistant', content: replyText })
   if (conversationHistory.length > MAX_HISTORY) {
     conversationHistory = conversationHistory.slice(-MAX_HISTORY)
   }
 
+  const uniqueSkills =
+    usedSkills.length > 0
+      ? Array.from(new Map(usedSkills.map((item) => [item.id, item])).values())
+      : undefined
+
+  appendDisplayTurn(playerText, replyText, uniqueSkills)
   void storeTurnMemory(status.profile.id, playerText, replyText)
 
   return {
     text: replyText,
     emotion: inferEmotionFromStatus(status),
-    usedSkills:
-      usedSkills.length > 0
-        ? Array.from(new Map(usedSkills.map((item) => [item.id, item])).values())
-        : undefined,
+    usedSkills: uniqueSkills,
     openPage,
   } satisfies PetAiReply
 }
@@ -301,6 +409,7 @@ export function registerPetAiIpc(
 ) {
   if (ipcRegistered) return
   ipcRegistered = true
+  hydrateChatHistory()
 
   ipcMain.handle('pet:ai-get-settings', () => settingsView())
 
@@ -316,8 +425,14 @@ export function registerPetAiIpc(
     return settingsView()
   })
 
+  ipcMain.handle('pet:ai-get-history', () => {
+    hydrateChatHistory()
+    return displayHistory
+  })
+
   ipcMain.handle('pet:ai-clear-history', () => {
-    conversationHistory = []
+    clearPersistedChatHistory()
+    return [] as PetChatHistoryItem[]
   })
 
   ipcMain.handle('pet:ai-clear-memory', () => {

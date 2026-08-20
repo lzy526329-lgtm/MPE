@@ -1,10 +1,8 @@
-import type { PetAiReply, PetAiSettingsView } from '../electron/petAi'
+import type { PetAiReply, PetAiSettingsView, PetChatHistoryItem } from '../electron/petAi'
 import type { PetStatus } from '../electron/pet'
+import { onPageChange } from './appNavigation'
 
-type ChatItem = {
-  role: 'user' | 'assistant' | 'skill'
-  text: string
-}
+type ChatItem = PetChatHistoryItem
 
 function escapeHtml(value: string) {
   const element = document.createElement('span')
@@ -109,6 +107,16 @@ export function mountPetChatPage() {
     messagesEl.scrollTop = messagesEl.scrollHeight
   }
 
+  async function loadHistory() {
+    try {
+      messages = await window.electronAPI.petAiGetHistory()
+      renderMessages()
+    } catch {
+      messages = []
+      renderMessages()
+    }
+  }
+
   async function refreshStatus() {
     try {
       const status = await window.electronAPI.getPetStatus()
@@ -159,8 +167,7 @@ export function mountPetChatPage() {
   clearHistoryButton.addEventListener('click', async () => {
     setError('')
     try {
-      await window.electronAPI.petAiClearHistory()
-      messages = []
+      messages = await window.electronAPI.petAiClearHistory()
       renderMessages()
     } catch (error) {
       setError(error instanceof Error ? error.message : '清空失败')
@@ -206,17 +213,13 @@ export function mountPetChatPage() {
     autosizeInput()
 
     try {
-      const reply: PetAiReply = await window.electronAPI.petAiSend(text)
-      if (reply.usedSkills?.length) {
-        for (const skill of reply.usedSkills) {
-          messages.push({ role: 'skill', text: skill.label })
-        }
-      }
-      messages.push({ role: 'assistant', text: reply.text })
+      await window.electronAPI.petAiSend(text)
+      messages = await window.electronAPI.petAiGetHistory()
       renderMessages()
     } catch (error) {
       const message = error instanceof Error ? error.message : '发送失败'
       setError(message)
+      messages.pop()
       messages.push({ role: 'assistant', text: `（发送失败：${message}）` })
       renderMessages()
     } finally {
@@ -236,9 +239,13 @@ export function mountPetChatPage() {
     }
   })
 
+  onPageChange((pageId) => {
+    if (pageId === 'pet-chat-page') void loadHistory()
+  })
+
   void loadSettings()
   void refreshStatus()
-  renderMessages()
+  void loadHistory()
   autosizeInput()
 
   window.electronAPI.onPetStatusChanged?.((status) => {
