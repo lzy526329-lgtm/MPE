@@ -45,6 +45,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Verify toolchain
+        run: npx tsc --version && npx vite --version
+
       - name: Build installers
         run: npm run ${{ matrix.command }}
         env:
