@@ -1,6 +1,7 @@
 import { BrowserWindow, Menu, app, ipcMain, screen } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
+import { APP_HOME_PAGE, PET_TOOL_MENU, type AppPageId } from './appPages'
 import { getPetCharacter, listPetCharacters } from './petCharacters'
 import {
   loadSkinView,
@@ -52,6 +53,7 @@ export type PetBounds = {
 
 let petWin: BrowserWindow | null = null
 let getMainWindow: () => BrowserWindow | null = () => null
+let ensureMainWindow: () => BrowserWindow | null = () => null
 let ipcRegistered = false
 
 function settingsFile() {
@@ -62,7 +64,7 @@ function readSettings(): PetSettings {
   try {
     return JSON.parse(fs.readFileSync(settingsFile(), 'utf8')) as PetSettings
   } catch {
-    return { enabled: false }
+    return { enabled: true }
   }
 }
 
@@ -172,12 +174,66 @@ function persistPosition() {
   }, 250)
 }
 
-export function showMainWindow() {
-  const main = getMainWindow()
-  if (!main) return
+function navigateMainWindow(main: BrowserWindow, pageId: AppPageId) {
+  const send = () => {
+    if (main.isDestroyed()) return
+    main.webContents.send('main:navigate', pageId)
+  }
+  if (main.webContents.isLoadingMainFrame()) {
+    main.webContents.once('did-finish-load', send)
+    return
+  }
+  send()
+}
+
+export function showMainWindow(pageId: AppPageId = APP_HOME_PAGE) {
+  let main = getMainWindow()
+  if (!main || main.isDestroyed()) {
+    main = ensureMainWindow()
+  }
+  if (!main || main.isDestroyed()) return
   if (main.isMinimized()) main.restore()
   main.show()
   main.focus()
+  navigateMainWindow(main, pageId)
+}
+
+function openMainPage(pageId: AppPageId) {
+  showMainWindow(pageId)
+}
+
+function buildPetMenu() {
+  return Menu.buildFromTemplate([
+    { label: '宠物设置', click: () => openMainPage(APP_HOME_PAGE) },
+    { type: 'separator' },
+    {
+      label: '喂食',
+      click: () => {
+        const settings = readSettings()
+        applyVitals({ hunger: clampStat((settings.hunger ?? 20) - 35) })
+      },
+    },
+    {
+      label: '休息',
+      click: () => {
+        const settings = readSettings()
+        applyVitals({ health: clampStat((settings.health ?? 100) + 25) })
+      },
+    },
+    { type: 'separator' },
+    {
+      label: '工具箱',
+      submenu: PET_TOOL_MENU.map((item) => ({
+        label: item.label,
+        click: () => openMainPage(item.id),
+      })),
+    },
+    { type: 'separator' },
+    {
+      label: '关闭宠物',
+      click: () => setPetEnabled(false),
+    },
+  ])
 }
 
 export function closePetWindow(saveEnabled = false) {
@@ -271,11 +327,15 @@ export function setPetEnabled(enabled: boolean) {
 }
 
 export function restorePetIfNeeded() {
-  if (readSettings().enabled) createPetWindow()
+  if (readSettings().enabled !== false) createPetWindow()
 }
 
-export function registerPetIpc(getMain: () => BrowserWindow | null) {
+export function registerPetIpc(
+  getMain: () => BrowserWindow | null,
+  ensureMain: () => BrowserWindow | null = getMain,
+) {
   getMainWindow = getMain
+  ensureMainWindow = ensureMain
   if (ipcRegistered) return
   ipcRegistered = true
   const skin = readSkinConfig(readSettings())
@@ -304,20 +364,12 @@ export function registerPetIpc(getMain: () => BrowserWindow | null) {
     if (!isPetOpen()) return
     petWin!.setIgnoreMouseEvents(Boolean(ignore), { forward: true })
   })
-  ipcMain.handle('pet:show-main', () => {
-    showMainWindow()
+  ipcMain.handle('pet:show-main', (_event, pageId?: AppPageId) => {
+    showMainWindow(pageId ?? APP_HOME_PAGE)
   })
   ipcMain.handle('pet:popup-menu', () => {
     if (!isPetOpen()) return
-    const menu = Menu.buildFromTemplate([
-      { label: '显示主窗口', click: () => showMainWindow() },
-      { type: 'separator' },
-      {
-        label: '关闭桌宠',
-        click: () => setPetEnabled(false),
-      },
-    ])
-    menu.popup({ window: petWin! })
+    buildPetMenu().popup({ window: petWin! })
   })
   ipcMain.handle('pet:get-status', () => getPetStatus())
   ipcMain.handle('pet:set-auto-walk', (_event, autoWalk: boolean) => {

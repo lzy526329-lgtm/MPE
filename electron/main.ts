@@ -51,10 +51,21 @@ let win: BrowserWindow | null
 
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
 
-function createWindow() {
+function createWindow(show = false) {
+  if (win && !win.isDestroyed()) {
+    if (show) {
+      if (win.isMinimized()) win.restore()
+      win.show()
+      win.focus()
+    }
+    return win
+  }
+
   win = new BrowserWindow({
-    width: 1100,
+    width: 960,
     height: 720,
+    show,
+    title: 'MPT',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -71,6 +82,11 @@ function createWindow() {
   } else {
     win.loadFile(path.join(process.env.DIST!, 'index.html'))
   }
+  return win
+}
+
+function ensureMainWindow() {
+  return createWindow(true)
 }
 
 app.on('window-all-closed', () => {
@@ -81,8 +97,7 @@ app.on('window-all-closed', () => {
 })
 
 app.on('activate', () => {
-  if (!win) createWindow()
-  else win.show()
+  ensureMainWindow()
 })
 
 ipcMain.handle('image:compress', (_event, request: CompressRequest) => compressImage(request))
@@ -262,7 +277,7 @@ ipcMain.handle('disk:clean', (_event, ids: string[]) => cleanCategories(ids))
 
 app.whenReady().then(() => {
   attachWatermarkMediaHeaders(session.defaultSession)
-  registerPetIpc(() => win)
-  createWindow()
+  registerPetIpc(() => win, ensureMainWindow)
+  createWindow(false)
   restorePetIfNeeded()
 })

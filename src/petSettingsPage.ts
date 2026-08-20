@@ -21,6 +21,7 @@ function moodText(status: PetStatus) {
 }
 
 function renderStatus(root: HTMLElement, status: PetStatus) {
+  const visible = root.querySelector<HTMLInputElement>('#pet-visible')
   const walk = root.querySelector<HTMLInputElement>('#pet-auto-walk')
   const size = root.querySelector<HTMLInputElement>('#pet-size')
   const sizeValue = root.querySelector<HTMLElement>('#pet-size-value')
@@ -29,10 +30,11 @@ function renderStatus(root: HTMLElement, status: PetStatus) {
   const healthFill = root.querySelector<HTMLElement>('#pet-health-fill')
   const hungerFill = root.querySelector<HTMLElement>('#pet-hunger-fill')
   const mood = root.querySelector<HTMLElement>('#pet-mood')
-  if (!walk || !size || !sizeValue || !healthValue || !hungerValue || !healthFill || !hungerFill || !mood) {
+  if (!visible || !walk || !size || !sizeValue || !healthValue || !hungerValue || !healthFill || !hungerFill || !mood) {
     return
   }
 
+  visible.checked = status.enabled
   walk.checked = status.autoWalk
   if (document.activeElement !== size) size.value = String(status.size)
   sizeValue.textContent = `${status.size} px`
@@ -80,7 +82,14 @@ export function mountPetSettingsPage() {
       </article>
       <article class="pet-config-card">
         <h2>外观与行为</h2>
-        <p>窗口越小越不挡视线。关掉自动行走后会停在原地，仍可拖动和点击。</p>
+        <p>窗口越小越不挡视线。关闭显示后宠物会从桌面消失，可随时重新开启。</p>
+        <label class="pet-config-switch">
+          <input id="pet-visible" type="checkbox" />
+          <span>
+            <strong>显示宠物</strong>
+            <em>关闭后宠物窗口会隐藏，设置仍会自动保存。</em>
+          </span>
+        </label>
         <label class="pet-size-field">
           <span class="pet-stat-label">
             <span>显示大小</span>
@@ -151,6 +160,17 @@ export function mountPetSettingsPage() {
     void loadCharacters('')
   }
   window.electronAPI?.onPetStatusChanged?.(apply)
+  window.electronAPI?.onPetEnabledChanged?.((enabled) => {
+    const visible = root.querySelector<HTMLInputElement>('#pet-visible')
+    if (visible) visible.checked = enabled
+  })
+
+  root.querySelector<HTMLInputElement>('#pet-visible')?.addEventListener('change', async (event) => {
+    const input = event.currentTarget as HTMLInputElement
+    if (!window.electronAPI?.setPetEnabled) return
+    await window.electronAPI.setPetEnabled(input.checked)
+    if (window.electronAPI.getPetStatus) apply(await window.electronAPI.getPetStatus())
+  })
 
   const sizeInput = root.querySelector<HTMLInputElement>('#pet-size')
   const sizeValue = root.querySelector<HTMLElement>('#pet-size-value')

@@ -1,8 +1,8 @@
 {
-  "name": "gognju",
+  "name": "mpt",
   "version": "1.0.0",
-  "description": "本地图片与压缩文件工具箱",
-  "author": "Gognju",
+  "description": "MY PET · 以桌面宠物为中心的本地工具箱",
+  "author": "MPT",
   "license": "MIT",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -16,9 +16,9 @@
     "preview": "node scripts/run.mjs vite preview"
   },
   "build": {
-    "appId": "com.gognju.app",
-    "productName": "Gognju",
-    "copyright": "Copyright © 2026 Gognju",
+    "appId": "com.mpt.app",
+    "productName": "MPT",
+    "copyright": "Copyright © 2026 MPT",
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "directories": {
       "output": "release/${version}",
@@ -79,7 +79,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
-      "shortcutName": "Gognju"
+      "shortcutName": "MPT"
     },
     "linux": {
       "icon": "build/icon.png",

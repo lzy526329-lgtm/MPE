@@ -96,7 +96,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('pet:set-position', x, y),
   petIgnoreMouse: (ignore: boolean): Promise<void> =>
     ipcRenderer.invoke('pet:ignore-mouse', ignore),
-  petShowMain: (): Promise<void> => ipcRenderer.invoke('pet:show-main'),
+  petShowMain: (pageId?: string): Promise<void> => ipcRenderer.invoke('pet:show-main', pageId),
+  onMainNavigate: (callback: (pageId: string) => void) => {
+    const listener = (_event: unknown, pageId: string) => callback(pageId)
+    ipcRenderer.on('main:navigate', listener)
+    return () => ipcRenderer.removeListener('main:navigate', listener)
+  },
   petPopupMenu: (): Promise<void> => ipcRenderer.invoke('pet:popup-menu'),
   getPetStatus: (): Promise<PetStatus> => ipcRenderer.invoke('pet:get-status'),
   setPetAutoWalk: (autoWalk: boolean): Promise<PetStatus> =>

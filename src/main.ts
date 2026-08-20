@@ -16,6 +16,7 @@ import { mountSystemInfoPage } from './systemInfoPage'
 import { mountDiskCleanPage } from './diskCleanPage'
 import { mountPdfPage } from './pdfPage'
 import { mountPetSettingsPage } from './petSettingsPage'
+import { setupAppNavigation, onPageChange } from './appNavigation'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
@@ -23,56 +24,25 @@ app.innerHTML = `
   <div class="app-shell">
     <aside class="sidebar">
       <div class="logo">
-        <span class="logo-mark">G</span>
-        <span>gognju</span>
+        <span class="logo-mark">M</span>
+        <div class="logo-text">
+          <strong>MPT</strong>
+          <span>MY PET</span>
+        </div>
       </div>
-      <nav>
-        <button class="nav-item active" data-page="image-page" type="button">
-          <span>▧</span>
-          图片压缩
-        </button>
-        <button class="nav-item" data-page="watermark-page" type="button">
-          <span>▷</span>
-          视频去水印
-        </button>
-        <button class="nav-item" data-page="compression-page" type="button">
-          <span>◇</span>
-          文件压缩
-        </button>
-        <button class="nav-item" data-page="archive-page" type="button">
-          <span>▣</span>
-          文件解压
-        </button>
-        <button class="nav-item" data-page="pdf-page" type="button">
-          <span>◫</span>
-          PDF 工具箱
-        </button>
-        <button class="nav-item" data-page="trainer-page" type="button">
-          <span>○</span>
-          瞄准训练
-        </button>
-        <button class="nav-item" data-page="sysinfo-page" type="button">
-          <span>▦</span>
-          电脑信息
-        </button>
-        <button class="nav-item" data-page="disk-clean-page" type="button">
-          <span>◈</span>
-          磁盘瘦身
-        </button>
-        <button class="nav-item" data-page="pet-settings-page" type="button">
-          <span>☺</span>
-          桌宠设置
-        </button>
-      </nav>
-      <label class="pet-switch">
-        <input id="desktop-pet-toggle" type="checkbox" />
-        <span>桌面宠物</span>
-      </label>
-      <p class="local-tip">文件处理均在本地完成</p>
+      <div class="pet-sidebar-card">
+        <p class="pet-sidebar-title">以宠物为中心</p>
+        <p class="pet-sidebar-copy">在桌面右键宠物，可以打开设置、照顾宠物，或使用本地工具箱。</p>
+      </div>
+      <p class="local-tip">所有工具均在本地完成，不上传文件。</p>
     </aside>
 
     <main class="workspace">
-      <section class="tool-page" id="image-page">
+      <div class="workspace-toolbar" id="workspace-toolbar" hidden>
+        <button class="secondary-button workspace-back" id="workspace-back" type="button">← 返回宠物设置</button>
+        <span class="workspace-title" id="workspace-title"></span>
+      </div>
+      <section class="tool-page" id="image-page" hidden>
         <header>
           <div>
             <p class="eyebrow">图像工具</p>
@@ -692,12 +662,12 @@ app.innerHTML = `
           <div id="sysinfo-container"></div>
         </div>
       </section>
-      <section class="tool-page" id="pet-settings-page" hidden>
+      <section class="tool-page" id="pet-settings-page">
         <header>
           <div>
-            <p class="eyebrow">桌面宠物</p>
-            <h1>桌宠设置</h1>
-            <p class="subtitle">配置大小、自动行走，并查看健康、饥饿等基础状态。饥饿会随时间增加，过饿会掉健康。</p>
+            <p class="eyebrow">MY PET</p>
+            <h1>宠物设置</h1>
+            <p class="subtitle">配置形象、大小与行为，查看健康与饥饿。更多功能请右键桌面上的宠物。</p>
           </div>
         </header>
         <div class="panel" id="pet-settings-root"></div>
@@ -842,30 +812,6 @@ downloadButton.addEventListener('click', () => {
   link.href = compressedUrl
   link.download = `${baseName}-compressed.${compressedExtension}`
   link.click()
-})
-
-const desktopPetToggle = document.querySelector<HTMLInputElement>('#desktop-pet-toggle')!
-if (window.electronAPI?.getPetEnabled) {
-  window.electronAPI.getPetEnabled().then((enabled) => {
-    desktopPetToggle.checked = enabled
-  })
-  desktopPetToggle.addEventListener('change', () => {
-    void window.electronAPI.setPetEnabled(desktopPetToggle.checked)
-  })
-  window.electronAPI.onPetEnabledChanged((enabled) => {
-    desktopPetToggle.checked = enabled
-  })
-}
-
-const navItems = document.querySelectorAll<HTMLButtonElement>('.nav-item')
-const toolPages = document.querySelectorAll<HTMLElement>('.tool-page')
-navItems.forEach((item) => {
-  item.addEventListener('click', () => {
-    navItems.forEach((navItem) => navItem.classList.toggle('active', navItem === item))
-    toolPages.forEach((page) => {
-      page.hidden = page.id !== item.dataset.page
-    })
-  })
 })
 
 const compressionDropZone = document.querySelector<HTMLElement>('#compression-drop-zone')!
@@ -1208,7 +1154,7 @@ const trainerDpi = document.querySelector<HTMLInputElement>('#trainer-dpi')!
 const trainerCm360 = document.querySelector<HTMLElement>('#trainer-cm360')!
 
 let trainerMode: AimTrainerMode = 'flick'
-const LOOK_KEY = 'gognju.aim.look'
+const LOOK_KEY = 'mpt.aim.look'
 
 AIM_GAMES.forEach((game) => {
   const option = document.createElement('option')
@@ -1347,14 +1293,12 @@ trainerGame.addEventListener('change', () => applyLookSettings())
 trainerSens.addEventListener('input', () => applyLookSettings())
 trainerDpi.addEventListener('input', () => applyLookSettings())
 
-navItems.forEach((item) => {
-  item.addEventListener('click', () => {
-    if (item.dataset.page === 'trainer-page') {
-      trainerEngine.refreshLayout()
-      return
-    }
-    if (trainerEngine.getStatus() === 'running') trainerEngine.pause()
-  })
+onPageChange((pageId) => {
+  if (pageId === 'trainer-page') {
+    trainerEngine.refreshLayout()
+  } else if (trainerEngine.getStatus() === 'running') {
+    trainerEngine.pause()
+  }
 })
 
 trainerStartButton.addEventListener('click', () => {
@@ -1383,3 +1327,4 @@ mountSystemInfoPage()
 mountDiskCleanPage()
 mountPdfPage()
 mountPetSettingsPage()
+setupAppNavigation()

@@ -123,10 +123,63 @@ button {
   font-size: 12px;
 }
 
+.logo-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.1;
+}
+
+.logo-text strong {
+  font-size: 18px;
+}
+
+.logo-text span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.pet-sidebar-card {
+  margin: 0 8px 16px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fbfcfe;
+}
+
+.pet-sidebar-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.pet-sidebar-copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.workspace-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 980px;
+  margin: 0 auto 18px;
+}
+
+.workspace-title {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .workspace {
   width: 100%;
   margin-left: 220px;
-  padding: 52px clamp(36px, 6vw, 88px);
+  padding: 36px clamp(36px, 6vw, 88px) 52px;
 }
 
 header {
