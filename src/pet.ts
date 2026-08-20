@@ -5,7 +5,7 @@ import { Spine } from 'pixi-spine'
 import type { PetBounds, PetChatMessage } from '../electron/pet'
 import './pet.css'
 
-type AnimName = 'idle' | 'walk' | 'drag' | 'click'
+type AnimName = 'idle' | 'walk' | 'drag' | 'click' | 'victory'
 type WalkDir = 'walkLeft' | 'walkRight'
 
 const DEFAULT_VIEW_SIZE = 160
@@ -58,6 +58,9 @@ let contentSize = DEFAULT_VIEW_SIZE
 let viewSize = DEFAULT_VIEW_SIZE
 let hitCenterX = DEFAULT_VIEW_SIZE / 2
 let hitCenterY = DEFAULT_VIEW_SIZE * 0.58
+/** idle 头顶中心，气泡锚在这上方 */
+let bubbleAnchorX = DEFAULT_VIEW_SIZE / 2
+let bubbleAnchorY = DEFAULT_VIEW_SIZE * 0.22
 let loadedCharacterId = ''
 let loadedSkeletonUrl = ''
 let characterLoadSeq = 0
@@ -75,6 +78,7 @@ function setCanvasSize(size: number) {
   canvas.style.width = `${next}px`
   canvas.style.height = `${next}px`
   app.renderer.resize(next, next)
+  layoutChatBubble()
 }
 
 function syncPetViewport(size: number) {
@@ -119,12 +123,26 @@ function hideChatMessage() {
   chatBubble.hidden = true
 }
 
+function layoutChatBubble() {
+  if (chatBubble.hidden) return
+  const bw = chatBubble.offsetWidth || 116
+  const bh = chatBubble.offsetHeight || 40
+  const gap = Math.max(4, Math.round(contentSize * 0.04))
+  let left = bubbleAnchorX - bw / 2
+  let top = bubbleAnchorY - bh - gap
+  left = Math.max(4, Math.min(viewSize - bw - 4, left))
+  top = Math.max(4, Math.min(viewSize - bh - 4, top))
+  chatBubble.style.left = `${Math.round(left)}px`
+  chatBubble.style.top = `${Math.round(top)}px`
+}
+
 function showAiBubble(text: string) {
   window.clearTimeout(chatHideTimer)
   activeChatReminderId = null
   chatText.textContent = text
   chatConfirmButton.hidden = true
   chatBubble.hidden = false
+  requestAnimationFrame(layoutChatBubble)
   chatHideTimer = window.setTimeout(() => {
     hideChatMessage()
   }, 8000)
@@ -136,6 +154,7 @@ function showChatMessage(message: PetChatMessage) {
   chatText.textContent = message.text
   chatConfirmButton.hidden = !message.requireConfirm
   chatBubble.hidden = false
+  requestAnimationFrame(layoutChatBubble)
   if (!message.requireConfirm && message.dismissAfterMs) {
     chatHideTimer = window.setTimeout(() => {
       hideChatMessage()
@@ -171,6 +190,10 @@ function preferredTouch(character: Spine) {
   return pickAnimation(character, ['touch', 'skill_touch', 'hit', 'click'])
 }
 
+function preferredVictory(character: Spine) {
+  return pickAnimation(character, ['victory', 'skill_01', 'touch', 'skill_touch', 'hit', 'click'])
+}
+
 function preferredWalk(character: Spine) {
   return pickAnimation(character, ['walk', 'run'])
 }
@@ -189,6 +212,13 @@ function playTouch() {
   spine.state.setAnimation(0, touch, false)
 }
 
+function playVictory() {
+  if (!spine) return
+  const victory = preferredVictory(spine) ?? preferredIdle(spine)
+  if (!victory) return
+  spine.state.setAnimation(0, victory, false)
+}
+
 function playWalk() {
   if (!spine) return
   const walk = preferredWalk(spine) ?? preferredIdle(spine)
@@ -203,11 +233,26 @@ function setAnim(next: AnimName) {
     playTouch()
     return
   }
+  if (next === 'victory') {
+    playVictory()
+    return
+  }
   if (next === 'walk') {
     playWalk()
     return
   }
   playIdle()
+}
+
+function handleCareReact(payload: { text: string; animation?: string }) {
+  showAiBubble(payload.text)
+  walkTarget = null
+  const durationMs = spine
+    ? Math.max(900, Math.round((animationDuration(spine, preferredVictory(spine) ?? '') || 1.2) * 1000) + 200)
+    : 1200
+  clickLockUntil = performance.now() + durationMs
+  anim = 'idle'
+  setAnim('victory')
 }
 
 function animationDuration(character: Spine, name: string) {
@@ -292,6 +337,10 @@ function fitSpineToView(character: Spine) {
   character.scale.set(baseScale)
   hitCenterX = posX
   hitCenterY = posY - contentSize * 0.42
+  // pivot 在 idle 脚底中心 → 头顶 = posY - idle 高度
+  bubbleAnchorX = posX
+  bubbleAnchorY = posY - idleBox.height * baseScale
+  layoutChatBubble()
   character.autoUpdate = true
 }
 
@@ -338,7 +387,9 @@ async function loadCharacter(id: string) {
     character.state.addListener({
       complete: (entry) => {
         const name = (entry as { animation?: { name: string } }).animation?.name
-        if (name && preferredTouch(character) === name && anim === 'click') setAnim('idle')
+        if (!name || !spine) return
+        if (preferredTouch(spine) === name && anim === 'click') setAnim('idle')
+        if (preferredVictory(spine) === name && anim === 'victory') setAnim('idle')
       },
     })
     clearSpine()
@@ -384,7 +435,7 @@ async function wander(now: number) {
     if (anim === 'walk') setAnim('idle')
     return
   }
-  if (wanderBusy || dragging || anim === 'click' || now < clickLockUntil) return
+  if (wanderBusy || dragging || anim === 'click' || anim === 'victory' || now < clickLockUntil) return
   if (!walkTarget && now < nextWanderAt) {
     if (anim !== 'idle') setAnim('idle')
     return
@@ -435,7 +486,7 @@ async function wander(now: number) {
 }
 
 function tick(now: number) {
-  if (anim === 'click' && now >= clickLockUntil) setAnim('idle')
+  if ((anim === 'click' || anim === 'victory') && now >= clickLockUntil) setAnim('idle')
   if (!dragging) void wander(now)
   requestAnimationFrame(tick)
 }
@@ -519,5 +570,6 @@ if (onPetStatusChanged) onPetStatusChanged(applyPetStatus)
 window.electronAPI?.onPetChatMessage?.(showChatMessage)
 window.electronAPI?.onPetChatClear?.(hideChatMessage)
 window.electronAPI?.onPetAiBubble?.((payload) => showAiBubble(payload.text))
+window.electronAPI?.onPetCareReact?.(handleCareReact)
 
 void boot()

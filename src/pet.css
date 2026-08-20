@@ -21,8 +21,8 @@ canvas:active {
 
 .pet-chat {
   position: absolute;
-  top: 4px;
-  left: 4px;
+  top: 0;
+  left: 0;
   width: 116px;
   max-width: 116px;
   padding: 8px 8px 7px;
@@ -39,14 +39,14 @@ canvas:active {
 .pet-chat::after {
   content: '';
   position: absolute;
-  right: 14px;
-  bottom: -7px;
+  left: 50%;
+  bottom: -6px;
   width: 12px;
   height: 12px;
   background: #fbfaff;
   border-right: 1px solid rgba(100, 87, 231, 0.28);
   border-bottom: 1px solid rgba(100, 87, 231, 0.28);
-  transform: rotate(45deg);
+  transform: translateX(-50%) rotate(45deg);
   border-bottom-right-radius: 4px;
 }
 

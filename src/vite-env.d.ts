@@ -115,6 +115,13 @@ declare global {
       petAiClearMemory: () => Promise<{ cleared: number }>
       petAiSend: (text: string) => Promise<PetAiReply>
       onPetAiBubble: (callback: (payload: { text: string }) => void) => () => void
+      onPetCareReact: (
+        callback: (payload: {
+          kind: 'feed' | 'clean'
+          text: string
+          animation: 'victory'
+        }) => void,
+      ) => () => void
       getPetSkin: () => Promise<PetSkinView>
       savePetClip: (request: SavePetClipRequest) => Promise<PetClipView>
       updatePetClip: (request: UpdatePetClipRequest) => Promise<PetSkinView>

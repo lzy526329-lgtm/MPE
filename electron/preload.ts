@@ -171,6 +171,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('pet:ai-bubble', listener)
     return () => ipcRenderer.removeListener('pet:ai-bubble', listener)
   },
+  onPetCareReact: (
+    callback: (payload: { kind: 'feed' | 'clean'; text: string; animation: 'victory' }) => void,
+  ) => {
+    const listener = (
+      _event: unknown,
+      payload: { kind: 'feed' | 'clean'; text: string; animation: 'victory' },
+    ) => callback(payload)
+    ipcRenderer.on('pet:care-react', listener)
+    return () => ipcRenderer.removeListener('pet:care-react', listener)
+  },
   getPetSkin: (): Promise<PetSkinView> => ipcRenderer.invoke('pet:get-skin'),
   savePetClip: (request: SavePetClipRequest): Promise<PetClipView> =>
     ipcRenderer.invoke('pet:save-clip', {

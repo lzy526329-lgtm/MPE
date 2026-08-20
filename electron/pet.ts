@@ -26,6 +26,7 @@ import {
   type UpdatePetClipRequest,
 } from './petSkin'
 import { rememberCareEvent, rememberRename } from './petMemory'
+import { pickCareLine, type CareKind } from './petCareLines'
 import {
   decideProactiveChat,
   isProactiveReminderId,
@@ -33,6 +34,12 @@ import {
   proactiveReminderId,
   type ProactiveLatches,
 } from './petProactiveChat'
+
+export type PetCareReactPayload = {
+  kind: CareKind
+  text: string
+  animation: 'victory'
+}
 
 export const PET_SIZE_MIN = 96
 export const PET_SIZE_MAX = 280
@@ -904,11 +911,22 @@ function openMainPage(pageId: AppPageId) {
   showMainWindow(pageId)
 }
 
+function emitCareReact(kind: CareKind) {
+  if (!petWin || petWin.isDestroyed()) return
+  const payload: PetCareReactPayload = {
+    kind,
+    text: pickCareLine(kind),
+    animation: 'victory',
+  }
+  petWin.webContents.send('pet:care-react', payload)
+}
+
 function feedPetAction() {
   const stats = getPetStats()
   const status = applyVitals({ satiety: clampStat(stats.satiety + 35) })
   rememberCareEvent(status.profile.id, 'feed')
   markPetInteracted({ hungry: false })
+  emitCareReact('feed')
   return status
 }
 
@@ -917,6 +935,7 @@ function cleanPetAction() {
   const status = applyVitals({ hygiene: clampStat(stats.hygiene + 35) })
   rememberCareEvent(status.profile.id, 'clean')
   markPetInteracted({ dirty: false })
+  emitCareReact('clean')
   return status
 }
 
