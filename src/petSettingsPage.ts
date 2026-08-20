@@ -5,6 +5,7 @@ import {
   formatPersonalitySummary,
   GENDER_LABELS,
 } from '../electron/petProfile'
+import { listSpineAnimations, mountSpinePreview, type SpinePreviewHandle } from './spinePreview'
 
 const PET_SIZE_MIN = 96
 const PET_SIZE_MAX = 280
@@ -143,26 +144,165 @@ function renderStatus(root: HTMLElement, status: PetStatus) {
   mood.textContent = moodText(status)
 }
 
-function renderCharacters(root: HTMLElement, characters: PetCharacter[], selectedId: string) {
+const CARD_PREVIEW_SIZE = 132
+const DETAIL_PREVIEW_SIZE = 148
+
+type CharacterViewState = {
+  characters: PetCharacter[]
+  selectedId: string
+  detailId: string | null
+  listPreviews: SpinePreviewHandle[]
+  detailPreviews: SpinePreviewHandle[]
+}
+
+function destroyPreviews(handles: SpinePreviewHandle[]) {
+  for (const handle of handles) handle.destroy()
+  handles.length = 0
+}
+
+function escapeHtml(text: string) {
+  return text
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+}
+
+async function mountCardPreviews(root: HTMLElement, characters: PetCharacter[], state: CharacterViewState) {
+  destroyPreviews(state.listPreviews)
+  const hosts = root.querySelectorAll<HTMLElement>('[data-character-preview]')
+  await Promise.all(
+    Array.from(hosts).map(async (host) => {
+      const id = host.dataset.characterPreview
+      const character = characters.find((item) => item.id === id)
+      if (!character) return
+      const handle = await mountSpinePreview(host, {
+        skeletonUrl: character.skeletonUrl,
+        size: CARD_PREVIEW_SIZE,
+      })
+      if (handle) state.listPreviews.push(handle)
+    }),
+  )
+}
+
+function renderCharacterList(root: HTMLElement, state: CharacterViewState) {
+  const listView = root.querySelector<HTMLElement>('#pet-character-list')
+  const detailView = root.querySelector<HTMLElement>('#pet-character-detail')
   const grid = root.querySelector<HTMLElement>('#pet-characters')
-  if (!grid) return
-  if (!characters.length) {
+  if (!listView || !detailView || !grid) return
+
+  listView.hidden = false
+  detailView.hidden = true
+  detailView.innerHTML = ''
+  destroyPreviews(state.detailPreviews)
+
+  if (!state.characters.length) {
+    destroyPreviews(state.listPreviews)
     grid.innerHTML = '<p class="field-hint">还没有可用形象。把 Spine 资源放到 donghua/角色名/ 后重启应用。</p>'
     return
   }
-  grid.innerHTML = characters
+
+  grid.innerHTML = state.characters
     .map(
       (item) => `
-        <button class="pet-character-card${item.id === selectedId ? ' is-selected' : ''}" type="button" data-character="${item.id}">
-          <img alt="" src="${item.previewUrl}" />
+        <button class="pet-character-card${item.id === state.selectedId ? ' is-selected' : ''}" type="button" data-character-open="${item.id}">
+          <div class="pet-character-preview" data-character-preview="${item.id}"></div>
           <span>
-            <strong>${item.name}</strong>
-            <em>${item.description || item.id}</em>
+            <strong>${escapeHtml(item.name)}</strong>
+            <em>${escapeHtml(item.description || item.id)}</em>
           </span>
         </button>
       `,
     )
     .join('')
+
+  void mountCardPreviews(root, state.characters, state)
+}
+
+async function renderCharacterDetail(root: HTMLElement, state: CharacterViewState) {
+  const listView = root.querySelector<HTMLElement>('#pet-character-list')
+  const detailView = root.querySelector<HTMLElement>('#pet-character-detail')
+  if (!listView || !detailView || !state.detailId) return
+
+  const character = state.characters.find((item) => item.id === state.detailId)
+  if (!character) {
+    state.detailId = null
+    renderCharacterList(root, state)
+    return
+  }
+
+  destroyPreviews(state.listPreviews)
+  destroyPreviews(state.detailPreviews)
+  listView.hidden = true
+  detailView.hidden = false
+  detailView.innerHTML = `
+    <div class="pet-character-detail-head">
+      <button class="secondary-button" type="button" data-character-back>返回形象列表</button>
+      <button class="primary-button" type="button" data-character-use="${character.id}">
+        ${character.id === state.selectedId ? '当前使用中' : '使用此形象'}
+      </button>
+    </div>
+    <div class="pet-character-detail-title">
+      <strong>${escapeHtml(character.name)}</strong>
+      <em>${escapeHtml(character.description || character.id)}</em>
+    </div>
+    <p class="field-hint">以下为该角色包含的全部 Spine 动画预览。</p>
+    <div class="pet-character-anim-grid" id="pet-character-anims">
+      <p class="field-hint">正在加载动画…</p>
+    </div>
+  `
+
+  const useButton = detailView.querySelector<HTMLButtonElement>('[data-character-use]')
+  if (useButton && character.id === state.selectedId) useButton.disabled = true
+
+  const animGrid = detailView.querySelector<HTMLElement>('#pet-character-anims')
+  if (!animGrid) return
+
+  let animations: string[] = []
+  try {
+    animations = await listSpineAnimations(character.skeletonUrl)
+  } catch (error) {
+    console.error(error)
+    const message = error instanceof Error ? error.message : String(error)
+    animGrid.innerHTML = `<p class="field-hint">动画列表加载失败：${escapeHtml(message)}</p>`
+    return
+  }
+
+  if (!animations.length) {
+    animGrid.innerHTML = '<p class="field-hint">该角色没有可播放的动画。</p>'
+    return
+  }
+
+  animGrid.innerHTML = animations
+    .map(
+      (name) => `
+        <article class="pet-character-anim-card">
+          <div class="pet-character-preview" data-anim-preview="${escapeHtml(name)}"></div>
+          <strong>${escapeHtml(name)}</strong>
+        </article>
+      `,
+    )
+    .join('')
+
+  const hosts = animGrid.querySelectorAll<HTMLElement>('[data-anim-preview]')
+  await Promise.all(
+    Array.from(hosts).map(async (host) => {
+      const name = host.dataset.animPreview
+      if (!name) return
+      const handle = await mountSpinePreview(host, {
+        skeletonUrl: character.skeletonUrl,
+        size: DETAIL_PREVIEW_SIZE,
+        animation: name,
+        loop: true,
+      })
+      if (handle) state.detailPreviews.push(handle)
+    }),
+  )
+}
+
+function renderCharacters(root: HTMLElement, state: CharacterViewState) {
+  if (state.detailId) void renderCharacterDetail(root, state)
+  else renderCharacterList(root, state)
 }
 
 function reminderSummary(item: PetReminderItem) {
@@ -354,7 +494,10 @@ export function mountPetSettingsPage() {
           <article class="pet-config-card">
             <h2>形象</h2>
             <p>每个角色一个文件夹。以后把新动画放到 <code>donghua/角色id/</code>，包含 <code>.skel</code>、<code>.atlas</code>、<code>.png</code> 和可选的 <code>meta.json</code>。</p>
-            <div class="pet-character-grid" id="pet-characters"></div>
+            <div id="pet-character-list">
+              <div class="pet-character-grid" id="pet-characters"></div>
+            </div>
+            <div id="pet-character-detail" hidden></div>
           </article>
         </section>
         <section class="pet-settings-panel" data-pet-panel="appearance" hidden>
@@ -502,9 +645,19 @@ export function mountPetSettingsPage() {
     })
   })
 
+  const characterState: CharacterViewState = {
+    characters: [],
+    selectedId: '',
+    detailId: null,
+    listPreviews: [],
+    detailPreviews: [],
+  }
+  let charactersInitialized = false
+
   const apply = (status: PetStatus) => {
     renderProfile(root, status)
     renderStatus(root, status)
+    characterState.selectedId = status.characterId
     void loadCharacters(status.characterId)
   }
 
@@ -512,7 +665,35 @@ export function mountPetSettingsPage() {
     const characters = window.electronAPI?.getPetCharacters
       ? await window.electronAPI.getPetCharacters()
       : await fetch('/pet/characters/catalog.json').then((response) => (response.ok ? response.json() : []))
-    renderCharacters(root!, characters, selectedId)
+    const prevSelected = characterState.selectedId
+    const catalogKey = characterState.characters.map((item) => item.id).join(',')
+    const nextKey = characters.map((item: PetCharacter) => item.id).join(',')
+    const catalogChanged = catalogKey !== nextKey
+    characterState.characters = characters
+    characterState.selectedId = selectedId
+
+    if (!charactersInitialized || catalogChanged) {
+      charactersInitialized = true
+      renderCharacters(root!, characterState)
+      return
+    }
+
+    if (characterState.detailId) {
+      const useButton = root!.querySelector<HTMLButtonElement>('[data-character-use]')
+      if (useButton) {
+        const id = useButton.dataset.characterUse
+        const active = id === selectedId
+        useButton.disabled = active
+        useButton.textContent = active ? '当前使用中' : '使用此形象'
+      }
+      return
+    }
+
+    if (prevSelected !== selectedId) {
+      root!.querySelectorAll<HTMLButtonElement>('[data-character-open]').forEach((button) => {
+        button.classList.toggle('is-selected', button.dataset.characterOpen === selectedId)
+      })
+    }
   }
 
   if (window.electronAPI?.getPetStatus) {
@@ -618,9 +799,23 @@ export function mountPetSettingsPage() {
       return
     }
 
-    const characterButton = target.closest<HTMLButtonElement>('button[data-character]')
-    if (characterButton?.dataset.character && window.electronAPI?.setPetCharacter) {
-      apply(await window.electronAPI.setPetCharacter(characterButton.dataset.character))
+    const openId = target.closest<HTMLElement>('[data-character-open]')?.dataset.characterOpen
+    if (openId) {
+      characterState.detailId = openId
+      void renderCharacterDetail(root, characterState)
+      return
+    }
+
+    if (target.closest('[data-character-back]')) {
+      characterState.detailId = null
+      renderCharacterList(root, characterState)
+      return
+    }
+
+    const useId = target.closest<HTMLButtonElement>('[data-character-use]')?.dataset.characterUse
+    if (useId && window.electronAPI?.setPetCharacter) {
+      apply(await window.electronAPI.setPetCharacter(useId))
+      return
     }
   })
 
