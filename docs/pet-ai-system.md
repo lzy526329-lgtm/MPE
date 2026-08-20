@@ -150,7 +150,7 @@ type PetMemory = {
 |----------|------------|-------------|
 | 玩家喂食 | event | 「玩家在 08/20 给我喂了食物」 |
 | 玩家清洁 | event | 「玩家帮我洗了澡」 |
-| 对话结束 | conversation_summary | AI 生成一句摘要，游戏代码写入 |
+| 玩家点击「新对话」 | conversation_summary | 对本段会话生成一句摘要后清空聊天记录 |
 | 玩家说「我买了…」 | gift / player_fact | 「玩家买了一顶红色小帽子送给我」 |
 
 **记忆读取时机**：每次发起对话前，取最近 top-N 条（初版建议 10 条）注入上下文。
@@ -396,18 +396,20 @@ type EmotionTag = 'happy' | 'sad' | 'hungry' | 'angry' | 'sleep' | 'neutral'
 
 ─────────────────────────
 
-对话结束
+对话结束（玩家点击「新对话」）
     ↓
 游戏代码向 LLM 发送固定摘要 prompt：
-  「请用一句话总结本次对话发生了什么，
+  「请用一句话总结本段对话发生了什么，
     不超过 30 字，从宠物视角描述。」
     ↓
 LLM 返回摘要文本
     ↓
 游戏代码写入 memory.json（type: 'conversation_summary'）
+    ↓
+清空当前对话历史
 ```
 
-关键：摘要**由 AI 生成**，但**由游戏代码决定是否写入、写什么**。AI 不能主动修改 memory。
+说明：摘要**由 AI 生成**，但**由游戏代码决定是否写入、写什么**。AI 不能主动修改 memory。日常每轮回复不再单独打摘要，以节省 token。
 
 ### 7.2 读取与注入
 
@@ -585,7 +587,7 @@ BYOK 与自建 Server 可并存：用户可选「用我自己的 Key」或「用
 | **P0** | 本文档定稿 | — | `docs/pet-ai-system.md` |
 | **P1** | `PetContextBuilder` 实现 | petProfile 标签函数（已有） | `electron/petContextBuilder.ts` |
 | **P2** | 右键菜单「与我对话」+ 对话面板（含 API Key 输入区） | appNavigation | `src/petChatPage.ts`、IPC |
-| **P3** | `memory.json` 读写 + 注入上下文 | P1 | ✅ `electron/petMemory.ts`（喂食/清洁/休息/改名写 event；对话后摘要落库；最近 10 条注入 prompt） |
+| **P3** | `memory.json` 读写 + 注入上下文 | P1 | ✅ `electron/petMemory.ts`（喂食/清洁/休息/改名写 event；点「新对话」时生成会话摘要落库；最近 10 条注入 prompt） |
 | **P4** | Main 进程调用 DeepSeek Chat Completions | P1 P2 | `electron/petAi.ts`、用户 Key 存取 |
 | **P5** | emotion → Spine 动画扩展 | donghua 角色资源 | 扩展 `setAnim` |
 

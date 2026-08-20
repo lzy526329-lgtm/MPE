@@ -258,30 +258,39 @@ function applySkillOpen(
   return result.openPage
 }
 
-async function summarizeConversationTurn(userText: string, assistantText: string) {
-  const message = await callDeepSeek(
-    [
-      {
-        role: 'system',
-        content:
-          '你是宠物记忆记录员。请用一句话、不超过30字、从宠物第一人称视角总结本次对话发生了什么。只输出摘要本身，不要引号或解释。',
-      },
-      {
-        role: 'user',
-        content: `玩家说：${userText.slice(0, 400)}\n你回复：${assistantText.slice(0, 400)}`,
-      },
-    ],
-    false,
-  )
-  return message.content?.trim() ?? ''
-}
+async function summarizeSessionAndStore() {
+  hydrateChatHistory()
+  if (conversationHistory.length < 2) return
 
-async function storeTurnMemory(petId: string, userText: string, assistantText: string) {
+  const settings = readAiSettings()
+  if (!settings.apiKey) return
+
+  const transcript = conversationHistory
+    .slice(-12)
+    .map((item) => `${item.role === 'user' ? '玩家' : '宠物'}：${item.content.slice(0, 200)}`)
+    .join('\n')
+
   try {
-    const summary = await summarizeConversationTurn(userText, assistantText)
-    if (summary) rememberConversationSummary(petId, summary)
+    const message = await callDeepSeek(
+      [
+        {
+          role: 'system',
+          content:
+            '你是宠物记忆记录员。请用一句话、不超过30字、从宠物第一人称视角总结整段对话里最重要的事。只输出摘要本身，不要引号或解释。',
+        },
+        {
+          role: 'user',
+          content: `对话记录：\n${transcript}`,
+        },
+      ],
+      false,
+    )
+    const summary = message.content?.trim()
+    if (summary) {
+      rememberConversationSummary(getPetStatus().profile.id, summary)
+    }
   } catch {
-    // 摘要失败不影响主对话
+    // 摘要失败不影响开启新对话
   }
 }
 
@@ -393,7 +402,6 @@ async function runChatWithSkills(playerText: string, openMainPage?: OpenMainPage
       : undefined
 
   appendDisplayTurn(playerText, replyText, uniqueSkills)
-  void storeTurnMemory(status.profile.id, playerText, replyText)
 
   return {
     text: replyText,
@@ -430,7 +438,8 @@ export function registerPetAiIpc(
     return displayHistory
   })
 
-  ipcMain.handle('pet:ai-clear-history', () => {
+  ipcMain.handle('pet:ai-clear-history', async () => {
+    await summarizeSessionAndStore()
     clearPersistedChatHistory()
     return [] as PetChatHistoryItem[]
   })

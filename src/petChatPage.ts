@@ -166,11 +166,17 @@ export function mountPetChatPage() {
 
   clearHistoryButton.addEventListener('click', async () => {
     setError('')
+    clearHistoryButton.disabled = true
+    const prevLabel = clearHistoryButton.textContent
+    clearHistoryButton.textContent = '保存记忆…'
     try {
       messages = await window.electronAPI.petAiClearHistory()
       renderMessages()
     } catch (error) {
       setError(error instanceof Error ? error.message : '清空失败')
+    } finally {
+      clearHistoryButton.disabled = false
+      clearHistoryButton.textContent = prevLabel || '新对话'
     }
   })
 
