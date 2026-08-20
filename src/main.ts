@@ -584,6 +584,7 @@ app.innerHTML = `
                 <span class="pet-chat-model-meta" id="pet-ai-model-meta">deepseek-v4-flash</span>
               </div>
               <button class="text-button pet-chat-clear-btn" id="pet-chat-clear-history" type="button">新对话</button>
+              <button class="text-button pet-chat-clear-btn" id="pet-chat-clear-memory" type="button" title="清空长期记忆（喂食、对话摘要等）">清除记忆</button>
               <button
                 class="pet-chat-icon-btn"
                 id="pet-ai-settings-toggle"

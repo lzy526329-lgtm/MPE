@@ -5,6 +5,11 @@ import { buildPetSystemPrompt } from './petContextBuilder'
 import { getPetStatus } from './pet'
 import type { AppPageId } from './appPages'
 import {
+  clearPetMemory,
+  getRecentMemorySnippets,
+  rememberConversationSummary,
+} from './petMemory'
+import {
   looksLikeWatermarkRequest,
   PET_AI_TOOLS,
   PET_SKILL_LABELS,
@@ -158,9 +163,37 @@ function applySkillOpen(
   return result.openPage
 }
 
+async function summarizeConversationTurn(userText: string, assistantText: string) {
+  const message = await callDeepSeek(
+    [
+      {
+        role: 'system',
+        content:
+          '你是宠物记忆记录员。请用一句话、不超过30字、从宠物第一人称视角总结本次对话发生了什么。只输出摘要本身，不要引号或解释。',
+      },
+      {
+        role: 'user',
+        content: `玩家说：${userText.slice(0, 400)}\n你回复：${assistantText.slice(0, 400)}`,
+      },
+    ],
+    false,
+  )
+  return message.content?.trim() ?? ''
+}
+
+async function storeTurnMemory(petId: string, userText: string, assistantText: string) {
+  try {
+    const summary = await summarizeConversationTurn(userText, assistantText)
+    if (summary) rememberConversationSummary(petId, summary)
+  } catch {
+    // 摘要失败不影响主对话
+  }
+}
+
 async function runChatWithSkills(playerText: string, openMainPage?: OpenMainPageFn) {
   const status = getPetStatus()
-  const systemPrompt = buildPetSystemPrompt(status)
+  const memorySnippets = getRecentMemorySnippets(status.profile.id)
+  const systemPrompt = buildPetSystemPrompt(status, memorySnippets)
   const usedSkills: Array<{ id: string; label: string }> = []
   let openPage: AppPageId | undefined
 
@@ -249,6 +282,8 @@ async function runChatWithSkills(playerText: string, openMainPage?: OpenMainPage
     conversationHistory = conversationHistory.slice(-MAX_HISTORY)
   }
 
+  void storeTurnMemory(status.profile.id, playerText, replyText)
+
   return {
     text: replyText,
     emotion: inferEmotionFromStatus(status),
@@ -283,6 +318,11 @@ export function registerPetAiIpc(
 
   ipcMain.handle('pet:ai-clear-history', () => {
     conversationHistory = []
+  })
+
+  ipcMain.handle('pet:ai-clear-memory', () => {
+    const status = getPetStatus()
+    return clearPetMemory(status.profile.id)
   })
 
   ipcMain.handle('pet:ai-send', async (_event, text: string) => {

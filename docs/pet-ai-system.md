@@ -585,7 +585,7 @@ BYOK 与自建 Server 可并存：用户可选「用我自己的 Key」或「用
 | **P0** | 本文档定稿 | — | `docs/pet-ai-system.md` |
 | **P1** | `PetContextBuilder` 实现 | petProfile 标签函数（已有） | `electron/petContextBuilder.ts` |
 | **P2** | 右键菜单「与我对话」+ 对话面板（含 API Key 输入区） | appNavigation | `src/petChatPage.ts`、IPC |
-| **P3** | `memory.json` 读写 + 注入上下文 | P1 | `electron/petMemory.ts` |
+| **P3** | `memory.json` 读写 + 注入上下文 | P1 | ✅ `electron/petMemory.ts`（喂食/清洁/休息/改名写 event；对话后摘要落库；最近 10 条注入 prompt） |
 | **P4** | Main 进程调用 DeepSeek Chat Completions | P1 P2 | `electron/petAi.ts`、用户 Key 存取 |
 | **P5** | emotion → Spine 动画扩展 | donghua 角色资源 | 扩展 `setAnim` |
 
@@ -647,6 +647,7 @@ mood 由游戏代码的 `computeMood()` 根据 stats 计算，对话属于「表
 |------|------|----------|
 | 性格标签常量 | `electron/petProfile.ts` | `ELEMENT_LABELS`, `ZODIAC_LABELS`, `GENDER_LABELS` |
 | 状态类型 | `electron/pet.ts` | `PetStatus`, `PetStatsStored` |
+| 长期记忆 | `electron/petMemory.ts` | `appendMemoryEntry`, `getRecentMemorySnippets`, `rememberCareEvent` |
 | mood 计算 | `electron/pet.ts` L232-252 | `computeMood()` |
 | 气泡 UI | `src/pet.ts` | `chatBubble`, `showChatMessage()` |
 | Spine 动画切换 | `src/pet.ts` | `setAnim()`, `playIdle()`, `playTouch()` |

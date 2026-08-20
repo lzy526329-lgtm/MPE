@@ -25,6 +25,7 @@ import {
   type SavePetClipRequest,
   type UpdatePetClipRequest,
 } from './petSkin'
+import { rememberCareEvent, rememberRename } from './petMemory'
 
 export const PET_SIZE_MIN = 96
 export const PET_SIZE_MAX = 280
@@ -805,6 +806,27 @@ function openMainPage(pageId: AppPageId) {
   showMainWindow(pageId)
 }
 
+function feedPetAction() {
+  const stats = getPetStats()
+  const status = applyVitals({ satiety: clampStat(stats.satiety + 35) })
+  rememberCareEvent(status.profile.id, 'feed')
+  return status
+}
+
+function cleanPetAction() {
+  const stats = getPetStats()
+  const status = applyVitals({ hygiene: clampStat(stats.hygiene + 35) })
+  rememberCareEvent(status.profile.id, 'clean')
+  return status
+}
+
+function restPetAction() {
+  const stats = getPetStats()
+  const status = applyVitals({ health: clampStat(stats.health + 25) })
+  rememberCareEvent(status.profile.id, 'rest')
+  return status
+}
+
 function buildPetMenu() {
   const reminders = getReminderItems()
   const pending = findPendingReminder(reminders)
@@ -815,22 +837,19 @@ function buildPetMenu() {
     {
       label: '喂食',
       click: () => {
-        const stats = getPetStats()
-        applyVitals({ satiety: clampStat(stats.satiety + 35) })
+        feedPetAction()
       },
     },
     {
       label: '清洁',
       click: () => {
-        const stats = getPetStats()
-        applyVitals({ hygiene: clampStat(stats.hygiene + 35) })
+        cleanPetAction()
       },
     },
     {
       label: '休息',
       click: () => {
-        const stats = getPetStats()
-        applyVitals({ health: clampStat(stats.health + 25) })
+        restPetAction()
       },
     },
     ...(pending
@@ -1024,30 +1043,22 @@ export function registerPetIpc(
     notifyStatusChanged(status)
     return status
   })
-  ipcMain.handle('pet:feed', () => {
-    const stats = getPetStats()
-    return applyVitals({ satiety: clampStat(stats.satiety + 35) })
-  })
-  ipcMain.handle('pet:clean', () => {
-    const stats = getPetStats()
-    return applyVitals({ hygiene: clampStat(stats.hygiene + 35) })
-  })
-  ipcMain.handle('pet:rest', () => {
-    const stats = getPetStats()
-    return applyVitals({ health: clampStat(stats.health + 25) })
-  })
+  ipcMain.handle('pet:feed', () => feedPetAction())
+  ipcMain.handle('pet:clean', () => cleanPetAction())
+  ipcMain.handle('pet:rest', () => restPetAction())
   ipcMain.handle('pet:get-profile', () => getPetProfile())
   ipcMain.handle('pet:update-profile', (_event, patch: { name?: string }) => {
     const settings = ensurePetData()
     const profile = getPetProfile(settings)
     const name = patch.name?.trim()
-    if (!name) return getPetStatus()
+    if (!name || name === profile.name) return getPetStatus()
     writeSettings({
       profile: {
         ...profile,
         name,
       },
     })
+    rememberRename(profile.id, name)
     const status = getPetStatus()
     notifyStatusChanged(status)
     return status

@@ -33,6 +33,7 @@ export function mountPetChatPage() {
   const inputEl = root.querySelector<HTMLTextAreaElement>('#pet-chat-input')!
   const sendButton = root.querySelector<HTMLButtonElement>('#pet-chat-send')!
   const clearHistoryButton = root.querySelector<HTMLButtonElement>('#pet-chat-clear-history')!
+  const clearMemoryButton = root.querySelector<HTMLButtonElement>('#pet-chat-clear-memory')!
   const errorEl = root.querySelector<HTMLElement>('#pet-chat-error')!
 
   let settings: PetAiSettingsView = {
@@ -163,6 +164,25 @@ export function mountPetChatPage() {
       renderMessages()
     } catch (error) {
       setError(error instanceof Error ? error.message : '清空失败')
+    }
+  })
+
+  clearMemoryButton.addEventListener('click', async () => {
+    setError('')
+    const ok = window.confirm('确定清除宠物的长期记忆吗？喂食、改名、对话摘要都会删掉，且无法恢复。')
+    if (!ok) return
+    try {
+      const result = await window.electronAPI.petAiClearMemory()
+      const prev = statusBar.textContent
+      statusBar.textContent =
+        result.cleared > 0 ? `已清除 ${result.cleared} 条记忆` : '当前没有可清除的记忆'
+      window.setTimeout(() => {
+        if (statusBar.textContent.startsWith('已清除') || statusBar.textContent === '当前没有可清除的记忆') {
+          statusBar.textContent = prev || ''
+        }
+      }, 2500)
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '清除记忆失败')
     }
   })
 

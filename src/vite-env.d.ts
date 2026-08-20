@@ -110,6 +110,7 @@ declare global {
       petAiSaveSettings: (input: { apiKey?: string }) => Promise<PetAiSettingsView>
       petAiClearSettings: () => Promise<PetAiSettingsView>
       petAiClearHistory: () => Promise<void>
+      petAiClearMemory: () => Promise<{ cleared: number }>
       petAiSend: (text: string) => Promise<PetAiReply>
       onPetAiBubble: (callback: (payload: { text: string }) => void) => () => void
       getPetSkin: () => Promise<PetSkinView>

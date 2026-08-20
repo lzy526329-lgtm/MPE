@@ -162,6 +162,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('pet:ai-save-settings', input),
   petAiClearSettings: (): Promise<PetAiSettingsView> => ipcRenderer.invoke('pet:ai-clear-settings'),
   petAiClearHistory: (): Promise<void> => ipcRenderer.invoke('pet:ai-clear-history'),
+  petAiClearMemory: (): Promise<{ cleared: number }> => ipcRenderer.invoke('pet:ai-clear-memory'),
   petAiSend: (text: string): Promise<PetAiReply> => ipcRenderer.invoke('pet:ai-send', text),
   onPetAiBubble: (callback: (payload: { text: string }) => void) => {
     const listener = (_event: unknown, payload: { text: string }) => callback(payload)
