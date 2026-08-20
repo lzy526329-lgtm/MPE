@@ -11,7 +11,7 @@ import type {
 import type { SaveWatermarkResult, WatermarkResult } from './watermark'
 import type { SystemInfo } from './systemInfo'
 import type { ScanResult, CleanResult } from './diskClean'
-import type { PetBounds, PetStatus } from './pet'
+import type { PetBounds, PetChatMessage, PetReminderItem, PetStatus } from './pet'
 import type { PetCharacter } from './petCharacters'
 import type {
   PetClipKey,
@@ -112,10 +112,40 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('pet:set-character', characterId),
   feedPet: (): Promise<PetStatus> => ipcRenderer.invoke('pet:feed'),
   restPet: (): Promise<PetStatus> => ipcRenderer.invoke('pet:rest'),
+  getPetReminders: (): Promise<PetReminderItem[]> => ipcRenderer.invoke('pet:get-reminders'),
+  upsertPetReminder: (request: {
+    id?: string
+    enabled: boolean
+    mode: 'interval-repeat' | 'interval-once' | 'datetime-once' | 'daily-time'
+    minutes: number
+    onceAt: string
+    dailyTime: string
+    text: string
+    requireConfirm: boolean
+  }): Promise<PetReminderItem[]> => ipcRenderer.invoke('pet:upsert-reminder', request),
+  deletePetReminder: (id: string): Promise<PetReminderItem[]> =>
+    ipcRenderer.invoke('pet:delete-reminder', id),
+  confirmPetReminder: (reminderId?: string): Promise<PetReminderItem[]> =>
+    ipcRenderer.invoke('pet:confirm-reminder', reminderId),
   onPetStatusChanged: (callback: (status: PetStatus) => void) => {
     const listener = (_event: unknown, status: PetStatus) => callback(status)
     ipcRenderer.on('pet:status-changed', listener)
     return () => ipcRenderer.removeListener('pet:status-changed', listener)
+  },
+  onPetRemindersUpdated: (callback: (reminders: PetReminderItem[]) => void) => {
+    const listener = (_event: unknown, reminders: PetReminderItem[]) => callback(reminders)
+    ipcRenderer.on('pet:reminders-updated', listener)
+    return () => ipcRenderer.removeListener('pet:reminders-updated', listener)
+  },
+  onPetChatMessage: (callback: (message: PetChatMessage) => void) => {
+    const listener = (_event: unknown, message: PetChatMessage) => callback(message)
+    ipcRenderer.on('pet:chat-message', listener)
+    return () => ipcRenderer.removeListener('pet:chat-message', listener)
+  },
+  onPetChatClear: (callback: () => void) => {
+    const listener = () => callback()
+    ipcRenderer.on('pet:chat-clear', listener)
+    return () => ipcRenderer.removeListener('pet:chat-clear', listener)
   },
   getPetSkin: (): Promise<PetSkinView> => ipcRenderer.invoke('pet:get-skin'),
   savePetClip: (request: SavePetClipRequest): Promise<PetClipView> =>

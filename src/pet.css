@@ -5,6 +5,7 @@ body,
   overflow: hidden;
   background: transparent;
   user-select: none;
+  position: relative;
 }
 
 canvas {
@@ -16,4 +17,62 @@ canvas {
 
 canvas:active {
   cursor: grabbing;
+}
+
+.pet-chat {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 116px;
+  max-width: 116px;
+  padding: 8px 8px 7px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #ffffff, #f8f6ff);
+  border: 1px solid rgba(100, 87, 231, 0.28);
+  box-shadow:
+    0 10px 22px rgba(24, 32, 47, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  pointer-events: auto;
+  z-index: 2;
+}
+
+.pet-chat::after {
+  content: '';
+  position: absolute;
+  right: 14px;
+  bottom: -7px;
+  width: 12px;
+  height: 12px;
+  background: #fbfaff;
+  border-right: 1px solid rgba(100, 87, 231, 0.28);
+  border-bottom: 1px solid rgba(100, 87, 231, 0.28);
+  transform: rotate(45deg);
+  border-bottom-right-radius: 4px;
+}
+
+.pet-chat-text {
+  margin: 0;
+  color: #2a2f40;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-weight: 600;
+}
+
+.pet-chat-confirm {
+  margin-top: 8px;
+  width: 100%;
+  height: 24px;
+  border-radius: 8px;
+  border: 0;
+  background: linear-gradient(135deg, #6e60ef, #5b4fdf);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pet-chat-confirm:hover {
+  filter: brightness(1.04);
 }

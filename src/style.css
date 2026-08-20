@@ -1740,6 +1740,78 @@ input[type="range"] {
   font-style: normal;
 }
 
+.pet-reminder-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.pet-reminder-grid .pet-config-switch {
+  grid-column: 1 / -1;
+}
+
+.pet-reminder-grid .field {
+  margin-bottom: 0;
+}
+
+.pet-reminder-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.pet-reminder-form-title {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.pet-reminder-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2, rgba(255, 255, 255, 0.04));
+}
+
+.pet-reminder-card.is-editing {
+  border-color: var(--accent, #6ea8fe);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent, #6ea8fe) 35%, transparent);
+}
+
+.pet-reminder-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pet-reminder-card-main strong {
+  font-size: 14px;
+}
+
+.pet-reminder-card-main em {
+  font-size: 12px;
+  font-style: normal;
+  color: var(--muted);
+}
+
+.pet-reminder-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.pet-reminder-card-actions .secondary-button {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
 @media (max-width: 900px) {
   .sysinfo-grid {
     grid-template-columns: 1fr;

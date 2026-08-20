@@ -1,9 +1,32 @@
 import type { PetCharacter } from '../electron/petCharacters'
-import type { PetStatus } from '../electron/pet'
+import type { PetReminderItem, PetStatus } from '../electron/pet'
 
 const PET_SIZE_MIN = 96
 const PET_SIZE_MAX = 280
 const PET_SIZE_DEFAULT = 160
+const REMINDER_DATE_STEP = 60
+
+type ReminderMode = 'interval-repeat' | 'interval-once' | 'datetime-once' | 'daily-time'
+
+function toLocalDateTimeValue(isoText: string) {
+  if (!isoText) return ''
+  const stamp = Date.parse(isoText)
+  if (Number.isNaN(stamp)) return ''
+  const d = new Date(stamp)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  return `${y}-${m}-${day}T${hh}:${mm}`
+}
+
+function fromLocalDateTimeValue(value: string) {
+  if (!value) return ''
+  const stamp = Date.parse(value)
+  if (Number.isNaN(stamp)) return ''
+  return new Date(stamp).toISOString()
+}
 
 function barClass(value: number, invert = false) {
   const score = invert ? 100 - value : value
@@ -67,6 +90,119 @@ function renderCharacters(root: HTMLElement, characters: PetCharacter[], selecte
       `,
     )
     .join('')
+}
+
+function reminderSummary(item: PetReminderItem) {
+  if (!item.enabled) return '已暂停'
+  if (item.pendingText && item.requireConfirm) return '待确认'
+  if (item.mode === 'interval-repeat') return `每 ${item.minutes} 分钟`
+  if (item.mode === 'interval-once') return `${item.minutes} 分钟后一次`
+  if (item.mode === 'datetime-once') {
+    return item.onceAt ? new Date(item.onceAt).toLocaleString() : '未设时间'
+  }
+  return `每天 ${item.dailyTime}`
+}
+
+function toggleReminderModeFields(root: HTMLElement, mode: ReminderMode) {
+  root.querySelector<HTMLElement>('#pet-reminder-minutes-field')!.hidden =
+    !(mode === 'interval-repeat' || mode === 'interval-once')
+  root.querySelector<HTMLElement>('#pet-reminder-once-at-field')!.hidden = mode !== 'datetime-once'
+  root.querySelector<HTMLElement>('#pet-reminder-daily-time-field')!.hidden = mode !== 'daily-time'
+}
+
+function renderReminderList(root: HTMLElement, reminders: PetReminderItem[], editingId: string | null) {
+  const list = root.querySelector<HTMLElement>('#pet-reminder-list')
+  const hint = root.querySelector<HTMLElement>('#pet-reminder-hint')
+  if (!list || !hint) return
+
+  if (!reminders.length) {
+    list.innerHTML = '<p class="field-hint">还没有提醒，在下方填写后点击「添加提醒」。</p>'
+    hint.textContent = '可创建多条提醒，例如喝水、休息、开会等。'
+    return
+  }
+
+  list.innerHTML = reminders
+    .map(
+      (item) => `
+        <article class="pet-reminder-card${editingId === item.id ? ' is-editing' : ''}" data-reminder-id="${item.id}">
+          <div class="pet-reminder-card-main">
+            <strong>${item.text}</strong>
+            <em>${reminderSummary(item)} · ${item.requireConfirm ? '需确认' : '10 秒后消失'}</em>
+          </div>
+          <div class="pet-reminder-card-actions">
+            <button class="secondary-button" type="button" data-reminder-edit="${item.id}">编辑</button>
+            <button class="secondary-button" type="button" data-reminder-delete="${item.id}">删除</button>
+          </div>
+        </article>
+      `,
+    )
+    .join('')
+
+  const pending = reminders.filter((item) => item.pendingText && item.requireConfirm)
+  if (pending.length) {
+    hint.textContent = `有 ${pending.length} 条待确认提醒。`
+  } else {
+    const active = reminders.filter((item) => item.enabled)
+    hint.textContent = active.length
+      ? `共 ${reminders.length} 条提醒，其中 ${active.length} 条启用中。`
+      : `共 ${reminders.length} 条提醒，均未启用。`
+  }
+}
+
+function fillReminderForm(root: HTMLElement, item: PetReminderItem | null) {
+  const enabled = root.querySelector<HTMLInputElement>('#pet-reminder-enabled')
+  const mode = root.querySelector<HTMLSelectElement>('#pet-reminder-mode')
+  const minutes = root.querySelector<HTMLInputElement>('#pet-reminder-minutes')
+  const onceAt = root.querySelector<HTMLInputElement>('#pet-reminder-once-at')
+  const dailyTime = root.querySelector<HTMLInputElement>('#pet-reminder-daily-time')
+  const text = root.querySelector<HTMLInputElement>('#pet-reminder-text')
+  const requireConfirm = root.querySelector<HTMLSelectElement>('#pet-reminder-confirm')
+  const saveBtn = root.querySelector<HTMLButtonElement>('#pet-reminder-save')
+  const cancelBtn = root.querySelector<HTMLButtonElement>('#pet-reminder-cancel')
+  if (!enabled || !mode || !minutes || !onceAt || !dailyTime || !text || !requireConfirm || !saveBtn || !cancelBtn) {
+    return
+  }
+
+  if (!item) {
+    enabled.checked = true
+    mode.value = 'interval-repeat'
+    minutes.value = '10'
+    onceAt.value = ''
+    dailyTime.value = '18:00'
+    text.value = '该喝水啦'
+    requireConfirm.value = 'yes'
+    saveBtn.textContent = '添加提醒'
+    cancelBtn.hidden = true
+    toggleReminderModeFields(root, 'interval-repeat')
+    return
+  }
+
+  enabled.checked = item.enabled
+  mode.value = item.mode
+  minutes.value = String(item.minutes)
+  onceAt.value = toLocalDateTimeValue(item.onceAt)
+  dailyTime.value = item.dailyTime
+  text.value = item.text
+  requireConfirm.value = item.requireConfirm ? 'yes' : 'no'
+  saveBtn.textContent = '保存修改'
+  cancelBtn.hidden = false
+  toggleReminderModeFields(root, item.mode)
+}
+
+function readReminderForm(root: HTMLElement) {
+  const enabled = root.querySelector<HTMLInputElement>('#pet-reminder-enabled')?.checked ?? true
+  const mode =
+    (root.querySelector<HTMLSelectElement>('#pet-reminder-mode')?.value as ReminderMode | undefined)
+    ?? 'interval-repeat'
+  const minutes = Number(root.querySelector<HTMLInputElement>('#pet-reminder-minutes')?.value || 10)
+  const onceAt = fromLocalDateTimeValue(
+    root.querySelector<HTMLInputElement>('#pet-reminder-once-at')?.value ?? '',
+  )
+  const dailyTime = root.querySelector<HTMLInputElement>('#pet-reminder-daily-time')?.value ?? '18:00'
+  const text = root.querySelector<HTMLInputElement>('#pet-reminder-text')?.value || '该喝水啦'
+  const requireConfirm =
+    (root.querySelector<HTMLSelectElement>('#pet-reminder-confirm')?.value ?? 'yes') === 'yes'
+  return { enabled, mode, minutes, onceAt, dailyTime, text, requireConfirm }
 }
 
 export function mountPetSettingsPage() {
@@ -139,6 +275,59 @@ export function mountPetSettingsPage() {
           <button class="secondary-button" id="pet-rest" type="button">休息</button>
         </div>
       </article>
+      <article class="pet-config-card pet-config-card--wide">
+        <h2>交流提醒</h2>
+        <p>可创建多条提醒。支持循环、仅一次、指定日期一次、每天定点提醒。</p>
+        <div class="pet-reminder-list" id="pet-reminder-list"></div>
+        <h3 class="pet-reminder-form-title">新建 / 编辑提醒</h3>
+        <div class="pet-reminder-grid">
+          <label class="pet-config-switch">
+            <input id="pet-reminder-enabled" type="checkbox" />
+            <span>
+              <strong>启用此条提醒</strong>
+              <em>关闭后仅暂停这一条，不影响其他提醒。</em>
+            </span>
+          </label>
+          <label class="field">
+            <span>提醒类型</span>
+            <select id="pet-reminder-mode">
+              <option value="interval-repeat">每隔 N 分钟（循环）</option>
+              <option value="interval-once">N 分钟后（仅一次）</option>
+              <option value="datetime-once">指定日期时间（仅一次）</option>
+              <option value="daily-time">每天固定时间</option>
+            </select>
+          </label>
+          <label class="field" id="pet-reminder-minutes-field">
+            <span>间隔（分钟）</span>
+            <input id="pet-reminder-minutes" type="number" min="1" max="1440" step="1" value="10" />
+          </label>
+          <label class="field" id="pet-reminder-once-at-field" hidden>
+            <span>提醒时间</span>
+            <input id="pet-reminder-once-at" type="datetime-local" step="${REMINDER_DATE_STEP}" />
+          </label>
+          <label class="field" id="pet-reminder-daily-time-field" hidden>
+            <span>每日时间</span>
+            <input id="pet-reminder-daily-time" type="time" value="18:00" />
+          </label>
+          <label class="field">
+            <span>提醒内容</span>
+            <input id="pet-reminder-text" type="text" value="该喝水啦" maxlength="60" />
+          </label>
+          <label class="field">
+            <span>手动确认</span>
+            <select id="pet-reminder-confirm">
+              <option value="yes">是（不自动消失）</option>
+              <option value="no">否（10 秒后自动消失）</option>
+            </select>
+          </label>
+        </div>
+        <div class="pet-config-actions">
+          <button class="primary-button" id="pet-reminder-save" type="button">添加提醒</button>
+          <button class="secondary-button" id="pet-reminder-cancel" type="button" hidden>取消编辑</button>
+          <button class="secondary-button" id="pet-reminder-confirm-now" type="button">确认待处理提醒</button>
+        </div>
+        <p class="field-hint" id="pet-reminder-hint">可创建多条提醒。</p>
+      </article>
     </div>
   `
 
@@ -170,6 +359,96 @@ export function mountPetSettingsPage() {
     if (!window.electronAPI?.setPetEnabled) return
     await window.electronAPI.setPetEnabled(input.checked)
     if (window.electronAPI.getPetStatus) apply(await window.electronAPI.getPetStatus())
+  })
+
+  let editingReminderId: string | null = null
+
+  const applyReminders = (reminders: PetReminderItem[]) => {
+    renderReminderList(root, reminders, editingReminderId)
+    if (editingReminderId) {
+      const editing = reminders.find((item) => item.id === editingReminderId)
+      if (editing) fillReminderForm(root, editing)
+      else {
+        editingReminderId = null
+        fillReminderForm(root, null)
+      }
+    }
+  }
+
+  if (window.electronAPI?.getPetReminders) {
+    void window.electronAPI.getPetReminders().then((reminders) => {
+      applyReminders(reminders)
+      fillReminderForm(root, null)
+    })
+  } else {
+    fillReminderForm(root, null)
+  }
+  window.electronAPI?.onPetRemindersUpdated?.(applyReminders)
+
+  root.querySelector<HTMLButtonElement>('#pet-reminder-save')?.addEventListener('click', async () => {
+    if (!window.electronAPI?.upsertPetReminder) return
+    const form = readReminderForm(root)
+    const reminders = await window.electronAPI.upsertPetReminder({
+      ...form,
+      id: editingReminderId ?? undefined,
+    })
+    editingReminderId = null
+    applyReminders(reminders)
+    fillReminderForm(root, null)
+  })
+
+  root.querySelector<HTMLButtonElement>('#pet-reminder-cancel')?.addEventListener('click', () => {
+    editingReminderId = null
+    fillReminderForm(root, null)
+    if (window.electronAPI?.getPetReminders) {
+      void window.electronAPI.getPetReminders().then(applyReminders)
+    }
+  })
+
+  root.querySelector<HTMLSelectElement>('#pet-reminder-mode')?.addEventListener('change', () => {
+    const mode =
+      (root.querySelector<HTMLSelectElement>('#pet-reminder-mode')?.value as ReminderMode | undefined)
+      ?? 'interval-repeat'
+    toggleReminderModeFields(root, mode)
+  })
+
+  root
+    .querySelector<HTMLButtonElement>('#pet-reminder-confirm-now')
+    ?.addEventListener('click', async () => {
+      if (!window.electronAPI?.confirmPetReminder) return
+      applyReminders(await window.electronAPI.confirmPetReminder())
+    })
+
+  root.addEventListener('click', async (event) => {
+    const target = event.target as HTMLElement
+    const editId = target.closest<HTMLButtonElement>('[data-reminder-edit]')?.dataset.reminderEdit
+    const deleteId = target.closest<HTMLButtonElement>('[data-reminder-delete]')?.dataset.reminderDelete
+
+    if (editId && window.electronAPI?.getPetReminders) {
+      const reminders = await window.electronAPI.getPetReminders()
+      const item = reminders.find((r) => r.id === editId)
+      if (item) {
+        editingReminderId = editId
+        fillReminderForm(root, item)
+        applyReminders(reminders)
+      }
+      return
+    }
+
+    if (deleteId && window.electronAPI?.deletePetReminder) {
+      const reminders = await window.electronAPI.deletePetReminder(deleteId)
+      if (editingReminderId === deleteId) {
+        editingReminderId = null
+        fillReminderForm(root, null)
+      }
+      applyReminders(reminders)
+      return
+    }
+
+    const characterButton = target.closest<HTMLButtonElement>('button[data-character]')
+    if (characterButton?.dataset.character && window.electronAPI?.setPetCharacter) {
+      apply(await window.electronAPI.setPetCharacter(characterButton.dataset.character))
+    }
   })
 
   const sizeInput = root.querySelector<HTMLInputElement>('#pet-size')
@@ -208,11 +487,5 @@ export function mountPetSettingsPage() {
   root.querySelector<HTMLButtonElement>('#pet-rest')?.addEventListener('click', async () => {
     if (!window.electronAPI?.restPet) return
     apply(await window.electronAPI.restPet())
-  })
-
-  root.addEventListener('click', async (event) => {
-    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-character]')
-    if (!button?.dataset.character || !window.electronAPI?.setPetCharacter) return
-    apply(await window.electronAPI.setPetCharacter(button.dataset.character))
   })
 }

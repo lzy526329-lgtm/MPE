@@ -2,7 +2,7 @@ import '@pixi/unsafe-eval'
 import 'pixi-spine'
 import { Application, Assets } from 'pixi.js'
 import { Spine } from 'pixi-spine'
-import type { PetBounds } from '../electron/pet'
+import type { PetBounds, PetChatMessage } from '../electron/pet'
 import './pet.css'
 
 type AnimName = 'idle' | 'walk' | 'drag' | 'click'
@@ -24,6 +24,18 @@ const app = new Application({
 const canvas = app.view as HTMLCanvasElement
 canvas.id = 'pet'
 root.appendChild(canvas)
+
+const chatBubble = document.createElement('section')
+chatBubble.className = 'pet-chat'
+chatBubble.hidden = true
+const chatText = document.createElement('p')
+chatText.className = 'pet-chat-text'
+const chatConfirmButton = document.createElement('button')
+chatConfirmButton.className = 'pet-chat-confirm'
+chatConfirmButton.type = 'button'
+chatConfirmButton.textContent = '知道了'
+chatBubble.append(chatText, chatConfirmButton)
+root.appendChild(chatBubble)
 
 let spine: Spine | null = null
 let baseScale = 0.22
@@ -47,6 +59,8 @@ let loadedCharacterId = ''
 let loadedSkeletonUrl = ''
 let characterLoadSeq = 0
 let loadingId = ''
+let chatHideTimer = 0
+let activeChatReminderId: string | null = null
 
 const hasPetApi = Boolean(window.electronAPI?.petGetBounds)
 
@@ -72,6 +86,26 @@ function applyPetStatus(status: { autoWalk: boolean; size: number; characterId?:
   if (autoWalk) return
   walkTarget = null
   if (anim === 'walk') setAnim('idle')
+}
+
+function hideChatMessage() {
+  window.clearTimeout(chatHideTimer)
+  chatHideTimer = 0
+  activeChatReminderId = null
+  chatBubble.hidden = true
+}
+
+function showChatMessage(message: PetChatMessage) {
+  window.clearTimeout(chatHideTimer)
+  activeChatReminderId = message.reminderId
+  chatText.textContent = message.text
+  chatConfirmButton.hidden = !message.requireConfirm
+  chatBubble.hidden = false
+  if (!message.requireConfirm && message.dismissAfterMs) {
+    chatHideTimer = window.setTimeout(() => {
+      hideChatMessage()
+    }, message.dismissAfterMs)
+  }
 }
 
 function setFacing(next: number) {
@@ -243,6 +277,12 @@ function hitTest(clientX: number, clientY: number) {
   return nx * nx + ny * ny <= 1
 }
 
+function bubbleHitTest(clientX: number, clientY: number) {
+  if (chatBubble.hidden) return false
+  const rect = chatBubble.getBoundingClientRect()
+  return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom
+}
+
 async function bounds(): Promise<PetBounds | null> {
   if (!hasPetApi) return null
   return window.electronAPI.petGetBounds()
@@ -353,7 +393,7 @@ window.addEventListener('mousemove', async (event) => {
     return
   }
 
-  const hit = hitTest(event.clientX, event.clientY)
+  const hit = hitTest(event.clientX, event.clientY) || bubbleHitTest(event.clientX, event.clientY)
   if (hit === ignoreMouse) {
     ignoreMouse = !hit
     if (hasPetApi) await window.electronAPI.petIgnoreMouse(!hit)
@@ -373,6 +413,12 @@ window.addEventListener('mouseup', (event) => {
   nextWanderAt = performance.now() + 1800
 })
 
+chatConfirmButton.addEventListener('click', async () => {
+  if (!window.electronAPI?.confirmPetReminder) return
+  await window.electronAPI.confirmPetReminder(activeChatReminderId ?? undefined)
+  hideChatMessage()
+})
+
 async function boot() {
   try {
     const status = window.electronAPI?.getPetStatus ? await window.electronAPI.getPetStatus() : null
@@ -386,5 +432,7 @@ async function boot() {
 
 const onPetStatusChanged = window.electronAPI?.onPetStatusChanged
 if (onPetStatusChanged) onPetStatusChanged(applyPetStatus)
+window.electronAPI?.onPetChatMessage?.(showChatMessage)
+window.electronAPI?.onPetChatClear?.(hideChatMessage)
 
 void boot()

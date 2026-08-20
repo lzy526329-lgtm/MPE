@@ -10,7 +10,7 @@ import type {
   ExtractResult,
 } from '../electron/archive'
 import type { SaveWatermarkResult, WatermarkResult } from '../electron/watermark'
-import type { PetBounds, PetStatus } from '../electron/pet'
+import type { PetBounds, PetChatMessage, PetReminderItem, PetStatus } from '../electron/pet'
 import type { PetCharacter } from '../electron/petCharacters'
 import type {
   PetClipKey,
@@ -83,7 +83,23 @@ declare global {
       setPetCharacter: (characterId: string) => Promise<PetStatus>
       feedPet: () => Promise<PetStatus>
       restPet: () => Promise<PetStatus>
+      getPetReminders: () => Promise<PetReminderItem[]>
+      upsertPetReminder: (request: {
+        id?: string
+        enabled: boolean
+        mode: 'interval-repeat' | 'interval-once' | 'datetime-once' | 'daily-time'
+        minutes: number
+        onceAt: string
+        dailyTime: string
+        text: string
+        requireConfirm: boolean
+      }) => Promise<PetReminderItem[]>
+      deletePetReminder: (id: string) => Promise<PetReminderItem[]>
+      confirmPetReminder: (reminderId?: string) => Promise<PetReminderItem[]>
       onPetStatusChanged: (callback: (status: PetStatus) => void) => () => void
+      onPetRemindersUpdated: (callback: (reminders: PetReminderItem[]) => void) => () => void
+      onPetChatMessage: (callback: (message: PetChatMessage) => void) => () => void
+      onPetChatClear: (callback: () => void) => () => void
       getPetSkin: () => Promise<PetSkinView>
       savePetClip: (request: SavePetClipRequest) => Promise<PetClipView>
       updatePetClip: (request: UpdatePetClipRequest) => Promise<PetSkinView>
