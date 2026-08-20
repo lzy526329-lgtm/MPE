@@ -629,6 +629,18 @@ mood 由游戏代码的 `computeMood()` 根据 stats 计算，对话属于「表
 
 ---
 
+## 12. 内置 Skill（工具调用）
+
+第一版通过 DeepSeek Tool Calls 让宠物能调用本地工具箱能力。
+
+| Skill | 触发场景 | 行为 |
+|-------|----------|------|
+| `get_system_info` | 「查看电脑信息」「内存还剩多少」等 | 读取本机配置，打开「电脑信息」工具页，再用宠物口吻总结 |
+
+扩展新 Skill：在 [`electron/petSkills.ts`](../electron/petSkills.ts) 增加 tool 定义与执行函数即可。
+
+---
+
 ## 附录 A：现有代码速查
 
 | 概念 | 文件 | 关键符号 |

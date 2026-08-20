@@ -103,6 +103,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('main:navigate', listener)
     return () => ipcRenderer.removeListener('main:navigate', listener)
   },
+  onToolPrefill: (callback: (payload: { pageId: string; input: string }) => void) => {
+    const listener = (_event: unknown, payload: { pageId: string; input: string }) =>
+      callback(payload)
+    ipcRenderer.on('tool:prefill', listener)
+    return () => ipcRenderer.removeListener('tool:prefill', listener)
+  },
   petPopupMenu: (): Promise<void> => ipcRenderer.invoke('pet:popup-menu'),
   getPetStatus: (): Promise<PetStatus> => ipcRenderer.invoke('pet:get-status'),
   setPetAutoWalk: (autoWalk: boolean): Promise<PetStatus> =>

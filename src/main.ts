@@ -1,23 +1,13 @@
 import './style.css'
 import type { CompressRequest } from '../electron/compress'
 import type { ArchiveInfo, CompressionSource } from '../electron/archive'
-import {
-  AimTrainer,
-  AIM_GAMES,
-  DEFAULT_LOOK,
-  cmPer360,
-  type AimTrainerDifficulty,
-  type AimTrainerMode,
-  type AimGameId,
-  type AimLookSettings,
-} from './aimTrainer'
 import { mountWatermarkPage } from './watermarkPage'
 import { mountSystemInfoPage } from './systemInfoPage'
 import { mountDiskCleanPage } from './diskCleanPage'
 import { mountPdfPage } from './pdfPage'
 import { mountPetSettingsPage } from './petSettingsPage'
 import { mountPetChatPage } from './petChatPage'
-import { setupAppNavigation, onPageChange, navigateToPage } from './appNavigation'
+import { setupAppNavigation, navigateToPage } from './appNavigation'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
@@ -33,7 +23,7 @@ app.innerHTML = `
       </div>
       <div class="pet-sidebar-card">
         <p class="pet-sidebar-title">以宠物为中心</p>
-        <p class="pet-sidebar-copy">在桌面右键宠物，可以打开设置、照顾宠物，或使用本地工具箱。</p>
+        <p class="pet-sidebar-copy">在桌面右键宠物，可以打开设置、照顾宠物、使用工具箱，或直接和它对话。</p>
       </div>
       <nav class="pet-settings-nav" id="pet-settings-nav" aria-label="宠物设置">
         <button class="nav-item active" type="button" data-pet-tab="profile">基础信息</button>
@@ -535,96 +525,6 @@ app.innerHTML = `
         </div>
       </section>
 
-      <section class="tool-page" id="trainer-page" hidden>
-        <header>
-          <div>
-            <p class="eyebrow">反应训练</p>
-            <h1>瞄准训练</h1>
-            <p class="subtitle">准星固定在画面中心，用游戏内灵敏度转动视角。支持点击瞄准和跟枪。</p>
-          </div>
-        </header>
-
-        <div class="trainer-layout">
-          <div class="trainer-arena">
-            <canvas id="trainer-canvas"></canvas>
-            <div class="trainer-hud">
-              <div>
-                得分
-                <strong id="trainer-score">0</strong>
-              </div>
-              <div>
-                <span id="trainer-combo-label">连击</span>
-                <strong id="trainer-combo">0</strong>
-              </div>
-              <div>
-                <span id="trainer-accuracy-label">命中率</span>
-                <strong id="trainer-accuracy">0%</strong>
-              </div>
-              <div>
-                <span id="trainer-time-label">剩余时间</span>
-                <strong id="trainer-time">60.0s</strong>
-              </div>
-            </div>
-            <div class="trainer-overlay" id="trainer-overlay">
-              <div>
-                <strong id="trainer-overlay-title">点击开始训练</strong>
-                <p id="trainer-overlay-copy">开始后会锁定鼠标。用游戏灵敏度转动视角，把中心准星对准球体后点击。Esc 暂停。</p>
-                <button id="trainer-overlay-button" type="button">开始训练</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="trainer-settings">
-            <h2>训练设置</h2>
-            <div class="trainer-mode" role="tablist" aria-label="训练模式">
-              <button class="trainer-mode-button active" data-mode="flick" type="button">点击瞄准</button>
-              <button class="trainer-mode-button" data-mode="track" type="button">跟枪训练</button>
-            </div>
-            <label class="field">
-              <span>时长</span>
-              <select id="trainer-duration">
-                <option value="30000">30 秒</option>
-                <option value="60000" selected>60 秒</option>
-                <option value="0">无尽模式</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>难度</span>
-              <select id="trainer-difficulty">
-                <option value="easy">简单 · 大球、较近</option>
-                <option value="normal" selected>普通 · 适中</option>
-                <option value="hard">困难 · 小球、较远</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>游戏</span>
-              <select id="trainer-game"></select>
-            </label>
-            <label class="field">
-              <span>游戏内灵敏度</span>
-              <input id="trainer-sens" type="number" min="0.001" max="20" step="0.001" value="1">
-            </label>
-            <label class="field">
-              <span>鼠标 DPI</span>
-              <input id="trainer-dpi" type="number" min="100" max="32000" step="50" value="800">
-            </label>
-            <p class="field-hint" id="trainer-cm360">当前约 0 cm/360</p>
-            <p class="field-hint" id="trainer-hint">命中 +100 分，连击额外加分。远处的球更小；点空或超时消失记一次未命中。</p>
-            <div class="trainer-stat-row">
-              <span id="trainer-hit-miss-label">命中 / 未中</span>
-              <strong id="trainer-hit-miss">0 / 0</strong>
-            </div>
-            <div class="trainer-stat-row">
-              <span id="trainer-best-combo-label">最高连击</span>
-              <strong id="trainer-best-combo">0</strong>
-            </div>
-            <div class="trainer-actions">
-              <button class="primary-button" id="trainer-start-button" type="button">开始</button>
-              <button class="secondary-button" id="trainer-reset-button" type="button">重置</button>
-            </div>
-          </div>
-        </div>
-      </section>
       <section class="tool-page" id="disk-clean-page" hidden>
         <header>
           <div>
@@ -671,52 +571,80 @@ app.innerHTML = `
           <div id="sysinfo-container"></div>
         </div>
       </section>
-      <section class="tool-page" id="pet-chat-page" hidden>
-        <header>
-          <div>
-            <p class="eyebrow">MY PET</p>
-            <h1>与宠物对话</h1>
-            <p class="subtitle">配置 DeepSeek API Key，和桌宠自然聊天。状态会作为上下文，但不会直接暴露数值。</p>
-          </div>
-        </header>
-        <div class="panel pet-chat-panel" id="pet-chat-root">
-          <section class="pet-chat-config">
-            <h2>DeepSeek API Key</h2>
-            <p class="field-hint">
-              Key 仅保存在本机。可在
-              <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener noreferrer">DeepSeek 开放平台</a>
-              申请。
-            </p>
-            <div class="pet-chat-config-row">
-              <input
-                class="password-input"
-                id="pet-ai-api-key"
-                type="password"
-                placeholder="粘贴 API Key"
-                autocomplete="off"
-              />
-              <button class="secondary-button" id="pet-ai-save-key" type="button">保存</button>
-              <button class="text-button" id="pet-ai-clear-key" type="button">清除</button>
+      <section class="tool-page tool-page--chat" id="pet-chat-page" hidden>
+        <div class="pet-chat-shell" id="pet-chat-root">
+          <header class="pet-chat-status-strip">
+            <div class="pet-chat-status-main">
+              <span class="pet-chat-status-label">宠物信息</span>
+              <span class="pet-chat-status-text" id="pet-chat-status">读取状态中…</span>
             </div>
-            <p class="field-hint" id="pet-ai-key-hint">尚未配置 API Key · 对话使用 deepseek-v4-flash（最便宜）</p>
-          </section>
+            <div class="pet-chat-status-actions">
+              <div class="pet-chat-model-chip" id="pet-ai-model-chip">
+                <span class="pet-chat-model-name">DeepSeek</span>
+                <span class="pet-chat-model-meta" id="pet-ai-model-meta">deepseek-v4-flash</span>
+              </div>
+              <button class="text-button pet-chat-clear-btn" id="pet-chat-clear-history" type="button">新对话</button>
+              <button
+                class="pet-chat-icon-btn"
+                id="pet-ai-settings-toggle"
+                type="button"
+                aria-expanded="false"
+                aria-label="API 设置"
+                title="API 设置"
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                  <path
+                    fill="currentColor"
+                    d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.07 7.07 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.6.24-1.14.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.58a.5.5 0 0 0-.12.64l1.92 3.32c.14.24.43.34.68.24l2.39-.96c.49.39 1.03.7 1.63.94l.36 2.54c.05.24.25.42.49.42h3.8c.24 0 .44-.18.49-.42l.36-2.54c.6-.24 1.14-.55 1.63-.94l2.39.96c.25.1.54 0 .68-.24l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"
+                  />
+                </svg>
+              </button>
+            </div>
+          </header>
 
-          <div class="pet-chat-status-bar" id="pet-chat-status">读取状态中…</div>
+          <section class="pet-chat-settings" id="pet-ai-settings" hidden>
+            <div class="pet-chat-settings-inner">
+              <div class="pet-chat-settings-head">
+                <strong>API 设置</strong>
+                <span id="pet-ai-key-hint">尚未配置 API Key</span>
+              </div>
+              <label class="field pet-chat-settings-field">
+                <span>模型</span>
+                <input type="text" value="deepseek-v4-flash（经济档）" readonly />
+              </label>
+              <p class="field-hint">
+                Key 仅保存在本机。可在
+                <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener noreferrer">DeepSeek 开放平台</a>
+                申请。
+              </p>
+              <div class="pet-chat-config-row">
+                <input
+                  class="password-input"
+                  id="pet-ai-api-key"
+                  type="password"
+                  placeholder="粘贴 DeepSeek API Key"
+                  autocomplete="off"
+                />
+                <button class="secondary-button" id="pet-ai-save-key" type="button">保存</button>
+                <button class="text-button" id="pet-ai-clear-key" type="button">清除</button>
+              </div>
+            </div>
+          </section>
 
           <div class="pet-chat-messages" id="pet-chat-messages" aria-live="polite"></div>
 
-          <div class="pet-chat-compose">
-            <textarea
-              id="pet-chat-input"
-              rows="3"
-              placeholder="和小宠物说点什么…（Enter 发送，Shift+Enter 换行）"
-            ></textarea>
-            <div class="pet-chat-compose-actions">
-              <button class="text-button" id="pet-chat-clear-history" type="button">清空对话</button>
-              <button class="primary-button" id="pet-chat-send" type="button">发送</button>
+          <footer class="pet-chat-composer">
+            <p class="error-message" id="pet-chat-error" role="alert"></p>
+            <div class="pet-chat-input-shell">
+              <textarea
+                id="pet-chat-input"
+                rows="1"
+                placeholder="给宠物发送消息…"
+              ></textarea>
+              <button class="pet-chat-send-btn" id="pet-chat-send" type="button" aria-label="发送">↑</button>
             </div>
-          </div>
-          <p class="error-message" id="pet-chat-error" role="alert"></p>
+            <p class="pet-chat-composer-hint">Enter 发送 · Shift+Enter 换行</p>
+          </footer>
         </div>
       </section>
 
@@ -1184,200 +1112,9 @@ openFolderButton.addEventListener('click', () => {
   if (extractedPath) void window.electronAPI.openPath(extractedPath)
 })
 
-const trainerCanvas = document.querySelector<HTMLCanvasElement>('#trainer-canvas')!
-const trainerScore = document.querySelector<HTMLElement>('#trainer-score')!
-const trainerCombo = document.querySelector<HTMLElement>('#trainer-combo')!
-const trainerComboLabel = document.querySelector<HTMLElement>('#trainer-combo-label')!
-const trainerAccuracy = document.querySelector<HTMLElement>('#trainer-accuracy')!
-const trainerAccuracyLabel = document.querySelector<HTMLElement>('#trainer-accuracy-label')!
-const trainerTime = document.querySelector<HTMLElement>('#trainer-time')!
-const trainerTimeLabel = document.querySelector<HTMLElement>('#trainer-time-label')!
-const trainerOverlay = document.querySelector<HTMLElement>('#trainer-overlay')!
-const trainerOverlayTitle = document.querySelector<HTMLElement>('#trainer-overlay-title')!
-const trainerOverlayCopy = document.querySelector<HTMLElement>('#trainer-overlay-copy')!
-const trainerOverlayButton = document.querySelector<HTMLButtonElement>('#trainer-overlay-button')!
-const trainerDuration = document.querySelector<HTMLSelectElement>('#trainer-duration')!
-const trainerDifficulty = document.querySelector<HTMLSelectElement>('#trainer-difficulty')!
-const trainerHint = document.querySelector<HTMLElement>('#trainer-hint')!
-const trainerHitMiss = document.querySelector<HTMLElement>('#trainer-hit-miss')!
-const trainerHitMissLabel = document.querySelector<HTMLElement>('#trainer-hit-miss-label')!
-const trainerBestCombo = document.querySelector<HTMLElement>('#trainer-best-combo')!
-const trainerBestComboLabel = document.querySelector<HTMLElement>('#trainer-best-combo-label')!
-const trainerStartButton = document.querySelector<HTMLButtonElement>('#trainer-start-button')!
-const trainerResetButton = document.querySelector<HTMLButtonElement>('#trainer-reset-button')!
-const trainerModeButtons = document.querySelectorAll<HTMLButtonElement>('.trainer-mode-button')
-const trainerGame = document.querySelector<HTMLSelectElement>('#trainer-game')!
-const trainerSens = document.querySelector<HTMLInputElement>('#trainer-sens')!
-const trainerDpi = document.querySelector<HTMLInputElement>('#trainer-dpi')!
-const trainerCm360 = document.querySelector<HTMLElement>('#trainer-cm360')!
-
-let trainerMode: AimTrainerMode = 'flick'
-const LOOK_KEY = 'mpt.aim.look'
-
-AIM_GAMES.forEach((game) => {
-  const option = document.createElement('option')
-  option.value = game.id
-  option.textContent = game.label
-  trainerGame.append(option)
-})
-
-const loadLookSettings = (): AimLookSettings => {
-  try {
-    const raw = localStorage.getItem(LOOK_KEY)
-    if (!raw) return { ...DEFAULT_LOOK }
-    const parsed = JSON.parse(raw) as Partial<AimLookSettings>
-    const game = AIM_GAMES.some((item) => item.id === parsed.game)
-      ? (parsed.game as AimGameId)
-      : DEFAULT_LOOK.game
-    return {
-      game,
-      sensitivity: Number(parsed.sensitivity) || DEFAULT_LOOK.sensitivity,
-      dpi: Number(parsed.dpi) || DEFAULT_LOOK.dpi,
-    }
-  } catch {
-    return { ...DEFAULT_LOOK }
-  }
-}
-
-const readLookSettings = (): AimLookSettings => ({
-  game: trainerGame.value as AimGameId,
-  sensitivity: Number(trainerSens.value) || DEFAULT_LOOK.sensitivity,
-  dpi: Number(trainerDpi.value) || DEFAULT_LOOK.dpi,
-})
-
-const applyLookSettings = (settings = readLookSettings()) => {
-  trainerEngine.setLookSettings(settings)
-  trainerCm360.textContent = `当前约 ${cmPer360(settings).toFixed(1)} cm/360 · 开始后锁定鼠标，Esc 暂停`
-  localStorage.setItem(LOOK_KEY, JSON.stringify(settings))
-}
-
-const formatLockTime = (ms: number) => `${(ms / 1000).toFixed(1)}s`
-
-const applyTrainerModeCopy = (mode: AimTrainerMode) => {
-  const track = mode === 'track'
-  trainerComboLabel.textContent = track ? '锁定' : '连击'
-  trainerAccuracyLabel.textContent = track ? '覆盖率' : '命中率'
-  trainerHitMissLabel.textContent = track ? '锁定 / 丢失' : '命中 / 未中'
-  trainerBestComboLabel.textContent = track ? '最长锁定' : '最高连击'
-  trainerHint.textContent = track
-    ? '准星固定在画面中心。转动视角跟上球体，锁住会持续得分。'
-    : '准星固定在画面中心。转动视角瞄准后点击射击；点空或超时消失记一次未命中。'
-  trainerDifficulty.options[0].text = track ? '简单 · 大球、较慢' : '简单 · 大球、较近'
-  trainerDifficulty.options[1].text = track ? '普通 · 适中' : '普通 · 适中'
-  trainerDifficulty.options[2].text = track ? '困难 · 小球、较快' : '困难 · 小球、较远'
-}
-
-const idleTrainerCopy = (mode: AimTrainerMode) =>
-  mode === 'track'
-    ? '开始后会锁定鼠标。用游戏灵敏度转动视角，把中心准星跟上球体。Esc 暂停。'
-    : '开始后会锁定鼠标。用游戏灵敏度转动视角，把中心准星对准球体后点击。Esc 暂停。'
-
-const formatTrainerTime = (remainingMs: number, elapsedMs: number) => {
-  if (remainingMs < 0) return `${(elapsedMs / 1000).toFixed(1)}s`
-  return `${(remainingMs / 1000).toFixed(1)}s`
-}
-
-const trainerEngine = new AimTrainer(trainerCanvas, (stats) => {
-  const track = stats.mode === 'track'
-  trainerScore.textContent = String(stats.score)
-  trainerCombo.textContent = track ? formatLockTime(stats.combo) : String(stats.combo)
-  trainerAccuracy.textContent = `${stats.accuracy}%`
-  trainerTime.textContent = formatTrainerTime(stats.remainingMs, stats.elapsedMs)
-  trainerTimeLabel.textContent = stats.remainingMs < 0 ? '已用时间' : '剩余时间'
-  trainerHitMiss.textContent = `${stats.hits} / ${stats.misses}`
-  trainerBestCombo.textContent = track ? formatLockTime(stats.bestCombo) : String(stats.bestCombo)
-
-  if (stats.status === 'running') {
-    trainerOverlay.hidden = true
-    trainerStartButton.textContent = '暂停'
-    return
-  }
-
-  trainerOverlay.hidden = false
-  if (stats.status === 'paused') {
-    trainerOverlayTitle.textContent = '已暂停'
-    trainerOverlayCopy.textContent = '继续后会重新锁定鼠标。Esc 或切走页面会暂停。'
-    trainerOverlayButton.textContent = '继续'
-    trainerStartButton.textContent = '继续'
-  } else if (stats.status === 'ended') {
-    trainerOverlayTitle.textContent = `本轮结束 · ${stats.score} 分`
-    trainerOverlayCopy.textContent = track
-      ? `锁定 ${stats.hits} 次，丢失 ${stats.misses} 次，覆盖率 ${stats.accuracy}%，最长锁定 ${formatLockTime(stats.bestCombo)}。`
-      : `命中 ${stats.hits}，未中 ${stats.misses}，最高连击 ${stats.bestCombo}。`
-    trainerOverlayButton.textContent = '再来一局'
-    trainerStartButton.textContent = '再来一局'
-  } else {
-    trainerOverlayTitle.textContent = '点击开始训练'
-    trainerOverlayCopy.textContent = idleTrainerCopy(trainerMode)
-    trainerOverlayButton.textContent = '开始训练'
-    trainerStartButton.textContent = '开始'
-  }
-})
-
-const startTrainer = () => {
-  applyLookSettings()
-  trainerEngine.start(
-    Number(trainerDuration.value),
-    trainerDifficulty.value as AimTrainerDifficulty,
-    trainerMode,
-  )
-}
-
-trainerModeButtons.forEach((button) => {
-  button.addEventListener('click', () => {
-    const next = button.dataset.mode as AimTrainerMode
-    if (next === trainerMode) return
-    trainerMode = next
-    trainerEngine.setMode(trainerMode)
-    trainerModeButtons.forEach((item) => {
-      item.classList.toggle('active', item === button)
-    })
-    applyTrainerModeCopy(trainerMode)
-    trainerOverlayTitle.textContent = '点击开始训练'
-    trainerOverlayCopy.textContent = idleTrainerCopy(trainerMode)
-    trainerOverlayButton.textContent = '开始训练'
-    trainerStartButton.textContent = '开始'
-  })
-})
-
-applyTrainerModeCopy(trainerMode)
-
-const initialLook = loadLookSettings()
-trainerGame.value = initialLook.game
-trainerSens.value = String(initialLook.sensitivity)
-trainerDpi.value = String(initialLook.dpi)
-applyLookSettings(initialLook)
-trainerGame.addEventListener('change', () => applyLookSettings())
-trainerSens.addEventListener('input', () => applyLookSettings())
-trainerDpi.addEventListener('input', () => applyLookSettings())
-
-onPageChange((pageId) => {
-  if (pageId === 'trainer-page') {
-    trainerEngine.refreshLayout()
-  } else if (trainerEngine.getStatus() === 'running') {
-    trainerEngine.pause()
-  }
-})
-
-trainerStartButton.addEventListener('click', () => {
-  const status = trainerEngine.getStatus()
-  if (status === 'running') trainerEngine.pause()
-  else if (status === 'paused') trainerEngine.resume()
-  else startTrainer()
-})
-
-trainerOverlayButton.addEventListener('click', () => {
-  const status = trainerEngine.getStatus()
-  if (status === 'paused') trainerEngine.resume()
-  else startTrainer()
-})
-
-trainerResetButton.addEventListener('click', () => trainerEngine.reset())
-
 window.addEventListener('beforeunload', () => {
   if (sourceUrl) URL.revokeObjectURL(sourceUrl)
   if (compressedUrl) URL.revokeObjectURL(compressedUrl)
-  trainerEngine.destroy()
 })
 
 mountWatermarkPage()

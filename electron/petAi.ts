@@ -3,6 +3,15 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { buildPetSystemPrompt } from './petContextBuilder'
 import { getPetStatus } from './pet'
+import type { AppPageId } from './appPages'
+import {
+  looksLikeWatermarkRequest,
+  PET_AI_TOOLS,
+  PET_SKILL_LABELS,
+  runPetSkill,
+  type PetSkillId,
+  type PetSkillPrefill,
+} from './petSkills'
 
 /** DeepSeek 最便宜档，适合桌宠短对话 */
 export const PET_AI_MODEL = 'deepseek-v4-flash'
@@ -18,6 +27,8 @@ export type PetAiSettingsView = {
 export type PetAiReply = {
   text: string
   emotion: EmotionTag
+  usedSkills?: Array<{ id: string; label: string }>
+  openPage?: AppPageId
 }
 
 type StoredAiSettings = {
@@ -27,8 +38,31 @@ type StoredAiSettings = {
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string }
 
+type ApiMessage =
+  | { role: 'system' | 'user' | 'assistant' | 'tool'; content: string; tool_call_id?: string }
+  | {
+      role: 'assistant'
+      content: string | null
+      tool_calls: Array<{
+        id: string
+        type: 'function'
+        function: { name: string; arguments: string }
+      }>
+    }
+
+type DeepSeekMessage = {
+  role?: string
+  content?: string | null
+  tool_calls?: Array<{
+    id: string
+    type?: string
+    function?: { name?: string; arguments?: string }
+  }>
+}
+
 const DEFAULT_BASE_URL = 'https://api.deepseek.com'
 const MAX_HISTORY = 20
+const MAX_TOOL_ROUNDS = 3
 
 let conversationHistory: ChatMessage[] = []
 let ipcRegistered = false
@@ -57,8 +91,7 @@ function writeAiSettings(patch: Partial<StoredAiSettings>) {
 
 function settingsView(): PetAiSettingsView {
   const settings = readAiSettings()
-  const hint =
-    settings.apiKey.length >= 4 ? `****${settings.apiKey.slice(-4)}` : ''
+  const hint = settings.apiKey.length >= 4 ? `****${settings.apiKey.slice(-4)}` : ''
   return {
     hasApiKey: settings.apiKey.length > 0,
     apiKeyHint: hint,
@@ -78,24 +111,27 @@ function bubbleSnippet(text: string) {
   return line.length > 120 ? `${line.slice(0, 117)}…` : line
 }
 
-async function callDeepSeek(messages: Array<{ role: string; content: string }>) {
+async function callDeepSeek(messages: ApiMessage[], withTools: boolean) {
   const settings = readAiSettings()
   if (!settings.apiKey) {
     throw new Error('请先在对话页配置 DeepSeek API Key')
   }
 
   const baseUrl = settings.baseUrl.replace(/\/$/, '')
+  const body: Record<string, unknown> = {
+    model: PET_AI_MODEL,
+    messages,
+    stream: false,
+  }
+  if (withTools) body.tools = PET_AI_TOOLS
+
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${settings.apiKey}`,
     },
-    body: JSON.stringify({
-      model: PET_AI_MODEL,
-      messages,
-      stream: false,
-    }),
+    body: JSON.stringify(body),
   })
 
   if (!response.ok) {
@@ -104,14 +140,130 @@ async function callDeepSeek(messages: Array<{ role: string; content: string }>) 
   }
 
   const payload = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>
+    choices?: Array<{ message?: DeepSeekMessage }>
   }
-  const content = payload.choices?.[0]?.message?.content?.trim()
-  if (!content) throw new Error('DeepSeek 返回了空回复')
-  return content
+  const message = payload.choices?.[0]?.message
+  if (!message) throw new Error('DeepSeek 返回了空回复')
+  return message
 }
 
-export function registerPetAiIpc(getPetWindow: () => BrowserWindow | null) {
+type OpenMainPageFn = (pageId: AppPageId, prefill?: PetSkillPrefill) => void
+
+function applySkillOpen(
+  result: Awaited<ReturnType<typeof runPetSkill>>,
+  openMainPage: OpenMainPageFn | undefined,
+) {
+  if (!result.openPage) return undefined
+  openMainPage?.(result.openPage, result.prefill)
+  return result.openPage
+}
+
+async function runChatWithSkills(playerText: string, openMainPage?: OpenMainPageFn) {
+  const status = getPetStatus()
+  const systemPrompt = buildPetSystemPrompt(status)
+  const usedSkills: Array<{ id: string; label: string }> = []
+  let openPage: AppPageId | undefined
+
+  conversationHistory.push({ role: 'user', content: playerText })
+  if (conversationHistory.length > MAX_HISTORY) {
+    conversationHistory = conversationHistory.slice(-MAX_HISTORY)
+  }
+
+  const messages: ApiMessage[] = [
+    { role: 'system', content: systemPrompt },
+    ...conversationHistory.map((item) => ({ role: item.role, content: item.content })),
+  ]
+
+  let replyText = ''
+
+  for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
+    const message = await callDeepSeek(messages, true)
+    const toolCalls = message.tool_calls?.filter((item) => item.function?.name) ?? []
+
+    if (toolCalls.length === 0) {
+      replyText = message.content?.trim() ?? ''
+      break
+    }
+
+    messages.push({
+      role: 'assistant',
+      content: message.content ?? null,
+      tool_calls: toolCalls.map((item) => ({
+        id: item.id,
+        type: 'function' as const,
+        function: {
+          name: item.function?.name ?? '',
+          arguments: item.function?.arguments ?? '{}',
+        },
+      })),
+    })
+
+    for (const toolCall of toolCalls) {
+      const name = toolCall.function?.name ?? ''
+      let result = await runPetSkill(name, toolCall.function?.arguments ?? '{}')
+      if (result.id === 'open_watermark_tool' && !result.prefill?.input) {
+        result = await runPetSkill(
+          'open_watermark_tool',
+          JSON.stringify({ share_text: playerText }),
+        )
+      }
+      usedSkills.push({
+        id: result.id,
+        label: PET_SKILL_LABELS[result.id as PetSkillId] ?? result.label,
+      })
+      openPage = applySkillOpen(result, openMainPage) ?? openPage
+      messages.push({
+        role: 'tool',
+        tool_call_id: toolCall.id,
+        content: result.content,
+      })
+    }
+  }
+
+  // 模型没调工具时：识别去水印意图并兜底打开工具页
+  if (
+    !usedSkills.some((item) => item.id === 'open_watermark_tool') &&
+    looksLikeWatermarkRequest(playerText)
+  ) {
+    const result = await runPetSkill(
+      'open_watermark_tool',
+      JSON.stringify({ share_text: playerText }),
+    )
+    usedSkills.push({
+      id: result.id,
+      label: PET_SKILL_LABELS[result.id] ?? result.label,
+    })
+    openPage = applySkillOpen(result, openMainPage) ?? openPage
+    replyText = `${status.profile.name}帮你打开去水印工具啦，链接也填好了，点「开始解析」就行~`
+  }
+
+  if (!replyText) {
+    const fallback = await callDeepSeek(messages, false)
+    replyText = fallback.content?.trim() ?? ''
+  }
+
+  if (!replyText) throw new Error('DeepSeek 返回了空回复')
+
+  conversationHistory.push({ role: 'assistant', content: replyText })
+  if (conversationHistory.length > MAX_HISTORY) {
+    conversationHistory = conversationHistory.slice(-MAX_HISTORY)
+  }
+
+  return {
+    text: replyText,
+    emotion: inferEmotionFromStatus(status),
+    usedSkills:
+      usedSkills.length > 0
+        ? Array.from(new Map(usedSkills.map((item) => [item.id, item])).values())
+        : undefined,
+    openPage,
+  } satisfies PetAiReply
+}
+
+export function registerPetAiIpc(
+  getPetWindow: () => BrowserWindow | null,
+  openMainPage?: OpenMainPageFn,
+) {
   if (ipcRegistered) return
   ipcRegistered = true
 
@@ -137,31 +289,11 @@ export function registerPetAiIpc(getPetWindow: () => BrowserWindow | null) {
     const playerText = String(text ?? '').trim()
     if (!playerText) throw new Error('请输入消息')
 
-    const status = getPetStatus()
-    const systemPrompt = buildPetSystemPrompt(status)
-
-    conversationHistory.push({ role: 'user', content: playerText })
-    if (conversationHistory.length > MAX_HISTORY) {
-      conversationHistory = conversationHistory.slice(-MAX_HISTORY)
-    }
-
-    const messages = [
-      { role: 'system', content: systemPrompt },
-      ...conversationHistory.map((item) => ({ role: item.role, content: item.content })),
-    ]
-
-    const replyText = await callDeepSeek(messages)
-    conversationHistory.push({ role: 'assistant', content: replyText })
-    if (conversationHistory.length > MAX_HISTORY) {
-      conversationHistory = conversationHistory.slice(-MAX_HISTORY)
-    }
-
-    const emotion = inferEmotionFromStatus(status)
+    const reply = await runChatWithSkills(playerText, openMainPage)
     const petWin = getPetWindow()
     if (petWin && !petWin.isDestroyed()) {
-      petWin.webContents.send('pet:ai-bubble', { text: bubbleSnippet(replyText) })
+      petWin.webContents.send('pet:ai-bubble', { text: bubbleSnippet(reply.text) })
     }
-
-    return { text: replyText, emotion } satisfies PetAiReply
+    return reply
   })
 }

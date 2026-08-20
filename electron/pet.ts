@@ -767,10 +767,17 @@ function persistPosition() {
   }, 250)
 }
 
-function navigateMainWindow(main: BrowserWindow, pageId: AppPageId) {
+function navigateMainWindow(
+  main: BrowserWindow,
+  pageId: AppPageId,
+  prefill?: { input: string },
+) {
   const send = () => {
     if (main.isDestroyed()) return
     main.webContents.send('main:navigate', pageId)
+    if (prefill?.input) {
+      main.webContents.send('tool:prefill', { pageId, input: prefill.input })
+    }
   }
   if (main.webContents.isLoadingMainFrame()) {
     main.webContents.once('did-finish-load', send)
@@ -779,7 +786,10 @@ function navigateMainWindow(main: BrowserWindow, pageId: AppPageId) {
   send()
 }
 
-export function showMainWindow(pageId: AppPageId = APP_HOME_PAGE) {
+export function showMainWindow(
+  pageId: AppPageId = APP_HOME_PAGE,
+  prefill?: { input: string },
+) {
   let main = getMainWindow()
   if (!main || main.isDestroyed()) {
     main = ensureMainWindow()
@@ -788,7 +798,7 @@ export function showMainWindow(pageId: AppPageId = APP_HOME_PAGE) {
   if (main.isMinimized()) main.restore()
   main.show()
   main.focus()
-  navigateMainWindow(main, pageId)
+  navigateMainWindow(main, pageId, prefill)
 }
 
 function openMainPage(pageId: AppPageId) {
@@ -1125,5 +1135,5 @@ export function registerPetIpc(
     }, 1_000)
   }
 
-  registerPetAiIpc(() => petWin)
+  registerPetAiIpc(() => petWin, showMainWindow)
 }

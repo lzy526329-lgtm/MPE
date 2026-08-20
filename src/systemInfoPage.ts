@@ -1,4 +1,5 @@
 import type { SystemInfo, DiskPartition } from '../electron/systemInfo'
+import { onPageChange } from './appNavigation'
 
 const formatBytes = (bytes: number, decimals = 1) => {
   if (bytes === 0) return '0 B'
@@ -122,9 +123,10 @@ const renderInfo = (info: SystemInfo) => {
 }
 
 export function mountSystemInfoPage() {
-  const refreshButton = document.querySelector<HTMLButtonElement>('#sysinfo-refresh')!
-  const container = document.querySelector<HTMLElement>('#sysinfo-container')!
-  const loading = document.querySelector<HTMLElement>('#sysinfo-loading')!
+  const refreshButton = document.querySelector<HTMLButtonElement>('#sysinfo-refresh')
+  const container = document.querySelector<HTMLElement>('#sysinfo-container')
+  const loading = document.querySelector<HTMLElement>('#sysinfo-loading')
+  if (!refreshButton || !container || !loading) return
 
   const load = async () => {
     loading.hidden = false
@@ -142,11 +144,7 @@ export function mountSystemInfoPage() {
   }
 
   refreshButton.addEventListener('click', () => void load())
-
-  // 切换到该页面时自动加载
-  document.querySelectorAll<HTMLButtonElement>('.nav-item').forEach((item) => {
-    item.addEventListener('click', () => {
-      if (item.dataset.page === 'sysinfo-page') void load()
-    })
+  onPageChange((pageId) => {
+    if (pageId === 'sysinfo-page') void load()
   })
 }

@@ -103,6 +103,18 @@ export function mountWatermarkPage() {
     if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') void parse()
   })
 
+  const applyPrefill = (text: string) => {
+    const value = text.trim()
+    if (!value) return
+    input.value = value
+    errorMessage.textContent = ''
+  }
+
+  window.electronAPI?.onToolPrefill?.((payload) => {
+    if (payload.pageId !== 'watermark-page') return
+    applyPrefill(payload.input)
+  })
+
   copyButton.addEventListener('click', async () => {
     if (!parsed?.video_url) return
     try {

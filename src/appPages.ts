@@ -6,7 +6,6 @@ export type AppPageId =
   | 'compression-page'
   | 'archive-page'
   | 'pdf-page'
-  | 'trainer-page'
   | 'sysinfo-page'
   | 'disk-clean-page'
 
@@ -20,7 +19,6 @@ export const APP_PAGE_TITLES: Record<AppPageId, string> = {
   'compression-page': '文件压缩',
   'archive-page': '文件解压',
   'pdf-page': 'PDF 工具箱',
-  'trainer-page': '瞄准训练',
   'sysinfo-page': '电脑信息',
   'disk-clean-page': '磁盘瘦身',
 }
@@ -31,7 +29,6 @@ export const TOOL_PAGES: AppPageId[] = [
   'compression-page',
   'archive-page',
   'pdf-page',
-  'trainer-page',
   'sysinfo-page',
   'disk-clean-page',
 ]

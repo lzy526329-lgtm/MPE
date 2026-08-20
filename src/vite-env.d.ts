@@ -76,6 +76,9 @@ declare global {
       petIgnoreMouse: (ignore: boolean) => Promise<void>
       petShowMain: (pageId?: string) => Promise<void>
       onMainNavigate: (callback: (pageId: string) => void) => () => void
+      onToolPrefill: (
+        callback: (payload: { pageId: string; input: string }) => void,
+      ) => () => void
       petPopupMenu: () => Promise<void>
       getPetStatus: () => Promise<PetStatus>
       setPetAutoWalk: (autoWalk: boolean) => Promise<PetStatus>
