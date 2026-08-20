@@ -26,6 +26,13 @@ import {
   type UpdatePetClipRequest,
 } from './petSkin'
 import { rememberCareEvent, rememberRename } from './petMemory'
+import {
+  decideProactiveChat,
+  isProactiveReminderId,
+  PROACTIVE_CHECK_INTERVAL_MS,
+  proactiveReminderId,
+  type ProactiveLatches,
+} from './petProactiveChat'
 
 export const PET_SIZE_MIN = 96
 export const PET_SIZE_MAX = 280
@@ -43,6 +50,10 @@ type PetSettings = {
   profile?: PetProfileStored
   stats?: PetStatsStored
   lastVitalAt?: number
+  /** 最近一次玩家互动（喂食/清洁/休息/对话等） */
+  lastInteractAt?: number
+  lastProactiveAt?: number
+  proactiveLatches?: ProactiveLatches
   reminders?: PetReminderStored[]
   activeChatReminderId?: string
   /** @deprecated use stats.satiety */
@@ -137,6 +148,7 @@ let reminderTimer: ReturnType<typeof setInterval> | null = null
 let chatQueue: PetChatMessage[] = []
 let activeChatMessage: PetChatMessage | null = null
 let activeChatTimer: ReturnType<typeof setTimeout> | null = null
+let lastProactiveCheckAt = 0
 
 function settingsFile() {
   return path.join(app.getPath('userData'), 'pet.json')
@@ -192,6 +204,11 @@ function ensurePetData(settings = readSettings()) {
 
   if (typeof settings.lastVitalAt !== 'number') {
     patch.lastVitalAt = Date.now()
+    changed = true
+  }
+
+  if (typeof settings.lastInteractAt !== 'number') {
+    patch.lastInteractAt = Date.now()
     changed = true
   }
 
@@ -469,7 +486,9 @@ function flushNextChatInQueue() {
   const next = chatQueue.shift()
   if (!next) return
   activeChatMessage = next
-  writeSettings({ activeChatReminderId: next.reminderId })
+  if (next.requireConfirm && !isProactiveReminderId(next.reminderId)) {
+    writeSettings({ activeChatReminderId: next.reminderId })
+  }
   emitPetChatMessage(next)
   if (!next.requireConfirm && next.dismissAfterMs) {
     activeChatTimer = setTimeout(() => {
@@ -689,6 +708,61 @@ function applyVitals(
   return status
 }
 
+/** 记录玩家互动，并清掉「寂寞」latch */
+export function markPetInteracted(extraLatches?: ProactiveLatches) {
+  const settings = ensurePetData()
+  const latches: ProactiveLatches = { ...(settings.proactiveLatches ?? {}) }
+  delete latches.lonely
+  if (extraLatches) {
+    for (const key of Object.keys(extraLatches) as Array<keyof ProactiveLatches>) {
+      if (extraLatches[key] === false) delete latches[key]
+    }
+  }
+  writeSettings({
+    lastInteractAt: Date.now(),
+    proactiveLatches: latches,
+  })
+}
+
+function tickProactiveChat() {
+  if (!isPetOpen()) return
+  const now = Date.now()
+  if (now - lastProactiveCheckAt < PROACTIVE_CHECK_INTERVAL_MS) return
+  lastProactiveCheckAt = now
+
+  // 有待确认提醒或当前气泡时不插队
+  if (activeChatMessage?.requireConfirm) return
+  if (activeChatMessage || chatQueue.length > 0) return
+
+  const settings = ensurePetData()
+  if (!settings.enabled) return
+
+  const stats = getPetStats(settings)
+  const profile = getPetProfile(settings)
+  const decision = decideProactiveChat({
+    satiety: stats.satiety,
+    hygiene: stats.hygiene,
+    health: stats.health,
+    lastInteractAt: settings.lastInteractAt ?? now,
+    lastProactiveAt: settings.lastProactiveAt,
+    latches: settings.proactiveLatches ?? {},
+    element: profile.personality.element,
+    now,
+  })
+  if (!decision) return
+
+  writeSettings({
+    lastProactiveAt: now,
+    proactiveLatches: decision.latches,
+  })
+  enqueueChatMessage({
+    reminderId: proactiveReminderId(decision.kind),
+    text: decision.text,
+    requireConfirm: false,
+    dismissAfterMs: 8_000,
+  })
+}
+
 function tickVitals() {
   const settings = ensurePetData()
   if (!settings.enabled) return getPetStatus()
@@ -810,6 +884,7 @@ function feedPetAction() {
   const stats = getPetStats()
   const status = applyVitals({ satiety: clampStat(stats.satiety + 35) })
   rememberCareEvent(status.profile.id, 'feed')
+  markPetInteracted({ hungry: false })
   return status
 }
 
@@ -817,6 +892,7 @@ function cleanPetAction() {
   const stats = getPetStats()
   const status = applyVitals({ hygiene: clampStat(stats.hygiene + 35) })
   rememberCareEvent(status.profile.id, 'clean')
+  markPetInteracted({ dirty: false })
   return status
 }
 
@@ -824,6 +900,7 @@ function restPetAction() {
   const stats = getPetStats()
   const status = applyVitals({ health: clampStat(stats.health + 25) })
   rememberCareEvent(status.profile.id, 'rest')
+  markPetInteracted({ weak: false })
   return status
 }
 
@@ -1059,6 +1136,7 @@ export function registerPetIpc(
       },
     })
     rememberRename(profile.id, name)
+    markPetInteracted()
     const status = getPetStatus()
     notifyStatusChanged(status)
     return status
@@ -1143,6 +1221,7 @@ export function registerPetIpc(
     reminderTimer = setInterval(() => {
       tickVitals()
       tickReminder()
+      tickProactiveChat()
     }, 1_000)
   }
 
