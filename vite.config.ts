@@ -1,5 +1,6 @@
 import path from 'node:path'
 import fs from 'node:fs'
+import type { ServerResponse } from 'node:http'
 import { defineConfig, type Plugin } from 'vite'
 import electron from 'vite-plugin-electron/simple'
 import { PET_CHARACTERS_URL, scanPetCharacters } from './electron/petCharacters'
@@ -11,7 +12,7 @@ function petCharactersPlugin(): Plugin {
   const root = path.resolve(__dirname, 'donghua')
   const prefix = `${PET_CHARACTERS_URL}/`
 
-  const sendFile = (rel: string, res: { setHeader: (k: string, v: string) => void; statusCode: number; end: (body?: string) => void }, next: () => void) => {
+  const sendFile = (rel: string, res: ServerResponse, next: () => void) => {
     if (rel === 'catalog.json') {
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
       res.end(JSON.stringify(scanPetCharacters(root)))
@@ -31,7 +32,7 @@ function petCharactersPlugin(): Plugin {
       '.json': 'application/octet-stream',
     }
     res.setHeader('Content-Type', types[ext] ?? 'application/octet-stream')
-    fs.createReadStream(file).pipe(res as NodeJS.WritableStream)
+    fs.createReadStream(file).pipe(res)
   }
 
   return {

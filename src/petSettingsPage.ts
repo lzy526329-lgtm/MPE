@@ -142,7 +142,7 @@ export function mountPetSettingsPage() {
     const characters = window.electronAPI?.getPetCharacters
       ? await window.electronAPI.getPetCharacters()
       : await fetch('/pet/characters/catalog.json').then((response) => (response.ok ? response.json() : []))
-    renderCharacters(root, characters, selectedId)
+    renderCharacters(root!, characters, selectedId)
   }
 
   if (window.electronAPI?.getPetStatus) {

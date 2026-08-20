@@ -384,8 +384,7 @@ async function boot() {
   requestAnimationFrame(tick)
 }
 
-if (window.electronAPI?.getPetStatus) {
-  window.electronAPI.onPetStatusChanged?.(applyPetStatus)
-}
+const onPetStatusChanged = window.electronAPI?.onPetStatusChanged
+if (onPetStatusChanged) onPetStatusChanged(applyPetStatus)
 
 void boot()
