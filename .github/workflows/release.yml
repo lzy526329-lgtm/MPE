@@ -110,12 +110,15 @@ jobs:
           fail_on_unmatched_files: true
 
       - name: Publish Gitee Release
-        if: ${{ secrets.GITEE_TOKEN != '' }}
         env:
           GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
           GITEE_OWNER: ${{ vars.GITEE_OWNER }}
           GITEE_REPO: ${{ vars.GITEE_REPO }}
         run: |
+          if [ -z "${GITEE_TOKEN}" ]; then
+            echo "未配置 GITEE_TOKEN，跳过 Gitee 同步（可在仓库 Secrets 中添加）"
+            exit 0
+          fi
           OWNER="${GITEE_OWNER:-li_ziyang}"
           REPO="${GITEE_REPO:-gongju}"
           chmod +x scripts/publish-gitee-release.sh
