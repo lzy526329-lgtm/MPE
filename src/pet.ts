@@ -2,13 +2,34 @@ import '@pixi/unsafe-eval'
 import 'pixi-spine'
 import { Application, Assets } from 'pixi.js'
 import { Spine } from 'pixi-spine'
-import type { PetBounds, PetChatMessage } from '../electron/pet'
+import type { PetBounds, PetChatMessage, PetStatus } from '../electron/pet'
+import type { PetElement } from '../electron/petProfile'
 import './pet.css'
 
 type AnimName = 'idle' | 'walk' | 'drag' | 'click' | 'victory'
 type WalkDir = 'walkLeft' | 'walkRight'
 
+type WanderParams = {
+  /** 到点后出发概率 */
+  startChance: number
+  /** 拒绝出发后的待机区间 */
+  skipIdleMs: [number, number]
+  /** 到达目标后的待机区间 */
+  arriveIdleMs: [number, number]
+  /** 每帧位移像素 */
+  speed: number
+  /** 相对当前位置的活动半径（占工作区短边比例） */
+  rangeFactor: number
+}
+
 const DEFAULT_VIEW_SIZE = 160
+const DEFAULT_WANDER: WanderParams = {
+  startChance: 0.32,
+  skipIdleMs: [8000, 18_000],
+  arriveIdleMs: [10_000, 22_000],
+  speed: 2,
+  rangeFactor: 0.35,
+}
 
 const root = document.querySelector<HTMLElement>('#pet-root')!
 
@@ -46,7 +67,7 @@ let dragging = false
 let dragOffsetX = 0
 let dragOffsetY = 0
 let clickLockUntil = 0
-let nextWanderAt = performance.now() + 2500
+let nextWanderAt = performance.now() + 8000
 let walkTarget: { x: number; y: number } | null = null
 let ignoreMouse = false
 let wanderBusy = false
@@ -54,6 +75,11 @@ let dragMoved = false
 let dragOriginX = 0
 let dragOriginY = 0
 let autoWalk = true
+let petSatiety = 100
+let petHygiene = 100
+let petHealth = 100
+let petMood = 100
+let petElement: PetElement = 'earth'
 let contentSize = DEFAULT_VIEW_SIZE
 let viewSize = DEFAULT_VIEW_SIZE
 let hitCenterX = DEFAULT_VIEW_SIZE / 2
@@ -70,6 +96,135 @@ let activeChatReminderId: string | null = null
 let viewportSyncSeq = 0
 
 const hasPetApi = Boolean(window.electronAPI?.petGetBounds)
+
+function clamp01(value: number) {
+  return Math.min(1, Math.max(0, value))
+}
+
+function randBetween(min: number, max: number) {
+  return min + Math.random() * Math.max(0, max - min)
+}
+
+function scheduleIdle(range: [number, number], now = performance.now()) {
+  nextWanderAt = now + randBetween(range[0], range[1])
+}
+
+/** 根据状态/性格推算游荡参数：饿/病/心情差会懒，火象更爱动，土象更稳 */
+function computeWanderParams(): WanderParams {
+  const vitality =
+    clamp01(petHealth / 100) * 0.4 +
+    clamp01(petSatiety / 100) * 0.3 +
+    clamp01(petMood / 100) * 0.2 +
+    clamp01(petHygiene / 100) * 0.1
+
+  let startChance = DEFAULT_WANDER.startChance * (0.35 + vitality * 0.9)
+  let skipMin = DEFAULT_WANDER.skipIdleMs[0]
+  let skipMax = DEFAULT_WANDER.skipIdleMs[1]
+  let arriveMin = DEFAULT_WANDER.arriveIdleMs[0]
+  let arriveMax = DEFAULT_WANDER.arriveIdleMs[1]
+  let speed = DEFAULT_WANDER.speed * (0.55 + vitality * 0.7)
+  let rangeFactor = DEFAULT_WANDER.rangeFactor * (0.45 + vitality * 0.7)
+
+  switch (petElement) {
+    case 'fire':
+      startChance *= 1.45
+      skipMin *= 0.65
+      skipMax *= 0.7
+      arriveMin *= 0.7
+      arriveMax *= 0.75
+      speed *= 1.25
+      rangeFactor *= 1.15
+      break
+    case 'earth':
+      startChance *= 0.55
+      skipMin *= 1.35
+      skipMax *= 1.45
+      arriveMin *= 1.4
+      arriveMax *= 1.5
+      speed *= 0.85
+      rangeFactor *= 0.55
+      break
+    case 'air':
+      startChance *= 1.2
+      skipMin *= 0.8
+      skipMax *= 0.85
+      arriveMin *= 0.85
+      arriveMax *= 0.9
+      speed *= 1.1
+      rangeFactor *= 1.25
+      break
+    case 'water': {
+      const moodFactor = 0.45 + clamp01(petMood / 100) * 0.9
+      startChance *= moodFactor
+      skipMin *= 1.4 - clamp01(petMood / 100) * 0.5
+      skipMax *= 1.45 - clamp01(petMood / 100) * 0.5
+      arriveMin *= 1.35 - clamp01(petMood / 100) * 0.4
+      arriveMax *= 1.4 - clamp01(petMood / 100) * 0.4
+      speed *= 0.9 + clamp01(petMood / 100) * 0.2
+      rangeFactor *= 0.75 + clamp01(petMood / 100) * 0.35
+      break
+    }
+  }
+
+  if (petSatiety < 20) {
+    startChance *= 0.35
+    speed *= 0.65
+    rangeFactor *= 0.5
+    skipMin *= 1.4
+    skipMax *= 1.5
+    arriveMin *= 1.5
+    arriveMax *= 1.6
+  } else if (petSatiety < 40) {
+    startChance *= 0.7
+    rangeFactor *= 0.75
+  }
+
+  if (petHealth < 30) {
+    startChance *= 0.25
+    speed *= 0.55
+    rangeFactor *= 0.4
+    skipMin *= 1.6
+    skipMax *= 1.8
+    arriveMin *= 1.7
+    arriveMax *= 1.9
+  } else if (petHealth < 50) {
+    startChance *= 0.65
+    speed *= 0.8
+  }
+
+  if (petMood < 35) {
+    startChance *= 0.45
+    rangeFactor *= 0.6
+    arriveMin *= 1.3
+    arriveMax *= 1.4
+  } else if (petMood >= 85 && vitality > 0.7) {
+    startChance *= 1.15
+    rangeFactor *= 1.1
+  }
+
+  return {
+    startChance: Math.min(0.75, Math.max(0.04, startChance)),
+    skipIdleMs: [Math.round(skipMin), Math.round(Math.max(skipMin + 1000, skipMax))],
+    arriveIdleMs: [Math.round(arriveMin), Math.round(Math.max(arriveMin + 1000, arriveMax))],
+    speed: Math.min(3.2, Math.max(0.8, speed)),
+    rangeFactor: Math.min(0.85, Math.max(0.12, rangeFactor)),
+  }
+}
+
+function pickNearbyTarget(info: PetBounds, rangeFactor: number) {
+  const maxX = info.workArea.x + info.workArea.width - info.width
+  const maxY = info.workArea.y + info.workArea.height - info.height
+  const shortSide = Math.min(info.workArea.width, info.workArea.height)
+  const radius = Math.max(48, shortSide * rangeFactor)
+  const angle = Math.random() * Math.PI * 2
+  const dist = Math.sqrt(Math.random()) * radius
+  const rawX = info.x + Math.cos(angle) * dist
+  const rawY = info.y + Math.sin(angle) * dist
+  return {
+    x: Math.round(Math.min(Math.max(rawX, info.workArea.x), Math.max(info.workArea.x, maxX))),
+    y: Math.round(Math.min(Math.max(rawY, info.workArea.y), Math.max(info.workArea.y, maxY))),
+  }
+}
 
 function setCanvasSize(size: number) {
   const next = Math.max(64, Math.round(size))
@@ -91,10 +246,19 @@ function syncPetViewport(size: number) {
   })
 }
 
-function applyPetStatus(status: { autoWalk: boolean; size: number; characterId?: string }) {
+function applyPetStatus(status: Pick<
+  PetStatus,
+  'autoWalk' | 'size' | 'characterId' | 'satiety' | 'hygiene' | 'health' | 'mood' | 'profile'
+>) {
   const nextContent = Math.max(64, Math.round(status.size))
   const contentChanged = nextContent !== contentSize
   contentSize = nextContent
+
+  petSatiety = status.satiety
+  petHygiene = status.hygiene
+  petHealth = status.health
+  petMood = status.mood
+  petElement = status.profile?.personality?.element ?? petElement
 
   const wantId = status.characterId || loadedCharacterId
   if (wantId && wantId !== loadedCharacterId) {
@@ -445,17 +609,14 @@ async function wander(now: number) {
     const info = await bounds()
     if (!info) return
 
+    const params = computeWanderParams()
+
     if (!walkTarget && now >= nextWanderAt) {
-      if (Math.random() < 0.55) {
-        const maxX = info.workArea.x + info.workArea.width - info.width
-        const maxY = info.workArea.y + info.workArea.height - info.height
-        walkTarget = {
-          x: Math.round(info.workArea.x + Math.random() * Math.max(1, maxX - info.workArea.x)),
-          y: Math.round(info.workArea.y + Math.random() * Math.max(1, maxY - info.workArea.y)),
-        }
+      if (Math.random() < params.startChance) {
+        walkTarget = pickNearbyTarget(info, params.rangeFactor)
         setAnim('walk')
       } else {
-        nextWanderAt = now + 2000 + Math.random() * 4000
+        scheduleIdle(params.skipIdleMs, now)
         setAnim('idle')
       }
     }
@@ -470,7 +631,7 @@ async function wander(now: number) {
     const dist = Math.hypot(dx, dy)
     if (dist < 3) {
       walkTarget = null
-      nextWanderAt = now + 2500 + Math.random() * 4000
+      scheduleIdle(params.arriveIdleMs, now)
       setAnim('idle')
       return
     }
@@ -478,8 +639,10 @@ async function wander(now: number) {
     walkDir = directionFromDelta(dx)
     setFacing(dx)
     setAnim('walk')
-    const speed = 2.4
-    await window.electronAPI.petSetPosition(info.x + (dx / dist) * speed, info.y + (dy / dist) * speed)
+    await window.electronAPI.petSetPosition(
+      info.x + (dx / dist) * params.speed,
+      info.y + (dy / dist) * params.speed,
+    )
   } finally {
     wanderBusy = false
   }
@@ -538,14 +701,15 @@ window.addEventListener('mousemove', async (event) => {
 window.addEventListener('mouseup', (event) => {
   if (!dragging || event.button !== 0) return
   dragging = false
+  const cooldown = computeWanderParams().arriveIdleMs
   if (dragMoved) {
     setAnim('idle')
-    nextWanderAt = performance.now() + 1800
+    scheduleIdle([Math.min(2500, cooldown[0]), Math.min(5000, cooldown[1])])
     return
   }
   clickLockUntil = performance.now() + 900
   setAnim('click')
-  nextWanderAt = performance.now() + 1800
+  scheduleIdle([Math.min(2500, cooldown[0]), Math.min(5000, cooldown[1])])
 })
 
 chatConfirmButton.addEventListener('click', async () => {
