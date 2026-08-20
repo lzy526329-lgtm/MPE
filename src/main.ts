@@ -15,6 +15,7 @@ import { mountWatermarkPage } from './watermarkPage'
 import { mountSystemInfoPage } from './systemInfoPage'
 import { mountDiskCleanPage } from './diskCleanPage'
 import { mountPdfPage } from './pdfPage'
+import { mountPetSettingsPage } from './petSettingsPage'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
@@ -58,7 +59,15 @@ app.innerHTML = `
           <span>◈</span>
           磁盘瘦身
         </button>
+        <button class="nav-item" data-page="pet-settings-page" type="button">
+          <span>☺</span>
+          桌宠设置
+        </button>
       </nav>
+      <label class="pet-switch">
+        <input id="desktop-pet-toggle" type="checkbox" />
+        <span>桌面宠物</span>
+      </label>
       <p class="local-tip">文件处理均在本地完成</p>
     </aside>
 
@@ -683,6 +692,16 @@ app.innerHTML = `
           <div id="sysinfo-container"></div>
         </div>
       </section>
+      <section class="tool-page" id="pet-settings-page" hidden>
+        <header>
+          <div>
+            <p class="eyebrow">桌面宠物</p>
+            <h1>桌宠设置</h1>
+            <p class="subtitle">配置大小、自动行走，并查看健康、饥饿等基础状态。饥饿会随时间增加，过饿会掉健康。</p>
+          </div>
+        </header>
+        <div class="panel" id="pet-settings-root"></div>
+      </section>
     </main>
   </div>
 `
@@ -824,6 +843,19 @@ downloadButton.addEventListener('click', () => {
   link.download = `${baseName}-compressed.${compressedExtension}`
   link.click()
 })
+
+const desktopPetToggle = document.querySelector<HTMLInputElement>('#desktop-pet-toggle')!
+if (window.electronAPI?.getPetEnabled) {
+  window.electronAPI.getPetEnabled().then((enabled) => {
+    desktopPetToggle.checked = enabled
+  })
+  desktopPetToggle.addEventListener('change', () => {
+    void window.electronAPI.setPetEnabled(desktopPetToggle.checked)
+  })
+  window.electronAPI.onPetEnabledChanged((enabled) => {
+    desktopPetToggle.checked = enabled
+  })
+}
 
 const navItems = document.querySelectorAll<HTMLButtonElement>('.nav-item')
 const toolPages = document.querySelectorAll<HTMLElement>('.tool-page')
@@ -1350,3 +1382,4 @@ mountWatermarkPage()
 mountSystemInfoPage()
 mountDiskCleanPage()
 mountPdfPage()
+mountPetSettingsPage()

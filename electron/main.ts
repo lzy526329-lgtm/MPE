@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, session, shell } from 'electron'
+import { registerPetIpc, restorePetIfNeeded, isPetOpen } from './pet'
 import path from 'node:path'
 import os from 'node:os'
 import { execSync } from 'node:child_process'
@@ -61,6 +62,10 @@ function createWindow() {
     },
   })
 
+  win.on('closed', () => {
+    win = null
+  })
+
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL)
   } else {
@@ -69,16 +74,15 @@ function createWindow() {
 }
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
+  if (process.platform !== 'darwin' && !isPetOpen()) {
     app.quit()
     win = null
   }
 })
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow()
-  }
+  if (!win) createWindow()
+  else win.show()
 })
 
 ipcMain.handle('image:compress', (_event, request: CompressRequest) => compressImage(request))
@@ -258,5 +262,7 @@ ipcMain.handle('disk:clean', (_event, ids: string[]) => cleanCategories(ids))
 
 app.whenReady().then(() => {
   attachWatermarkMediaHeaders(session.defaultSession)
+  registerPetIpc(() => win)
   createWindow()
+  restorePetIfNeeded()
 })

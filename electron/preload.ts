@@ -11,6 +11,15 @@ import type {
 import type { SaveWatermarkResult, WatermarkResult } from './watermark'
 import type { SystemInfo } from './systemInfo'
 import type { ScanResult, CleanResult } from './diskClean'
+import type { PetBounds, PetStatus } from './pet'
+import type { PetCharacter } from './petCharacters'
+import type {
+  PetClipKey,
+  PetClipView,
+  PetSkinView,
+  SavePetClipRequest,
+  UpdatePetClipRequest,
+} from './petSkin'
 import type {
   ExtractPdfImagesRequest,
   ExtractPdfImagesResult,
@@ -74,4 +83,49 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSystemInfo: (): Promise<SystemInfo> => ipcRenderer.invoke('system:info'),
   scanDisk: (): Promise<ScanResult> => ipcRenderer.invoke('disk:scan'),
   cleanDisk: (ids: string[]): Promise<CleanResult> => ipcRenderer.invoke('disk:clean', ids),
+  getPetEnabled: (): Promise<boolean> => ipcRenderer.invoke('pet:get-enabled'),
+  setPetEnabled: (enabled: boolean): Promise<boolean> =>
+    ipcRenderer.invoke('pet:set-enabled', enabled),
+  onPetEnabledChanged: (callback: (enabled: boolean) => void) => {
+    const listener = (_event: unknown, enabled: boolean) => callback(enabled)
+    ipcRenderer.on('pet:enabled-changed', listener)
+    return () => ipcRenderer.removeListener('pet:enabled-changed', listener)
+  },
+  petGetBounds: (): Promise<PetBounds | null> => ipcRenderer.invoke('pet:get-bounds'),
+  petSetPosition: (x: number, y: number): Promise<{ x: number; y: number } | null> =>
+    ipcRenderer.invoke('pet:set-position', x, y),
+  petIgnoreMouse: (ignore: boolean): Promise<void> =>
+    ipcRenderer.invoke('pet:ignore-mouse', ignore),
+  petShowMain: (): Promise<void> => ipcRenderer.invoke('pet:show-main'),
+  petPopupMenu: (): Promise<void> => ipcRenderer.invoke('pet:popup-menu'),
+  getPetStatus: (): Promise<PetStatus> => ipcRenderer.invoke('pet:get-status'),
+  setPetAutoWalk: (autoWalk: boolean): Promise<PetStatus> =>
+    ipcRenderer.invoke('pet:set-auto-walk', autoWalk),
+  setPetSize: (size: number): Promise<PetStatus> => ipcRenderer.invoke('pet:set-size', size),
+  getPetCharacters: (): Promise<PetCharacter[]> => ipcRenderer.invoke('pet:list-characters'),
+  setPetCharacter: (characterId: string): Promise<PetStatus> =>
+    ipcRenderer.invoke('pet:set-character', characterId),
+  feedPet: (): Promise<PetStatus> => ipcRenderer.invoke('pet:feed'),
+  restPet: (): Promise<PetStatus> => ipcRenderer.invoke('pet:rest'),
+  onPetStatusChanged: (callback: (status: PetStatus) => void) => {
+    const listener = (_event: unknown, status: PetStatus) => callback(status)
+    ipcRenderer.on('pet:status-changed', listener)
+    return () => ipcRenderer.removeListener('pet:status-changed', listener)
+  },
+  getPetSkin: (): Promise<PetSkinView> => ipcRenderer.invoke('pet:get-skin'),
+  savePetClip: (request: SavePetClipRequest): Promise<PetClipView> =>
+    ipcRenderer.invoke('pet:save-clip', {
+      ...request,
+      bytes: Buffer.from(request.bytes),
+    }),
+  updatePetClip: (request: UpdatePetClipRequest): Promise<PetSkinView> =>
+    ipcRenderer.invoke('pet:update-clip', request),
+  removePetClip: (key: PetClipKey): Promise<PetSkinView> =>
+    ipcRenderer.invoke('pet:remove-clip', key),
+  resetPetSkin: (): Promise<PetSkinView> => ipcRenderer.invoke('pet:reset-skin'),
+  onPetSkinChanged: (callback: (skin: PetSkinView) => void) => {
+    const listener = (_event: unknown, skin: PetSkinView) => callback(skin)
+    ipcRenderer.on('pet:skin-changed', listener)
+    return () => ipcRenderer.removeListener('pet:skin-changed', listener)
+  },
 })

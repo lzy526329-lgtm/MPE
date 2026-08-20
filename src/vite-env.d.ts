@@ -10,6 +10,15 @@ import type {
   ExtractResult,
 } from '../electron/archive'
 import type { SaveWatermarkResult, WatermarkResult } from '../electron/watermark'
+import type { PetBounds, PetStatus } from '../electron/pet'
+import type { PetCharacter } from '../electron/petCharacters'
+import type {
+  PetClipKey,
+  PetClipView,
+  PetSkinView,
+  SavePetClipRequest,
+  UpdatePetClipRequest,
+} from '../electron/petSkin'
 import type { SystemInfo } from '../electron/systemInfo'
 import type { ScanResult, CleanResult } from '../electron/diskClean'
 import type {
@@ -58,6 +67,28 @@ declare global {
       getSystemInfo: () => Promise<SystemInfo>
       scanDisk: () => Promise<ScanResult>
       cleanDisk: (ids: string[]) => Promise<CleanResult>
+      getPetEnabled: () => Promise<boolean>
+      setPetEnabled: (enabled: boolean) => Promise<boolean>
+      onPetEnabledChanged: (callback: (enabled: boolean) => void) => () => void
+      petGetBounds: () => Promise<PetBounds | null>
+      petSetPosition: (x: number, y: number) => Promise<{ x: number; y: number } | null>
+      petIgnoreMouse: (ignore: boolean) => Promise<void>
+      petShowMain: () => Promise<void>
+      petPopupMenu: () => Promise<void>
+      getPetStatus: () => Promise<PetStatus>
+      setPetAutoWalk: (autoWalk: boolean) => Promise<PetStatus>
+      setPetSize: (size: number) => Promise<PetStatus>
+      getPetCharacters: () => Promise<PetCharacter[]>
+      setPetCharacter: (characterId: string) => Promise<PetStatus>
+      feedPet: () => Promise<PetStatus>
+      restPet: () => Promise<PetStatus>
+      onPetStatusChanged: (callback: (status: PetStatus) => void) => () => void
+      getPetSkin: () => Promise<PetSkinView>
+      savePetClip: (request: SavePetClipRequest) => Promise<PetClipView>
+      updatePetClip: (request: UpdatePetClipRequest) => Promise<PetSkinView>
+      removePetClip: (key: PetClipKey) => Promise<PetSkinView>
+      resetPetSkin: () => Promise<PetSkinView>
+      onPetSkinChanged: (callback: (skin: PetSkinView) => void) => () => void
     }
   }
 }

@@ -1,0 +1,19 @@
+html,
+body,
+#pet-root {
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+  user-select: none;
+}
+
+canvas {
+  display: block;
+  width: 160px;
+  height: 160px;
+  cursor: grab;
+}
+
+canvas:active {
+  cursor: grabbing;
+}

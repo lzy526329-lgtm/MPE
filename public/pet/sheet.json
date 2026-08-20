@@ -1,0 +1,10 @@
+{
+  "frameWidth": 128,
+  "frameHeight": 128,
+  "animations": {
+    "idle": { "row": 0, "frames": 4, "fps": 1.5 },
+    "walk": { "row": 1, "frames": 4, "fps": 8 },
+    "drag": { "row": 2, "frames": 4, "fps": 4 },
+    "click": { "row": 3, "frames": 4, "fps": 10 }
+  }
+}
