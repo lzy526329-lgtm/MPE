@@ -16,7 +16,8 @@ import { mountSystemInfoPage } from './systemInfoPage'
 import { mountDiskCleanPage } from './diskCleanPage'
 import { mountPdfPage } from './pdfPage'
 import { mountPetSettingsPage } from './petSettingsPage'
-import { setupAppNavigation, onPageChange } from './appNavigation'
+import { mountPetChatPage } from './petChatPage'
+import { setupAppNavigation, onPageChange, navigateToPage } from './appNavigation'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
@@ -41,6 +42,7 @@ app.innerHTML = `
         <button class="nav-item" type="button" data-pet-tab="status">状态</button>
         <button class="nav-item" type="button" data-pet-tab="reminders">交流提醒</button>
       </nav>
+      <button class="nav-item pet-chat-sidebar-btn" id="open-pet-chat" type="button">与我对话</button>
       <p class="local-tip">所有工具均在本地完成，不上传文件。</p>
     </aside>
 
@@ -669,6 +671,55 @@ app.innerHTML = `
           <div id="sysinfo-container"></div>
         </div>
       </section>
+      <section class="tool-page" id="pet-chat-page" hidden>
+        <header>
+          <div>
+            <p class="eyebrow">MY PET</p>
+            <h1>与宠物对话</h1>
+            <p class="subtitle">配置 DeepSeek API Key，和桌宠自然聊天。状态会作为上下文，但不会直接暴露数值。</p>
+          </div>
+        </header>
+        <div class="panel pet-chat-panel" id="pet-chat-root">
+          <section class="pet-chat-config">
+            <h2>DeepSeek API Key</h2>
+            <p class="field-hint">
+              Key 仅保存在本机。可在
+              <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener noreferrer">DeepSeek 开放平台</a>
+              申请。
+            </p>
+            <div class="pet-chat-config-row">
+              <input
+                class="password-input"
+                id="pet-ai-api-key"
+                type="password"
+                placeholder="粘贴 API Key"
+                autocomplete="off"
+              />
+              <button class="secondary-button" id="pet-ai-save-key" type="button">保存</button>
+              <button class="text-button" id="pet-ai-clear-key" type="button">清除</button>
+            </div>
+            <p class="field-hint" id="pet-ai-key-hint">尚未配置 API Key · 对话使用 deepseek-v4-flash（最便宜）</p>
+          </section>
+
+          <div class="pet-chat-status-bar" id="pet-chat-status">读取状态中…</div>
+
+          <div class="pet-chat-messages" id="pet-chat-messages" aria-live="polite"></div>
+
+          <div class="pet-chat-compose">
+            <textarea
+              id="pet-chat-input"
+              rows="3"
+              placeholder="和小宠物说点什么…（Enter 发送，Shift+Enter 换行）"
+            ></textarea>
+            <div class="pet-chat-compose-actions">
+              <button class="text-button" id="pet-chat-clear-history" type="button">清空对话</button>
+              <button class="primary-button" id="pet-chat-send" type="button">发送</button>
+            </div>
+          </div>
+          <p class="error-message" id="pet-chat-error" role="alert"></p>
+        </div>
+      </section>
+
       <section class="tool-page" id="pet-settings-page">
         <header>
           <div>
@@ -1334,4 +1385,9 @@ mountSystemInfoPage()
 mountDiskCleanPage()
 mountPdfPage()
 mountPetSettingsPage()
+mountPetChatPage()
 setupAppNavigation()
+
+document.querySelector<HTMLButtonElement>('#open-pet-chat')?.addEventListener('click', () => {
+  navigateToPage('pet-chat-page')
+})

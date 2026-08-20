@@ -2,6 +2,7 @@ import { BrowserWindow, Menu, app, ipcMain, screen } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 import { APP_HOME_PAGE, PET_TOOL_MENU, type AppPageId } from './appPages'
+import { registerPetAiIpc } from './petAi'
 import { getPetCharacter, listPetCharacters } from './petCharacters'
 import {
   createDefaultProfile,
@@ -799,6 +800,7 @@ function buildPetMenu() {
   const pending = findPendingReminder(reminders)
   return Menu.buildFromTemplate([
     { label: '宠物设置', click: () => openMainPage(APP_HOME_PAGE) },
+    { label: '与我对话', click: () => openMainPage('pet-chat-page') },
     { type: 'separator' },
     {
       label: '喂食',
@@ -1122,4 +1124,6 @@ export function registerPetIpc(
       tickReminder()
     }, 1_000)
   }
+
+  registerPetAiIpc(() => petWin)
 }

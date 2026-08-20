@@ -1,5 +1,6 @@
 export type AppPageId =
   | 'pet-settings-page'
+  | 'pet-chat-page'
   | 'image-page'
   | 'watermark-page'
   | 'compression-page'
@@ -13,6 +14,7 @@ export const APP_HOME_PAGE: AppPageId = 'pet-settings-page'
 
 export const APP_PAGE_TITLES: Record<AppPageId, string> = {
   'pet-settings-page': '宠物设置',
+  'pet-chat-page': '与宠物对话',
   'image-page': '图片压缩',
   'watermark-page': '视频去水印',
   'compression-page': '文件压缩',

@@ -9,11 +9,13 @@ function syncToolbar(pageId: AppPageId) {
   const toolbar = document.querySelector<HTMLElement>('#workspace-toolbar')
   const title = document.querySelector<HTMLElement>('#workspace-title')
   const petNav = document.querySelector<HTMLElement>('#pet-settings-nav')
+  const petChatBtn = document.querySelector<HTMLElement>('#open-pet-chat')
   if (!toolbar || !title) return
   const isHome = pageId === APP_HOME_PAGE
   toolbar.hidden = isHome
   title.textContent = APP_PAGE_TITLES[pageId] ?? ''
   if (petNav) petNav.hidden = !isHome
+  if (petChatBtn) petChatBtn.hidden = !isHome
 }
 
 export function getCurrentPage() {

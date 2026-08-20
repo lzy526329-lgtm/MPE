@@ -95,6 +95,17 @@ function hideChatMessage() {
   chatBubble.hidden = true
 }
 
+function showAiBubble(text: string) {
+  window.clearTimeout(chatHideTimer)
+  activeChatReminderId = null
+  chatText.textContent = text
+  chatConfirmButton.hidden = true
+  chatBubble.hidden = false
+  chatHideTimer = window.setTimeout(() => {
+    hideChatMessage()
+  }, 8000)
+}
+
 function showChatMessage(message: PetChatMessage) {
   window.clearTimeout(chatHideTimer)
   activeChatReminderId = message.reminderId
@@ -434,5 +445,6 @@ const onPetStatusChanged = window.electronAPI?.onPetStatusChanged
 if (onPetStatusChanged) onPetStatusChanged(applyPetStatus)
 window.electronAPI?.onPetChatMessage?.(showChatMessage)
 window.electronAPI?.onPetChatClear?.(hideChatMessage)
+window.electronAPI?.onPetAiBubble?.((payload) => showAiBubble(payload.text))
 
 void boot()

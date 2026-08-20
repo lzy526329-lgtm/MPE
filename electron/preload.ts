@@ -11,6 +11,7 @@ import type {
 import type { SaveWatermarkResult, WatermarkResult } from './watermark'
 import type { SystemInfo } from './systemInfo'
 import type { ScanResult, CleanResult } from './diskClean'
+import type { PetAiReply, PetAiSettingsView } from './petAi'
 import type { PetBounds, PetChatMessage, PetReminderItem, PetStatus } from './pet'
 import type { PetCharacter } from './petCharacters'
 import type {
@@ -149,6 +150,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const listener = () => callback()
     ipcRenderer.on('pet:chat-clear', listener)
     return () => ipcRenderer.removeListener('pet:chat-clear', listener)
+  },
+  petAiGetSettings: (): Promise<PetAiSettingsView> => ipcRenderer.invoke('pet:ai-get-settings'),
+  petAiSaveSettings: (input: { apiKey?: string }): Promise<PetAiSettingsView> =>
+    ipcRenderer.invoke('pet:ai-save-settings', input),
+  petAiClearSettings: (): Promise<PetAiSettingsView> => ipcRenderer.invoke('pet:ai-clear-settings'),
+  petAiClearHistory: (): Promise<void> => ipcRenderer.invoke('pet:ai-clear-history'),
+  petAiSend: (text: string): Promise<PetAiReply> => ipcRenderer.invoke('pet:ai-send', text),
+  onPetAiBubble: (callback: (payload: { text: string }) => void) => {
+    const listener = (_event: unknown, payload: { text: string }) => callback(payload)
+    ipcRenderer.on('pet:ai-bubble', listener)
+    return () => ipcRenderer.removeListener('pet:ai-bubble', listener)
   },
   getPetSkin: (): Promise<PetSkinView> => ipcRenderer.invoke('pet:get-skin'),
   savePetClip: (request: SavePetClipRequest): Promise<PetClipView> =>

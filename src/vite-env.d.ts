@@ -11,6 +11,7 @@ import type {
 } from '../electron/archive'
 import type { SaveWatermarkResult, WatermarkResult } from '../electron/watermark'
 import type { PetBounds, PetChatMessage, PetReminderItem, PetStatus } from '../electron/pet'
+import type { PetAiReply, PetAiSettingsView } from '../electron/petAi'
 import type { PetCharacter } from '../electron/petCharacters'
 import type {
   PetClipKey,
@@ -102,6 +103,12 @@ declare global {
       onPetRemindersUpdated: (callback: (reminders: PetReminderItem[]) => void) => () => void
       onPetChatMessage: (callback: (message: PetChatMessage) => void) => () => void
       onPetChatClear: (callback: () => void) => () => void
+      petAiGetSettings: () => Promise<PetAiSettingsView>
+      petAiSaveSettings: (input: { apiKey?: string }) => Promise<PetAiSettingsView>
+      petAiClearSettings: () => Promise<PetAiSettingsView>
+      petAiClearHistory: () => Promise<void>
+      petAiSend: (text: string) => Promise<PetAiReply>
+      onPetAiBubble: (callback: (payload: { text: string }) => void) => () => void
       getPetSkin: () => Promise<PetSkinView>
       savePetClip: (request: SavePetClipRequest) => Promise<PetClipView>
       updatePetClip: (request: UpdatePetClipRequest) => Promise<PetSkinView>
