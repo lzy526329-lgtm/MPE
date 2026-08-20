@@ -82,7 +82,9 @@ declare global {
       getPetCharacters: () => Promise<PetCharacter[]>
       setPetCharacter: (characterId: string) => Promise<PetStatus>
       feedPet: () => Promise<PetStatus>
+      cleanPet: () => Promise<PetStatus>
       restPet: () => Promise<PetStatus>
+      updatePetProfile: (patch: { name?: string }) => Promise<PetStatus>
       getPetReminders: () => Promise<PetReminderItem[]>
       upsertPetReminder: (request: {
         id?: string

@@ -4,6 +4,14 @@ import path from 'node:path'
 import { APP_HOME_PAGE, PET_TOOL_MENU, type AppPageId } from './appPages'
 import { getPetCharacter, listPetCharacters } from './petCharacters'
 import {
+  createDefaultProfile,
+  createDefaultStats,
+  getPersonalityDecayRates,
+  titleForLevel,
+  type PetProfileStored,
+  type PetStatsStored,
+} from './petProfile'
+import {
   loadSkinView,
   pruneLegacyClipFiles,
   readSkinConfig,
@@ -21,6 +29,8 @@ export const PET_SIZE_MIN = 96
 export const PET_SIZE_MAX = 280
 export const PET_SIZE_DEFAULT = 160
 
+export type { PetGender, PetPersonality, PetProfileStored, PetStatsStored } from './petProfile'
+
 type PetSettings = {
   enabled: boolean
   x?: number
@@ -28,11 +38,15 @@ type PetSettings = {
   size?: number
   characterId?: string
   autoWalk?: boolean
-  health?: number
-  hunger?: number
+  profile?: PetProfileStored
+  stats?: PetStatsStored
   lastVitalAt?: number
   reminders?: PetReminderStored[]
   activeChatReminderId?: string
+  /** @deprecated use stats.satiety */
+  health?: number
+  /** @deprecated use stats / hunger inverted to satiety */
+  hunger?: number
   /** @deprecated migrated to reminders[] */
   reminderEnabled?: boolean
   /** @deprecated */
@@ -75,8 +89,11 @@ export type PetStatus = {
   autoWalk: boolean
   size: number
   characterId: string
+  satiety: number
+  hygiene: number
   health: number
-  hunger: number
+  mood: number
+  profile: PetProfileStored
 }
 
 export type PetBounds = {
@@ -131,6 +148,72 @@ function readSettings(): PetSettings {
   }
 }
 
+function migrateLegacyStats(settings: PetSettings): PetStatsStored {
+  if (settings.stats) return settings.stats
+  const legacyHealth = typeof settings.health === 'number' ? settings.health : 100
+  const legacyHunger = typeof settings.hunger === 'number' ? settings.hunger : 20
+  return {
+    satiety: clampStat(100 - legacyHunger),
+    hygiene: 100,
+    health: clampStat(legacyHealth),
+  }
+}
+
+function ensurePetProfile(settings: PetSettings): PetProfileStored {
+  if (settings.profile?.id) {
+    const profile = settings.profile
+    return {
+      ...profile,
+      title: profile.title || titleForLevel(profile.level ?? 0),
+      level: profile.level ?? 0,
+      growth: profile.growth ?? 0,
+      coins: profile.coins ?? 0,
+      personality: profile.personality ?? createDefaultProfile().personality,
+    }
+  }
+  return createDefaultProfile()
+}
+
+function ensurePetData(settings = readSettings()) {
+  const patch: Partial<PetSettings> = {}
+  let changed = false
+
+  if (!settings.profile?.id) {
+    patch.profile = createDefaultProfile()
+    changed = true
+  }
+
+  if (!settings.stats) {
+    patch.stats = migrateLegacyStats(settings)
+    changed = true
+  }
+
+  if (typeof settings.lastVitalAt !== 'number') {
+    patch.lastVitalAt = Date.now()
+    changed = true
+  }
+
+  if (changed) {
+    writeSettings(patch)
+    return { ...settings, ...patch }
+  }
+
+  return settings
+}
+
+function getPetStats(settings = ensurePetData()): PetStatsStored {
+  const stats = settings.stats ?? createDefaultStats()
+  return {
+    satiety: clampStat(stats.satiety),
+    hygiene: clampStat(stats.hygiene),
+    health: clampStat(stats.health),
+  }
+}
+
+function getPetProfile(settings = ensurePetData()): PetProfileStored {
+  return ensurePetProfile(settings)
+}
+
 function writeSettings(patch: Partial<PetSettings>) {
   const next = { ...readSettings(), ...patch }
   fs.mkdirSync(path.dirname(settingsFile()), { recursive: true })
@@ -138,7 +221,35 @@ function writeSettings(patch: Partial<PetSettings>) {
 }
 
 function clampStat(value: number) {
-  return Math.min(100, Math.max(0, Math.round(value)))
+  return Math.min(100, Math.max(0, value))
+}
+
+function roundStat(value: number) {
+  return Math.round(clampStat(value))
+}
+
+function computeMood(stats: PetStatsStored, profile: PetProfileStored) {
+  let mood = stats.health * 0.45 + stats.satiety * 0.35 + stats.hygiene * 0.2
+  if (stats.satiety < 30) mood -= 10
+  if (stats.hygiene < 30) mood -= 10
+  if (stats.health < 40) mood -= 20
+
+  switch (profile.personality.element) {
+    case 'fire':
+      mood += stats.satiety >= 60 ? 4 : -2
+      break
+    case 'earth':
+      mood += 3
+      break
+    case 'air':
+      mood += stats.hygiene >= 60 ? 2 : -3
+      break
+    case 'water':
+      mood += Math.min(stats.health, stats.hygiene) < 50 ? -4 : 2
+      break
+  }
+
+  return roundStat(mood)
 }
 
 function clampReminderMinutes(value: number) {
@@ -305,14 +416,19 @@ export function getPetSize() {
 }
 
 export function getPetStatus(): PetStatus {
-  const settings = readSettings()
+  const settings = ensurePetData()
+  const stats = getPetStats(settings)
+  const profile = getPetProfile(settings)
   return {
     enabled: Boolean(settings.enabled),
     autoWalk: settings.autoWalk !== false,
     size: getPetSize(),
     characterId: getPetCharacter(settings.characterId)?.id ?? '',
-    health: clampStat(settings.health ?? 100),
-    hunger: clampStat(settings.hunger ?? 20),
+    satiety: roundStat(stats.satiety),
+    hygiene: roundStat(stats.hygiene),
+    health: roundStat(stats.health),
+    mood: computeMood(stats, profile),
+    profile,
   }
 }
 
@@ -552,21 +668,51 @@ function tickReminder() {
   }
 }
 
-function applyVitals(patch: Partial<Pick<PetSettings, 'health' | 'hunger' | 'autoWalk' | 'lastVitalAt'>>) {
-  writeSettings(patch)
+function applyVitals(
+  patch: Partial<PetStatsStored> & Partial<Pick<PetSettings, 'autoWalk' | 'lastVitalAt'>>,
+) {
+  const settings = ensurePetData()
+  const current = getPetStats(settings)
+  const stats: PetStatsStored = {
+    satiety: clampStat(patch.satiety ?? current.satiety),
+    hygiene: clampStat(patch.hygiene ?? current.hygiene),
+    health: clampStat(patch.health ?? current.health),
+  }
+  const next: Partial<PetSettings> = { stats }
+  if (patch.autoWalk !== undefined) next.autoWalk = patch.autoWalk
+  if (patch.lastVitalAt !== undefined) next.lastVitalAt = patch.lastVitalAt
+  writeSettings(next)
   const status = getPetStatus()
   notifyStatusChanged(status)
   return status
 }
 
 function tickVitals() {
-  const settings = readSettings()
+  const settings = ensurePetData()
   if (!settings.enabled) return getPetStatus()
-  const hunger = clampStat((settings.hunger ?? 20) + 2)
-  let health = clampStat(settings.health ?? 100)
-  if (hunger >= 70) health = clampStat(health - 1)
-  if (hunger >= 95) health = clampStat(health - 2)
-  return applyVitals({ hunger, health, lastVitalAt: Date.now() })
+
+  const now = Date.now()
+  const last = settings.lastVitalAt ?? now
+  const elapsedHours = (now - last) / 3_600_000
+  if (elapsedHours <= 0) return getPetStatus()
+
+  const stats = getPetStats(settings)
+  const rates = getPersonalityDecayRates(getPetProfile(settings).personality)
+  const satiety = clampStat(stats.satiety - rates.satiety * elapsedHours)
+  const hygiene = clampStat(stats.hygiene - rates.hygiene * elapsedHours)
+  let health = stats.health
+  let healthDropPerHour = 0
+
+  if (satiety < 20) healthDropPerHour += 1
+  if (hygiene < 20) healthDropPerHour += 1
+  if (satiety <= 0) healthDropPerHour += 2
+  if (hygiene <= 0) healthDropPerHour += 2
+
+  if (healthDropPerHour > 0) {
+    health = clampStat(health - healthDropPerHour * rates.healthPenalty * elapsedHours)
+  }
+
+  return applyVitals({ satiety, hygiene, health, lastVitalAt: now })
 }
 
 function notifyEnabled(enabled: boolean) {
@@ -657,15 +803,22 @@ function buildPetMenu() {
     {
       label: '喂食',
       click: () => {
-        const settings = readSettings()
-        applyVitals({ hunger: clampStat((settings.hunger ?? 20) - 35) })
+        const stats = getPetStats()
+        applyVitals({ satiety: clampStat(stats.satiety + 35) })
+      },
+    },
+    {
+      label: '清洁',
+      click: () => {
+        const stats = getPetStats()
+        applyVitals({ hygiene: clampStat(stats.hygiene + 35) })
       },
     },
     {
       label: '休息',
       click: () => {
-        const settings = readSettings()
-        applyVitals({ health: clampStat((settings.health ?? 100) + 25) })
+        const stats = getPetStats()
+        applyVitals({ health: clampStat(stats.health + 25) })
       },
     },
     ...(pending
@@ -860,14 +1013,35 @@ export function registerPetIpc(
     return status
   })
   ipcMain.handle('pet:feed', () => {
-    const settings = readSettings()
-    return applyVitals({ hunger: clampStat((settings.hunger ?? 20) - 35) })
+    const stats = getPetStats()
+    return applyVitals({ satiety: clampStat(stats.satiety + 35) })
+  })
+  ipcMain.handle('pet:clean', () => {
+    const stats = getPetStats()
+    return applyVitals({ hygiene: clampStat(stats.hygiene + 35) })
   })
   ipcMain.handle('pet:rest', () => {
-    const settings = readSettings()
-    return applyVitals({ health: clampStat((settings.health ?? 100) + 25) })
+    const stats = getPetStats()
+    return applyVitals({ health: clampStat(stats.health + 25) })
+  })
+  ipcMain.handle('pet:get-profile', () => getPetProfile())
+  ipcMain.handle('pet:update-profile', (_event, patch: { name?: string }) => {
+    const settings = ensurePetData()
+    const profile = getPetProfile(settings)
+    const name = patch.name?.trim()
+    if (!name) return getPetStatus()
+    writeSettings({
+      profile: {
+        ...profile,
+        name,
+      },
+    })
+    const status = getPetStatus()
+    notifyStatusChanged(status)
+    return status
   })
   migrateRemindersIfNeeded()
+  ensurePetData()
   ipcMain.handle('pet:get-reminders', () => getReminderItems())
   ipcMain.handle(
     'pet:upsert-reminder',

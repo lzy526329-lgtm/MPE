@@ -34,6 +34,13 @@ app.innerHTML = `
         <p class="pet-sidebar-title">以宠物为中心</p>
         <p class="pet-sidebar-copy">在桌面右键宠物，可以打开设置、照顾宠物，或使用本地工具箱。</p>
       </div>
+      <nav class="pet-settings-nav" id="pet-settings-nav" aria-label="宠物设置">
+        <button class="nav-item active" type="button" data-pet-tab="profile">基础信息</button>
+        <button class="nav-item" type="button" data-pet-tab="character">形象</button>
+        <button class="nav-item" type="button" data-pet-tab="appearance">外观与行为</button>
+        <button class="nav-item" type="button" data-pet-tab="status">状态</button>
+        <button class="nav-item" type="button" data-pet-tab="reminders">交流提醒</button>
+      </nav>
       <p class="local-tip">所有工具均在本地完成，不上传文件。</p>
     </aside>
 
@@ -667,7 +674,7 @@ app.innerHTML = `
           <div>
             <p class="eyebrow">MY PET</p>
             <h1>宠物设置</h1>
-            <p class="subtitle">配置形象、大小与行为，查看健康与饥饿。更多功能请右键桌面上的宠物。</p>
+            <p class="subtitle">在左侧选择分类，右侧查看与修改对应设置。</p>
           </div>
         </header>
         <div class="panel" id="pet-settings-root"></div>

@@ -111,7 +111,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setPetCharacter: (characterId: string): Promise<PetStatus> =>
     ipcRenderer.invoke('pet:set-character', characterId),
   feedPet: (): Promise<PetStatus> => ipcRenderer.invoke('pet:feed'),
+  cleanPet: (): Promise<PetStatus> => ipcRenderer.invoke('pet:clean'),
   restPet: (): Promise<PetStatus> => ipcRenderer.invoke('pet:rest'),
+  updatePetProfile: (patch: { name?: string }): Promise<PetStatus> =>
+    ipcRenderer.invoke('pet:update-profile', patch),
   getPetReminders: (): Promise<PetReminderItem[]> => ipcRenderer.invoke('pet:get-reminders'),
   upsertPetReminder: (request: {
     id?: string
