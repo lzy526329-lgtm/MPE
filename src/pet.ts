@@ -54,34 +54,58 @@ let dragMoved = false
 let dragOriginX = 0
 let dragOriginY = 0
 let autoWalk = true
+let contentSize = DEFAULT_VIEW_SIZE
 let viewSize = DEFAULT_VIEW_SIZE
+let hitCenterX = DEFAULT_VIEW_SIZE / 2
+let hitCenterY = DEFAULT_VIEW_SIZE * 0.58
 let loadedCharacterId = ''
 let loadedSkeletonUrl = ''
 let characterLoadSeq = 0
 let loadingId = ''
 let chatHideTimer = 0
 let activeChatReminderId: string | null = null
+let viewportSyncSeq = 0
 
 const hasPetApi = Boolean(window.electronAPI?.petGetBounds)
 
-function applyViewSize(next: number) {
-  const size = Math.max(64, Math.round(next))
-  if (size === viewSize) return
-  viewSize = size
-  canvas.style.width = `${size}px`
-  canvas.style.height = `${size}px`
-  app.renderer.resize(size, size)
-  if (!spine) return
-  const playing = currentAnimationName()
-  fitSpineToView(spine)
-  setFacing(facing)
-  if (playing === 'touch') playTouch()
-  else playIdle()
+function setCanvasSize(size: number) {
+  const next = Math.max(64, Math.round(size))
+  if (next === viewSize) return
+  viewSize = next
+  canvas.style.width = `${next}px`
+  canvas.style.height = `${next}px`
+  app.renderer.resize(next, next)
+}
+
+function syncPetViewport(size: number) {
+  const next = Math.max(contentSize, Math.round(size))
+  setCanvasSize(next)
+  const seq = ++viewportSyncSeq
+  void window.electronAPI?.setPetViewport?.(next).then((applied) => {
+    if (seq !== viewportSyncSeq || typeof applied !== 'number') return
+    setCanvasSize(applied)
+  })
 }
 
 function applyPetStatus(status: { autoWalk: boolean; size: number; characterId?: string }) {
-  applyViewSize(status.size)
-  if (status.characterId) void loadCharacter(status.characterId)
+  const nextContent = Math.max(64, Math.round(status.size))
+  const contentChanged = nextContent !== contentSize
+  contentSize = nextContent
+
+  const wantId = status.characterId || loadedCharacterId
+  if (wantId && wantId !== loadedCharacterId) {
+    void loadCharacter(wantId)
+  } else if (spine && contentChanged) {
+    const playing = currentAnimationName()
+    fitSpineToView(spine)
+    setFacing(facing)
+    if (playing && preferredTouch(spine) === playing) playTouch()
+    else if (anim === 'walk') playWalk()
+    else playIdle()
+  } else if (wantId && !spine) {
+    void loadCharacter(wantId)
+  }
+
   autoWalk = status.autoWalk !== false
   if (autoWalk) return
   walkTarget = null
@@ -134,9 +158,21 @@ function animationNames(character: Spine) {
   return character.spineData.animations.map((item) => item.name)
 }
 
-function preferredIdle(character: Spine) {
+function pickAnimation(character: Spine, candidates: string[]) {
   const names = animationNames(character)
-  return names.includes('idle') ? 'idle' : names[0]
+  return candidates.find((name) => names.includes(name)) ?? null
+}
+
+function preferredIdle(character: Spine) {
+  return pickAnimation(character, ['idle', 'stand', 'normal']) ?? animationNames(character)[0]
+}
+
+function preferredTouch(character: Spine) {
+  return pickAnimation(character, ['touch', 'skill_touch', 'hit', 'click'])
+}
+
+function preferredWalk(character: Spine) {
+  return pickAnimation(character, ['walk', 'run'])
 }
 
 function playIdle() {
@@ -148,10 +184,16 @@ function playIdle() {
 
 function playTouch() {
   if (!spine) return
-  const names = spine.spineData.animations.map((item) => item.name)
-  const touch = names.includes('touch') ? 'touch' : names[0]
+  const touch = preferredTouch(spine) ?? preferredIdle(spine)
   if (!touch) return
   spine.state.setAnimation(0, touch, false)
+}
+
+function playWalk() {
+  if (!spine) return
+  const walk = preferredWalk(spine) ?? preferredIdle(spine)
+  if (!walk) return
+  if (currentAnimationName() !== walk) spine.state.setAnimation(0, walk, true)
 }
 
 function setAnim(next: AnimName) {
@@ -159,6 +201,10 @@ function setAnim(next: AnimName) {
   anim = next
   if (next === 'click') {
     playTouch()
+    return
+  }
+  if (next === 'walk') {
+    playWalk()
     return
   }
   playIdle()
@@ -182,7 +228,7 @@ function unionBounds(
 
 function sampleAnimationBounds(character: Spine, name: string) {
   const duration = Math.max(animationDuration(character, name), 0.05)
-  const samples = Math.max(16, Math.ceil(duration * 30))
+  const samples = Math.max(12, Math.ceil(duration * 24))
   character.state.setAnimation(0, name, false)
   character.update(0)
   let box: { x: number; y: number; width: number; height: number } | null = null
@@ -202,21 +248,50 @@ function fitSpineToView(character: Spine) {
   character.skeleton.setToSetupPose()
 
   const idle = preferredIdle(character)
-  let box = idle ? sampleAnimationBounds(character, idle) : null
-  if (character.spineData.animations.some((item) => item.name === 'touch')) {
-    box = unionBounds(box, sampleAnimationBounds(character, 'touch')!)
-  }
-  if (!box || box.width < 1 || box.height < 1) {
+  const idleBox = idle ? sampleAnimationBounds(character, idle) : null
+  if (!idleBox || idleBox.width < 1 || idleBox.height < 1) {
     character.autoUpdate = true
     return
   }
 
-  const padding = Math.max(8, Math.round(viewSize * 0.06))
-  const available = viewSize - padding * 2
-  baseScale = Math.min(available / box.width, available / box.height)
-  character.pivot.set(box.x + box.width / 2, box.y + box.height)
-  character.position.set(viewSize / 2, viewSize - padding)
+  // idle 决定体型；扫描全部动画算特效范围，窗口自动放大，无需按宠物单独配置
+  let extentBox = { ...idleBox }
+  for (const name of animationNames(character)) {
+    if (name === idle) continue
+    const next = sampleAnimationBounds(character, name)
+    if (next) extentBox = unionBounds(extentBox, next)!
+  }
+
+  const padding = Math.max(8, Math.round(contentSize * 0.06))
+  const available = Math.max(1, contentSize - padding * 2)
+  baseScale = Math.min(available / idleBox.width, available / idleBox.height)
+
+  const pivotX = idleBox.x + idleBox.width / 2
+  const pivotY = idleBox.y + idleBox.height
+  character.pivot.set(pivotX, pivotY)
+
+  const left = (extentBox.x - pivotX) * baseScale
+  const right = (extentBox.x + extentBox.width - pivotX) * baseScale
+  const top = (extentBox.y - pivotY) * baseScale
+  const bottom = (extentBox.y + extentBox.height - pivotY) * baseScale
+  const needW = Math.ceil(right - left + padding * 2)
+  const needH = Math.ceil(bottom - top + padding * 2)
+  const maxView = Math.max(contentSize, Math.min(Math.round(contentSize * 2.4), 520))
+  const nextView = Math.max(contentSize, Math.min(maxView, Math.max(needW, needH)))
+
+  syncPetViewport(nextView)
+
+  const extentW = right - left
+  const extentH = bottom - top
+  const posX = (nextView - extentW) / 2 - left
+  const bottomAlignedY = nextView - padding - bottom
+  const posY = bottomAlignedY + top >= padding * 0.25
+    ? bottomAlignedY
+    : (nextView - extentH) / 2 - top
+  character.position.set(posX, posY)
   character.scale.set(baseScale)
+  hitCenterX = posX
+  hitCenterY = posY - contentSize * 0.42
   character.autoUpdate = true
 }
 
@@ -263,7 +338,7 @@ async function loadCharacter(id: string) {
     character.state.addListener({
       complete: (entry) => {
         const name = (entry as { animation?: { name: string } }).animation?.name
-        if (name === 'touch' && anim === 'click') setAnim('idle')
+        if (name && preferredTouch(character) === name && anim === 'click') setAnim('idle')
       },
     })
     clearSpine()
@@ -279,12 +354,10 @@ async function loadCharacter(id: string) {
 }
 
 function hitTest(clientX: number, clientY: number) {
-  const cx = viewSize / 2
-  const cy = viewSize * 0.58
-  const rx = viewSize * 0.34
-  const ry = viewSize * 0.42
-  const nx = (clientX - cx) / rx
-  const ny = (clientY - cy) / ry
+  const rx = contentSize * 0.34
+  const ry = contentSize * 0.42
+  const nx = (clientX - hitCenterX) / rx
+  const ny = (clientY - hitCenterY) / ry
   return nx * nx + ny * ny <= 1
 }
 

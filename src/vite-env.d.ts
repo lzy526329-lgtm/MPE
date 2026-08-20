@@ -72,6 +72,7 @@ declare global {
       setPetEnabled: (enabled: boolean) => Promise<boolean>
       onPetEnabledChanged: (callback: (enabled: boolean) => void) => () => void
       petGetBounds: () => Promise<PetBounds | null>
+      setPetViewport: (size: number) => Promise<number>
       petSetPosition: (x: number, y: number) => Promise<{ x: number; y: number } | null>
       petIgnoreMouse: (ignore: boolean) => Promise<void>
       petShowMain: (pageId?: string) => Promise<void>

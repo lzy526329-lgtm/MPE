@@ -802,13 +802,37 @@ function notifySkinChanged() {
   }
 }
 
-function clampToWorkArea(x: number, y: number, size = getPetSize()) {
+function getPetWindowSize() {
+  if (petWin && !petWin.isDestroyed()) {
+    return petWin.getSize()[0]
+  }
+  return getPetSize()
+}
+
+function clampToWorkArea(x: number, y: number, size = getPetWindowSize()) {
   const display = screen.getDisplayNearestPoint({ x, y })
   const area = display.workArea
   return {
     x: Math.min(Math.max(x, area.x), area.x + area.width - size),
     y: Math.min(Math.max(y, area.y), area.y + area.height - size),
   }
+}
+
+/** 仅调整实际窗口/画布，不改用户设定的 idle 体型 size */
+function applyPetViewport(raw: number) {
+  if (!petWin || petWin.isDestroyed()) return getPetWindowSize()
+  const prev = getPetWindowSize()
+  const size = Math.max(getPetSize(), Math.round(raw))
+  if (size === prev) return size
+  const [x, y] = petWin.getPosition()
+  const next = clampToWorkArea(
+    Math.round(x + (prev - size) / 2),
+    y + (prev - size),
+    size,
+  )
+  petWin.setBounds({ x: next.x, y: next.y, width: size, height: size })
+  writeSettings({ x: next.x, y: next.y })
+  return size
 }
 
 function applyPetSize(raw: number) {
@@ -1083,9 +1107,12 @@ export function registerPetIpc(
   ipcMain.handle('pet:get-bounds', (): PetBounds | null => {
     if (!isPetOpen()) return null
     const [x, y] = petWin!.getPosition()
+    const size = getPetWindowSize()
     const { workArea } = screen.getDisplayNearestPoint({ x, y })
-    const size = getPetSize()
     return { x, y, width: size, height: size, workArea }
+  })
+  ipcMain.handle('pet:set-viewport', (_event, size: number) => {
+    return applyPetViewport(Number(size))
   })
   ipcMain.handle('pet:set-position', (_event, x: number, y: number) => {
     if (!isPetOpen()) return null
