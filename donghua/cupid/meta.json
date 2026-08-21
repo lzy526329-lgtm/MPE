@@ -1,4 +1,26 @@
 {
   "name": "丘比特",
-  "description": "丘比特宠物形象"
+  "description": "丘比特宠物形象",
+  "skills": {
+    "basic_attack": {
+      "animation": "attack_2",
+      "range": 110,
+      "halfHeight": 42,
+      "minDist": 18,
+      "activeStartMs": 220,
+      "activeMs": 200,
+      "cooldownMs": 420
+    }
+  },
+  "minigames": {
+    "ballHit": {
+      "skillId": "basic_attack",
+      "durationMs": 30000,
+      "maxHp": 100,
+      "ballDamage": 50,
+      "spawnIntervalMs": 1400,
+      "ballSpeed": 1.55,
+      "bodyHitReach": 26
+    }
+  }
 }

@@ -111,6 +111,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('tool:prefill', listener)
   },
   petPopupMenu: (): Promise<void> => ipcRenderer.invoke('pet:popup-menu'),
+  onPetMinigame: (
+    callback: (event: { action: 'start'; id: 'ball-hit' } | { action: 'stop' }) => void,
+  ) => {
+    const listener = (
+      _event: unknown,
+      payload: { action: 'start'; id: 'ball-hit' } | { action: 'stop' },
+    ) => callback(payload)
+    ipcRenderer.on('pet:minigame', listener)
+    return () => ipcRenderer.removeListener('pet:minigame', listener)
+  },
+  notifyPetMinigameEnded: (): Promise<void> => ipcRenderer.invoke('pet:minigame-ended'),
   getPetStatus: (): Promise<PetStatus> => ipcRenderer.invoke('pet:get-status'),
   setPetAutoWalk: (autoWalk: boolean): Promise<PetStatus> =>
     ipcRenderer.invoke('pet:set-auto-walk', autoWalk),

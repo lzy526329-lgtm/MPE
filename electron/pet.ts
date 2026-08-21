@@ -168,6 +168,12 @@ let petCrashRestartTimer: ReturnType<typeof setTimeout> | null = null
 let lastPetCrashAt = 0
 /** 状态数值未变时，最多多久仍刷一次 lastVitalAt */
 const VITALS_FLUSH_MS = 60_000
+/** 桌宠小游戏：当前进行中的 id，null 表示未开始 */
+let activeMinigameId: string | null = null
+
+export type PetMinigameEvent =
+  | { action: 'start'; id: 'ball-hit' }
+  | { action: 'stop' }
 
 function settingsFile() {
   return path.join(app.getPath('userData'), 'pet.json')
@@ -1052,9 +1058,28 @@ function restPetAction() {
   return status
 }
 
+function emitPetMinigame(event: PetMinigameEvent) {
+  if (petWin && !petWin.isDestroyed()) {
+    petWin.webContents.send('pet:minigame', event)
+  }
+}
+
+function startPetMinigame(id: 'ball-hit') {
+  if (!isPetOpen()) createPetWindow()
+  activeMinigameId = id
+  emitPetMinigame({ action: 'start', id })
+}
+
+function stopPetMinigame() {
+  if (!activeMinigameId) return
+  activeMinigameId = null
+  emitPetMinigame({ action: 'stop' })
+}
+
 function buildPetMenu() {
   const reminders = getReminderItems()
   const pending = findPendingReminder(reminders)
+  const ballHitActive = activeMinigameId === 'ball-hit'
   return Menu.buildFromTemplate([
     { label: '宠物设置', click: () => openMainPage(APP_HOME_PAGE) },
     { label: '与我对话', click: () => openMainPage('pet-chat-page') },
@@ -1086,6 +1111,16 @@ function buildPetMenu() {
       : []),
     { type: 'separator' },
     {
+      label: '小游戏',
+      submenu: [
+        {
+          label: ballHitActive ? '打小球（进行中）' : '打小球',
+          enabled: !ballHitActive,
+          click: () => startPetMinigame('ball-hit'),
+        },
+      ],
+    },
+    {
       label: '工具箱',
       submenu: PET_TOOL_MENU.map((item) => ({
         label: item.label,
@@ -1105,6 +1140,7 @@ export function closePetWindow(saveEnabled = false) {
   stopActiveChatTimer()
   activeChatMessage = null
   chatQueue = []
+  activeMinigameId = null
   if (petWin && !petWin.isDestroyed()) {
     petWin.close()
   }
@@ -1281,6 +1317,9 @@ export function registerPetIpc(
   ipcMain.handle('pet:popup-menu', () => {
     if (!isPetOpen()) return
     buildPetMenu().popup({ window: petWin! })
+  })
+  ipcMain.handle('pet:minigame-ended', () => {
+    activeMinigameId = null
   })
   ipcMain.handle('pet:get-status', () => getPetStatus())
   ipcMain.handle('pet:set-auto-walk', (_event, autoWalk: boolean) => {

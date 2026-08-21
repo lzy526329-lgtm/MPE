@@ -83,3 +83,45 @@ canvas:active {
 .pet-chat-confirm:hover {
   filter: brightness(1.04);
 }
+
+.pet-ball-hud {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: rgba(20, 24, 36, 0.72);
+  color: #fff;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.pet-ball-hud.is-on {
+  display: flex;
+}
+
+.pet-ball-score {
+  font-size: 13px;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+}
+
+.pet-ball-tip {
+  font-size: 10px;
+  opacity: 0.85;
+}
+
+canvas.pet-ball-mode {
+  cursor: crosshair;
+}
+
+canvas.pet-ball-mode:active {
+  cursor: crosshair;
+}
+
