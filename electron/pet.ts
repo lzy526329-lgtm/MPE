@@ -1,4 +1,4 @@
-import { BrowserWindow, Menu, app, ipcMain, screen } from 'electron'
+import { BrowserWindow, Menu, app, ipcMain, powerMonitor, screen } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 import { APP_HOME_PAGE, PET_TOOL_MENU, type AppPageId } from './appPages'
@@ -28,11 +28,13 @@ import {
 import { rememberCareEvent, rememberRename } from './petMemory'
 import { pickCareLine, type CareKind } from './petCareLines'
 import {
+  advanceWorkSession,
   decideProactiveChat,
   isProactiveReminderId,
   PROACTIVE_CHECK_INTERVAL_MS,
   proactiveReminderId,
   type ProactiveLatches,
+  type WorkSessionState,
 } from './petProactiveChat'
 
 export type PetCareReactPayload = {
@@ -159,6 +161,8 @@ let activeChatMessage: PetChatMessage | null = null
 let activeChatTimer: ReturnType<typeof setTimeout> | null = null
 let lastProactiveCheckAt = 0
 let proactiveSpeechBusy = false
+/** 本进程内的连续工作会话（不落盘；重启后重新计时） */
+let workSessionState: WorkSessionState = { startedAt: null }
 
 function settingsFile() {
   return path.join(app.getPath('userData'), 'pet.json')
@@ -748,6 +752,10 @@ function tickProactiveChat() {
   const settings = ensurePetData()
   if (!settings.enabled) return
 
+  const idleSeconds = powerMonitor.getSystemIdleTime()
+  const work = advanceWorkSession(workSessionState, idleSeconds, now)
+  workSessionState = work.state
+
   const stats = getPetStats(settings)
   const profile = getPetProfile(settings)
   const decision = decideProactiveChat({
@@ -758,10 +766,20 @@ function tickProactiveChat() {
     lastInteractAt: settings.lastInteractAt ?? now,
     lastProactiveAt: settings.lastProactiveAt,
     latches: settings.proactiveLatches ?? {},
+    continuousWorkMs: work.continuousWorkMs,
     element: profile.personality.element,
     now,
   })
-  if (!decision) return
+
+  // 休息打断或重启后不在工作段时，清掉 working_long latch（即使本轮不说话）
+  if (!decision) {
+    if (settings.proactiveLatches?.working_long && work.continuousWorkMs <= 0) {
+      const latches = { ...(settings.proactiveLatches ?? {}) }
+      delete latches.working_long
+      writeSettings({ proactiveLatches: latches })
+    }
+    return
+  }
 
   // 先落盘冷却/latch，避免 LLM 等待期间重复触发
   writeSettings({

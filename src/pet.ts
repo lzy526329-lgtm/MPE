@@ -28,7 +28,8 @@ const DEFAULT_WANDER: WanderParams = {
   skipIdleMs: [8000, 18_000],
   arriveIdleMs: [10_000, 22_000],
   speed: 2,
-  rangeFactor: 0.35,
+  /** 相对工作区短边的活动半径；越大走得越远 */
+  rangeFactor: 0.55,
 }
 
 const root = document.querySelector<HTMLElement>('#pet-root')!
@@ -142,7 +143,7 @@ function computeWanderParams(): WanderParams {
       arriveMin *= 1.4
       arriveMax *= 1.5
       speed *= 0.85
-      rangeFactor *= 0.55
+      rangeFactor *= 0.75
       break
     case 'air':
       startChance *= 1.2
@@ -207,7 +208,7 @@ function computeWanderParams(): WanderParams {
     skipIdleMs: [Math.round(skipMin), Math.round(Math.max(skipMin + 1000, skipMax))],
     arriveIdleMs: [Math.round(arriveMin), Math.round(Math.max(arriveMin + 1000, arriveMax))],
     speed: Math.min(3.2, Math.max(0.8, speed)),
-    rangeFactor: Math.min(0.85, Math.max(0.12, rangeFactor)),
+    rangeFactor: Math.min(0.95, Math.max(0.18, rangeFactor)),
   }
 }
 
@@ -215,7 +216,7 @@ function pickNearbyTarget(info: PetBounds, rangeFactor: number) {
   const maxX = info.workArea.x + info.workArea.width - info.width
   const maxY = info.workArea.y + info.workArea.height - info.height
   const shortSide = Math.min(info.workArea.width, info.workArea.height)
-  const radius = Math.max(48, shortSide * rangeFactor)
+  const radius = Math.max(80, shortSide * rangeFactor)
   const angle = Math.random() * Math.PI * 2
   const dist = Math.sqrt(Math.random()) * radius
   const rawX = info.x + Math.cos(angle) * dist

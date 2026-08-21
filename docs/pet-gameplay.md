@@ -296,9 +296,10 @@ pet.stats.hygiene -= hours * 2
 | 饱食度 < 25 | 喊饿、求喂食 | 全局约 30 分钟一次；同状态恢复前不重复 |
 | 卫生 < 30 | 喊脏、求清洁 | 同上 |
 | 健康 < 40 | 虚弱求照顾 | 同上 |
+| 连续用电脑约 30 分钟 | 提醒休息（`working_long`） | 空闲 ≥ 5 分钟后可再提醒 |
 | 超过约 30 分钟无互动 | 寂寞求陪 | 互动后解除 |
 
-实现：`electron/petProactiveChat.ts` + `tickProactiveChat()`。
+实现：`electron/petProactiveChat.ts` + `tickProactiveChat()`；连续工作用 `powerMonitor.getSystemIdleTime()` 推算。
 
 ---
 
