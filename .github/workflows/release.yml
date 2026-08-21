@@ -19,17 +19,18 @@ jobs:
           - os: macos-latest
             command: package:mac
             files: |
-              release/**/*.dmg
-              release/**/*.zip
+              release/*/MPT-*.dmg
+              release/*/MPT-*.zip
           - os: windows-latest
             command: package:win
+            # 只收安装包，排除 win-unpacked 里的 7za/elevate 等工具 exe
             files: |
-              release/**/*.exe
+              release/*/MPT-*-win-*.exe
           - os: ubuntu-latest
             command: package:linux
             files: |
-              release/**/*.AppImage
-              release/**/*.deb
+              release/*/MPT-*.AppImage
+              release/*/MPT-*.deb
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -79,14 +80,20 @@ jobs:
         id: meta
         run: |
           mkdir -p dist-out
-          # 优先安装包本体；mac 额外保留 zip 方便无 dmg 场景
+          # 只收集 MPT 安装包，避免把 7za.exe / elevate.exe / MPT.exe 等误传上去
           find artifacts -type f \( \
-            -name '*.exe' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.zip' \
+            -name 'MPT-*-win-*.exe' -o \
+            -name 'MPT-*-mac-*.dmg' -o \
+            -name 'MPT-*-mac-*.zip' -o \
+            -name 'MPT-*.AppImage' -o \
+            -name 'MPT-*.deb' \
           \) -print0 | while IFS= read -r -d '' file; do
             cp "$file" "dist-out/$(basename "$file")"
           done
+
+          echo "==== dist-out ===="
           ls -lah dist-out
-          test -n "$(ls -A dist-out)"
+          test -n "$(ls -A dist-out 2>/dev/null)"
 
           VERSION="$(node -p "require('./package.json').version")"
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
@@ -122,9 +129,10 @@ jobs:
           OWNER="${GITEE_OWNER:-li_ziyang}"
           REPO="${GITEE_REPO:-gongju}"
           chmod +x scripts/publish-gitee-release.sh
-          mapfile -t FILES < <(find dist-out -type f | sort)
+          mapfile -t FILES < <(find dist-out -type f -name 'MPT-*' | sort)
           ./scripts/publish-gitee-release.sh \
             "$OWNER" \
             "$REPO" \
             "${{ steps.meta.outputs.tag }}" \
+            "${{ github.repository }}" \
             "${FILES[@]}"

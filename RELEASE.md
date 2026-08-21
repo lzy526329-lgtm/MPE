@@ -59,7 +59,11 @@ https://ghfast.top/https://github.com/lzy526329-lgtm/MPE/releases/download/v1.0.
 
 创建令牌：https://gitee.com/profile/personal_access_tokens
 
-> 注意：Gitee 单附件体积可能有上限（常见约 100MB）。若某个安装包上传失败，仍可从 GitHub Release / 镜像下载，或本机 `npm run package:mac` / `package:win`。
+> 注意：Gitee **单附件上限约 100MB**，MPT 安装包通常会超过，因此完整安装包会发到 **GitHub Release**；Gitee Release 页面会写明下载方式与镜像链接。  
+> 文件名对照：
+> - Mac：`MPT-*-mac-arm64.dmg`
+> - Windows：`MPT-*-win-x64.exe`
+> - Linux：`MPT-*-linux-*.AppImage` / `.deb`
 
 ## 正式签名所需 Secrets
 
