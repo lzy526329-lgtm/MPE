@@ -78,6 +78,8 @@ let wanderBusy = false
 let dragMoved = false
 let dragOriginX = 0
 let dragOriginY = 0
+/** 拖拽开始时缓存工作区，拖动中按左右自动转身 */
+let dragWorkArea: { x: number; y: number; width: number; height: number } | null = null
 let autoWalk = true
 let petSatiety = 100
 let petHygiene = 100
@@ -798,13 +800,26 @@ function stopBallGame(finalScore?: number, reason: 'timeup' | 'dead' | 'stop' = 
   }
 }
 
+/** 靠屏幕左侧朝右、靠右侧朝左（拖拽 / 打小球共用） */
+function faceByScreenSide(petCenterX: number, workArea: { x: number; width: number }) {
+  const screenMidX = workArea.x + workArea.width / 2
+  setFacing(petCenterX < screenMidX ? 1 : -1)
+}
+
+async function faceTowardScreenCenter() {
+  const info = await bounds()
+  if (!info) return
+  faceByScreenSide(info.x + info.width / 2, info.workArea)
+}
+
 function startBallGame() {
   walkTarget = null
   dragging = false
   if (anim === 'walk' || anim === 'drag') setAnim('idle')
   hideChatMessage()
-  void refreshBallHitConfig().then(() => {
+  void refreshBallHitConfig().then(async () => {
     syncPetViewport(ballGame.getDesiredViewSize(contentSize))
+    await faceTowardScreenCenter()
     ballGame.start()
     ignoreMouse = false
     void window.electronAPI?.petIgnoreMouse?.(false)
@@ -870,13 +885,13 @@ canvas.addEventListener('mousedown', async (event) => {
   dragOriginY = event.screenY
   dragOffsetX = event.screenX - info.x
   dragOffsetY = event.screenY - info.y
+  dragWorkArea = info.workArea
+  faceByScreenSide(info.x + info.width / 2, info.workArea)
   setAnim('drag')
 })
 
 window.addEventListener('mousemove', async (event) => {
   if (ballGame.isActive()) {
-    // 游戏中始终朝向鼠标
-    setFacing(event.clientX - hitCenterX)
     if (ignoreMouse && hasPetApi) {
       ignoreMouse = false
       await window.electronAPI.petIgnoreMouse(false)
@@ -887,11 +902,13 @@ window.addEventListener('mousemove', async (event) => {
     if (Math.hypot(event.screenX - dragOriginX, event.screenY - dragOriginY) > 6) {
       dragMoved = true
     }
+    const nextX = event.screenX - dragOffsetX
+    const nextY = event.screenY - dragOffsetY
+    if (dragWorkArea) {
+      faceByScreenSide(nextX + viewSize / 2, dragWorkArea)
+    }
     if (hasPetApi) {
-      await window.electronAPI.petSetPosition(
-        event.screenX - dragOffsetX,
-        event.screenY - dragOffsetY,
-      )
+      await window.electronAPI.petSetPosition(nextX, nextY)
     }
     return
   }
@@ -907,10 +924,12 @@ window.addEventListener('mouseup', (event) => {
   if (ballGame.isActive()) return
   if (!dragging || event.button !== 0) return
   dragging = false
+  dragWorkArea = null
   const cooldown = computeWanderParams().arriveIdleMs
   if (dragMoved) {
     setAnim('idle')
     scheduleIdle([Math.min(2500, cooldown[0]), Math.min(5000, cooldown[1])])
+    void faceTowardScreenCenter()
     return
   }
   clickLockUntil = performance.now() + 900
