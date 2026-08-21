@@ -264,12 +264,17 @@ function applyPetStatus(status: Pick<
   if (wantId && wantId !== loadedCharacterId) {
     void loadCharacter(wantId)
   } else if (spine && contentChanged) {
+    // 先保证画布不小于新体型，再按特效范围 fit（内部会 syncPetViewport）
+    setCanvasSize(Math.max(viewSize, contentSize))
     const playing = currentAnimationName()
     fitSpineToView(spine)
     setFacing(facing)
     if (playing && preferredTouch(spine) === playing) playTouch()
     else if (anim === 'walk') playWalk()
     else playIdle()
+  } else if (contentChanged) {
+    syncPetViewport(contentSize)
+    if (wantId && !spine) void loadCharacter(wantId)
   } else if (wantId && !spine) {
     void loadCharacter(wantId)
   }

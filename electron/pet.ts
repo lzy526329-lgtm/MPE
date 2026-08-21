@@ -864,22 +864,24 @@ function applyPetViewport(raw: number) {
   )
   petWin.setBounds({ x: next.x, y: next.y, width: size, height: size })
   writeSettings({ x: next.x, y: next.y })
+  // 尺寸变化后 Windows 透明层可能失效，下一帧强制重绘
+  setTimeout(refreshPetWinTransparency, 0)
   return size
 }
 
+/**
+ * 只持久化用户设定的 idle 体型；真实窗口尺寸由渲染进程 fitSpineToView → setPetViewport 决定。
+ * 若这里先缩成 contentSize，而 canvas 仍按更大 view 把角色锚在底部，宠物会被裁出窗外。
+ */
 function applyPetSize(raw: number) {
-  const prev = getPetSize()
   const size = clampSize(raw)
   writeSettings({ size })
   if (petWin && !petWin.isDestroyed()) {
-    const [x, y] = petWin.getPosition()
-    const next = clampToWorkArea(
-      Math.round(x + (prev - size) / 2),
-      y + (prev - size),
-      size,
-    )
-    petWin.setBounds({ x: next.x, y: next.y, width: size, height: size })
-    writeSettings({ x: next.x, y: next.y, size })
+    const current = getPetWindowSize()
+    // 变大时先撑开窗口，避免新体型还没 fit 完就被旧窗裁切
+    if (current < size) {
+      applyPetViewport(size)
+    }
   }
   const status = getPetStatus()
   notifyStatusChanged(status)
@@ -1055,6 +1057,14 @@ function petIndexUrl() {
   return path.join(process.env.DIST!, 'pet.html')
 }
 
+/** Windows + Electron 35.5+：透明无边框窗失焦/改尺寸后可能画出伪标题或整窗变空白，轻微改尺寸强制重绘 */
+function refreshPetWinTransparency() {
+  if (process.platform !== 'win32' || !petWin || petWin.isDestroyed()) return
+  const bounds = petWin.getBounds()
+  petWin.setBounds({ ...bounds, height: bounds.height + 1 })
+  petWin.setBounds(bounds)
+}
+
 export function createPetWindow() {
   if (isPetOpen()) {
     petWin!.show()
@@ -1106,17 +1116,9 @@ export function createPetWindow() {
     petWin.loadFile(petIndexUrl())
   }
 
-  // Windows + Electron 35.5+：透明无边框窗失焦时会画出伪标题白条，轻微改尺寸强制重绘
-  const refreshWinTransparency = () => {
-    if (process.platform !== 'win32' || !petWin || petWin.isDestroyed()) return
-    const bounds = petWin.getBounds()
-    petWin.setBounds({ ...bounds, height: bounds.height + 1 })
-    petWin.setBounds(bounds)
-  }
-
   petWin.once('ready-to-show', () => {
     petWin?.showInactive()
-    setTimeout(refreshWinTransparency, 30)
+    setTimeout(refreshPetWinTransparency, 30)
   })
   petWin.once('ready-to-show', () => {
     stopActiveChatTimer()
@@ -1133,8 +1135,8 @@ export function createPetWindow() {
       flushNextChatInQueue()
     }
   })
-  petWin.on('blur', refreshWinTransparency)
-  petWin.on('focus', refreshWinTransparency)
+  petWin.on('blur', refreshPetWinTransparency)
+  petWin.on('focus', refreshPetWinTransparency)
   petWin.on('moved', persistPosition)
   petWin.on('closed', () => {
     petWin = null
