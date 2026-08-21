@@ -3,14 +3,15 @@ import fs from 'node:fs'
 import type { ServerResponse } from 'node:http'
 import { defineConfig, type Plugin } from 'vite'
 import electron from 'vite-plugin-electron/simple'
-import { PET_CHARACTERS_URL, scanPetCharacters } from './electron/petCharacters'
+import { scanPetCharacters } from './electron/petCharacters'
 
 // 原生模块和自带 WASM/可执行文件的依赖必须保持外部引用。
 const nativeExternals = ['sharp', '7zip-bin', 'node-unrar-js']
 
 function petCharactersPlugin(): Plugin {
   const root = path.resolve(__dirname, 'donghua')
-  const prefix = `${PET_CHARACTERS_URL}/`
+  // 开发服收到的是绝对路径 /pet/characters/...
+  const prefix = '/pet/characters/'
 
   const sendFile = (rel: string, res: ServerResponse, next: () => void) => {
     if (rel === 'catalog.json') {

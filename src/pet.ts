@@ -542,7 +542,7 @@ async function loadCatalog() {
   if (window.electronAPI?.getPetCharacters) {
     return window.electronAPI.getPetCharacters()
   }
-  const response = await fetch('/pet/characters/catalog.json')
+  const response = await fetch('./pet/characters/catalog.json')
   if (!response.ok) return []
   return response.json() as Promise<{ id: string; skeletonUrl: string }[]>
 }
@@ -598,6 +598,8 @@ async function loadCharacter(id: string) {
     loadedSkeletonUrl = selected.skeletonUrl
     anim = 'idle'
     setFacing(facing)
+  } catch (error) {
+    console.error('[pet] failed to load character', selected.id, selected.skeletonUrl, error)
   } finally {
     if (loadingId === selected.id) loadingId = ''
   }

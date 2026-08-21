@@ -664,7 +664,7 @@ export function mountPetSettingsPage() {
   async function loadCharacters(selectedId: string) {
     const characters = window.electronAPI?.getPetCharacters
       ? await window.electronAPI.getPetCharacters()
-      : await fetch('/pet/characters/catalog.json').then((response) => (response.ok ? response.json() : []))
+      : await fetch('./pet/characters/catalog.json').then((response) => (response.ok ? response.json() : []))
     const prevSelected = characterState.selectedId
     const catalogKey = characterState.characters.map((item) => item.id).join(',')
     const nextKey = characters.map((item: PetCharacter) => item.id).join(',')

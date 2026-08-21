@@ -1072,6 +1072,7 @@ export function createPetWindow() {
     y: start.y,
     width: size,
     height: size,
+    title: '',
     frame: false,
     transparent: true,
     hasShadow: false,
@@ -1083,6 +1084,8 @@ export function createPetWindow() {
     focusable: true,
     show: false,
     backgroundColor: '#00000000',
+    // Windows：避免透明窗露出标题条/厚边框残影
+    ...(process.platform === 'win32' ? { thickFrame: false, type: 'toolbar' as const } : {}),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -1090,6 +1093,7 @@ export function createPetWindow() {
       backgroundThrottling: false,
     },
   })
+  petWin.setTitle('')
 
   petWin.setAlwaysOnTop(true, 'screen-saver')
   petWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })

@@ -1,7 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-export const PET_CHARACTERS_URL = '/pet/characters'
+/** 相对 dist 根目录，兼容 file:// 打包与 Vite 开发服 */
+export const PET_CHARACTERS_URL = './pet/characters'
 
 export type PetCharacterMeta = {
   name?: string

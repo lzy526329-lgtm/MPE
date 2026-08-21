@@ -186,9 +186,18 @@ ipcMain.handle('system:info', () => getSystemInfo())
 ipcMain.handle('disk:scan', () => scanDisk())
 ipcMain.handle('disk:clean', (_event, ids: string[]) => cleanCategories(ids))
 
-app.whenReady().then(() => {
-  attachWatermarkMediaHeaders(session.defaultSession)
-  registerPetIpc(() => win, ensureMainWindow)
-  createWindow(false)
-  restorePetIfNeeded()
-})
+const gotSingleInstanceLock = app.requestSingleInstanceLock()
+if (!gotSingleInstanceLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    ensureMainWindow()
+  })
+
+  app.whenReady().then(() => {
+    attachWatermarkMediaHeaders(session.defaultSession)
+    registerPetIpc(() => win, ensureMainWindow)
+    createWindow(false)
+    restorePetIfNeeded()
+  })
+}
