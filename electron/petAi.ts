@@ -271,13 +271,28 @@ function bubbleSnippet(text: string) {
   return line.length > 120 ? `${line.slice(0, 117)}…` : line
 }
 
+/** HTTP 头只能是 ByteString；Key 里若有中文/全角字符会直接炸 */
+function assertAsciiHttpToken(value: string, label: string) {
+  for (let i = 0; i < value.length; i += 1) {
+    if (value.charCodeAt(i) > 255) {
+      throw new Error(
+        `${label} 含有非英文字符，无法用于请求头。请只粘贴 DeepSeek 的 sk- 开头密钥，不要带中文说明。`,
+      )
+    }
+  }
+}
+
 async function callDeepSeek(messages: ApiMessage[], withTools: boolean) {
   const settings = readAiSettings()
-  if (!settings.apiKey) {
+  const apiKey = settings.apiKey.trim()
+  if (!apiKey) {
     throw new Error('请先在对话页配置 DeepSeek API Key')
   }
+  assertAsciiHttpToken(apiKey, 'API Key')
 
   const baseUrl = settings.baseUrl.replace(/\/$/, '')
+  assertAsciiHttpToken(baseUrl, 'API 地址')
+
   const body: Record<string, unknown> = {
     model: PET_AI_MODEL,
     messages,
@@ -289,7 +304,7 @@ async function callDeepSeek(messages: ApiMessage[], withTools: boolean) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${settings.apiKey}`,
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify(body),
   })
@@ -483,7 +498,11 @@ export function registerPetAiIpc(
 
   ipcMain.handle('pet:ai-save-settings', (_event, input: { apiKey?: string; proactiveAiEnabled?: boolean }) => {
     const patch: Partial<StoredAiSettings> = {}
-    if (input.apiKey !== undefined) patch.apiKey = String(input.apiKey).trim()
+    if (input.apiKey !== undefined) {
+      const apiKey = String(input.apiKey).trim()
+      if (apiKey) assertAsciiHttpToken(apiKey, 'API Key')
+      patch.apiKey = apiKey
+    }
     if (input.proactiveAiEnabled !== undefined) {
       patch.proactiveAiEnabled = Boolean(input.proactiveAiEnabled)
     }

@@ -1084,8 +1084,8 @@ export function createPetWindow() {
     focusable: true,
     show: false,
     backgroundColor: '#00000000',
-    // Windows：避免透明窗露出标题条/厚边框残影
-    ...(process.platform === 'win32' ? { thickFrame: false, type: 'toolbar' as const } : {}),
+    // Windows 11：圆角非客户区容易留下白条
+    ...(process.platform === 'win32' ? { roundedCorners: false } : {}),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -1094,6 +1094,7 @@ export function createPetWindow() {
     },
   })
   petWin.setTitle('')
+  petWin.setMenu(null)
 
   petWin.setAlwaysOnTop(true, 'screen-saver')
   petWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
@@ -1105,7 +1106,18 @@ export function createPetWindow() {
     petWin.loadFile(petIndexUrl())
   }
 
-  petWin.once('ready-to-show', () => petWin?.showInactive())
+  // Windows + Electron 35.5+：透明无边框窗失焦时会画出伪标题白条，轻微改尺寸强制重绘
+  const refreshWinTransparency = () => {
+    if (process.platform !== 'win32' || !petWin || petWin.isDestroyed()) return
+    const bounds = petWin.getBounds()
+    petWin.setBounds({ ...bounds, height: bounds.height + 1 })
+    petWin.setBounds(bounds)
+  }
+
+  petWin.once('ready-to-show', () => {
+    petWin?.showInactive()
+    setTimeout(refreshWinTransparency, 30)
+  })
   petWin.once('ready-to-show', () => {
     stopActiveChatTimer()
     activeChatMessage = null
@@ -1121,6 +1133,8 @@ export function createPetWindow() {
       flushNextChatInQueue()
     }
   })
+  petWin.on('blur', refreshWinTransparency)
+  petWin.on('focus', refreshWinTransparency)
   petWin.on('moved', persistPosition)
   petWin.on('closed', () => {
     petWin = null

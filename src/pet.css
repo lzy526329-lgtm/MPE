@@ -3,9 +3,16 @@ body,
 #pet-root {
   margin: 0;
   overflow: hidden;
-  background: transparent;
+  background: transparent !important;
   user-select: none;
   position: relative;
+}
+
+/* Windows 透明窗：避免默认文档底色渗出成白条 */
+html,
+body {
+  width: 100%;
+  height: 100%;
 }
 
 canvas {
