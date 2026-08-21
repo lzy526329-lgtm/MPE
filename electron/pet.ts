@@ -163,6 +163,11 @@ let lastProactiveCheckAt = 0
 let proactiveSpeechBusy = false
 /** 本进程内的连续工作会话（不落盘；重启后重新计时） */
 let workSessionState: WorkSessionState = { startedAt: null }
+/** 避免渲染进程崩溃后短时间反复重建 */
+let petCrashRestartTimer: ReturnType<typeof setTimeout> | null = null
+let lastPetCrashAt = 0
+/** 状态数值未变时，最多多久仍刷一次 lastVitalAt */
+const VITALS_FLUSH_MS = 60_000
 
 function settingsFile() {
   return path.join(app.getPath('userData'), 'pet.json')
@@ -251,6 +256,41 @@ function writeSettings(patch: Partial<PetSettings>) {
   const next = { ...readSettings(), ...patch }
   fs.mkdirSync(path.dirname(settingsFile()), { recursive: true })
   fs.writeFileSync(settingsFile(), JSON.stringify(next, null, 2))
+}
+
+function petCrashLogFile() {
+  return path.join(app.getPath('userData'), 'pet-crash.log')
+}
+
+function appendPetCrashLog(label: string, detail: unknown) {
+  const line = `[${new Date().toISOString()}] ${label} ${JSON.stringify(detail)}\n`
+  try {
+    fs.appendFileSync(petCrashLogFile(), line)
+  } catch {
+    /* ignore */
+  }
+  console.error('[pet]', label, detail)
+}
+
+function schedulePetCrashRecover(reason: string) {
+  const now = Date.now()
+  if (now - lastPetCrashAt < 5_000) return
+  lastPetCrashAt = now
+  if (petCrashRestartTimer) clearTimeout(petCrashRestartTimer)
+  petCrashRestartTimer = setTimeout(() => {
+    petCrashRestartTimer = null
+    if (readSettings().enabled === false) return
+    appendPetCrashLog('recover', { reason })
+    if (petWin && !petWin.isDestroyed()) {
+      try {
+        petWin.webContents.reloadIgnoringCache()
+        return
+      } catch {
+        /* fall through to recreate */
+      }
+    }
+    createPetWindow()
+  }, 800)
 }
 
 function clampStat(value: number) {
@@ -838,6 +878,15 @@ function tickVitals() {
     health = clampStat(health - healthDropPerHour * rates.healthPenalty * elapsedHours)
   }
 
+  // 每秒 tick 会算出极小浮点变化；展示值未变时不要每秒写盘 + 广播，避免长时间运行拖垮
+  const displayChanged =
+    roundStat(satiety) !== roundStat(stats.satiety) ||
+    roundStat(hygiene) !== roundStat(stats.hygiene) ||
+    roundStat(health) !== roundStat(stats.health)
+  if (!displayChanged && now - last < VITALS_FLUSH_MS) {
+    return getPetStatus()
+  }
+
   return applyVitals({ satiety, hygiene, health, lastVitalAt: now })
 }
 
@@ -1009,6 +1058,7 @@ function buildPetMenu() {
   return Menu.buildFromTemplate([
     { label: '宠物设置', click: () => openMainPage(APP_HOME_PAGE) },
     { label: '与我对话', click: () => openMainPage('pet-chat-page') },
+    // 家园入口暂隐，页面代码保留：openMainPage('pet-home-page')
     { type: 'separator' },
     {
       label: '喂食',
@@ -1156,6 +1206,14 @@ export function createPetWindow() {
   petWin.on('blur', refreshPetWinTransparency)
   petWin.on('focus', refreshPetWinTransparency)
   petWin.on('moved', persistPosition)
+  petWin.webContents.on('render-process-gone', (_event, details) => {
+    appendPetCrashLog('render-process-gone', details)
+    if (details.reason === 'clean-exit') return
+    schedulePetCrashRecover(details.reason)
+  })
+  petWin.webContents.on('unresponsive', () => {
+    appendPetCrashLog('unresponsive', { at: Date.now() })
+  })
   petWin.on('closed', () => {
     petWin = null
   })

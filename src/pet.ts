@@ -95,6 +95,9 @@ let loadingId = ''
 let chatHideTimer = 0
 let activeChatReminderId: string | null = null
 let viewportSyncSeq = 0
+/** 走动时节流窗口位移 IPC，约 60fps */
+let lastWanderMoveAt = 0
+const WANDER_MOVE_MIN_MS = 16
 
 const hasPetApi = Boolean(window.electronAPI?.petGetBounds)
 
@@ -682,6 +685,8 @@ async function wander(now: number) {
     walkDir = directionFromDelta(dx)
     setFacing(dx)
     setAnim('walk')
+    if (now - lastWanderMoveAt < WANDER_MOVE_MIN_MS) return
+    lastWanderMoveAt = now
     await window.electronAPI.petSetPosition(
       info.x + (dx / dist) * params.speed,
       info.y + (dy / dist) * params.speed,

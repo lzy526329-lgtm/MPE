@@ -7,6 +7,7 @@ import { mountDiskCleanPage } from './diskCleanPage'
 import { mountPdfPage } from './pdfPage'
 import { mountPetSettingsPage } from './petSettingsPage'
 import { mountPetChatPage } from './petChatPage'
+import { mountPetHomePage } from './petHomePage'
 import { setupAppNavigation, navigateToPage } from './appNavigation'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
@@ -33,6 +34,7 @@ app.innerHTML = `
         <button class="nav-item" type="button" data-pet-tab="reminders">交流提醒</button>
       </nav>
       <button class="nav-item pet-chat-sidebar-btn" id="open-pet-chat" type="button">与我对话</button>
+      <button class="nav-item pet-chat-sidebar-btn" id="open-pet-home" type="button" hidden>参观家园</button>
       <p class="local-tip">所有工具均在本地完成，不上传文件。</p>
     </aside>
 
@@ -571,6 +573,17 @@ app.innerHTML = `
           <div id="sysinfo-container"></div>
         </div>
       </section>
+      <section class="tool-page tool-page--home" id="pet-home-page" hidden>
+        <header>
+          <div>
+            <p class="eyebrow">MY PET</p>
+            <h1>宠物家园</h1>
+            <p class="subtitle">样板间施工中，先搭好墙和地板。</p>
+          </div>
+        </header>
+        <div class="panel home-panel" id="pet-home-root"></div>
+      </section>
+
       <section class="tool-page tool-page--chat" id="pet-chat-page" hidden>
         <div class="pet-chat-shell" id="pet-chat-root">
           <header class="pet-chat-status-strip">
@@ -1131,8 +1144,12 @@ mountDiskCleanPage()
 mountPdfPage()
 mountPetSettingsPage()
 mountPetChatPage()
+mountPetHomePage()
 setupAppNavigation()
 
 document.querySelector<HTMLButtonElement>('#open-pet-chat')?.addEventListener('click', () => {
   navigateToPage('pet-chat-page')
+})
+document.querySelector<HTMLButtonElement>('#open-pet-home')?.addEventListener('click', () => {
+  navigateToPage('pet-home-page')
 })

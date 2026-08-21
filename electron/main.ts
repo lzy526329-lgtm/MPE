@@ -95,6 +95,18 @@ app.on('window-all-closed', () => {
   }
 })
 
+app.on('child-process-gone', (_event, details) => {
+  console.error('[app] child-process-gone', details)
+})
+
+process.on('uncaughtException', (error) => {
+  console.error('[app] uncaughtException', error)
+})
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[app] unhandledRejection', reason)
+})
+
 app.on('activate', () => {
   ensureMainWindow()
 })

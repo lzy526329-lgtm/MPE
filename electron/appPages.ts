@@ -1,6 +1,7 @@
 export type AppPageId =
   | 'pet-settings-page'
   | 'pet-chat-page'
+  | 'pet-home-page'
   | 'image-page'
   | 'watermark-page'
   | 'compression-page'
