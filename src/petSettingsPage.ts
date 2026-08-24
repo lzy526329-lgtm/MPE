@@ -570,7 +570,7 @@ export function mountPetSettingsPage() {
                 <strong id="pet-mood-value">100</strong>
               </div>
               <div class="pet-stat-bar"><div class="pet-stat-fill" id="pet-mood-fill"></div></div>
-              <p class="field-hint">当前先作为综合状态展示，后续会接入互动、小游戏、陪伴等玩法。</p>
+              <p class="field-hint">由健康、饱食和卫生综合而成。玩游戏会提升心情，同时消耗饱食和卫生。</p>
             </div>
             <div class="pet-config-actions">
               <button class="primary-button" id="pet-feed" type="button">喂食</button>

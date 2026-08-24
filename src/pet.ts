@@ -74,6 +74,8 @@ let dragOffsetY = 0
 let clickLockUntil = 0
 let nextWanderAt = performance.now() + 8000
 let walkTarget: { x: number; y: number } | null = null
+let walkStuck = 0
+let walkStartedAt = 0
 let ignoreMouse = false
 let wanderBusy = false
 let dragMoved = false
@@ -104,6 +106,9 @@ let viewportSyncSeq = 0
 /** 走动时节流窗口位移 IPC，约 60fps */
 let lastWanderMoveAt = 0
 const WANDER_MOVE_MIN_MS = 16
+const WANDER_ARRIVE_PX = 4
+const WANDER_STUCK_MOVES = 8
+const WANDER_MAX_MS = 25_000
 
 const hasPetApi = Boolean(window.electronAPI?.petGetBounds)
 
@@ -221,19 +226,49 @@ function computeWanderParams(): WanderParams {
   }
 }
 
-function pickNearbyTarget(info: PetBounds, rangeFactor: number) {
+function clampToWorkAreaLocal(info: PetBounds, x: number, y: number) {
   const maxX = info.workArea.x + info.workArea.width - info.width
   const maxY = info.workArea.y + info.workArea.height - info.height
+  return {
+    x: Math.round(Math.min(Math.max(x, info.workArea.x), Math.max(info.workArea.x, maxX))),
+    y: Math.round(Math.min(Math.max(y, info.workArea.y), Math.max(info.workArea.y, maxY))),
+  }
+}
+
+function pickNearbyTarget(
+  info: PetBounds,
+  rangeFactor: number,
+  origin = { x: info.x, y: info.y },
+) {
   const shortSide = Math.min(info.workArea.width, info.workArea.height)
   const radius = Math.max(80, shortSide * rangeFactor)
   const angle = Math.random() * Math.PI * 2
   const dist = Math.sqrt(Math.random()) * radius
-  const rawX = info.x + Math.cos(angle) * dist
-  const rawY = info.y + Math.sin(angle) * dist
-  return {
-    x: Math.round(Math.min(Math.max(rawX, info.workArea.x), Math.max(info.workArea.x, maxX))),
-    y: Math.round(Math.min(Math.max(rawY, info.workArea.y), Math.max(info.workArea.y, maxY))),
+  return clampToWorkAreaLocal(
+    info,
+    origin.x + Math.cos(angle) * dist,
+    origin.y + Math.sin(angle) * dist,
+  )
+}
+
+function pickReachableTarget(info: PetBounds, rangeFactor: number, origin: { x: number; y: number }) {
+  for (let i = 0; i < 8; i++) {
+    const target = pickNearbyTarget(info, rangeFactor, origin)
+    if (Math.hypot(target.x - origin.x, target.y - origin.y) >= 8) return target
   }
+  return null
+}
+
+function clearWalkTarget() {
+  walkTarget = null
+  walkStuck = 0
+  walkStartedAt = 0
+}
+
+function stopWalk(now = performance.now(), idleRange?: [number, number]) {
+  clearWalkTarget()
+  if (idleRange) scheduleIdle(idleRange, now)
+  if (anim === 'walk') setAnim('idle')
 }
 
 function setCanvasSize(size: number) {
@@ -322,8 +357,7 @@ function applyPetStatus(status: Pick<
 
   autoWalk = status.autoWalk !== false
   if (autoWalk) return
-  walkTarget = null
-  if (anim === 'walk') setAnim('idle')
+  stopWalk()
 }
 
 function hideChatMessage() {
@@ -459,7 +493,7 @@ function playNamedAnimation(name: string) {
           : pickAnimation(spine, [name])
   const animName = preferred ?? preferredIdle(spine)
   if (!animName) return
-  walkTarget = null
+  clearWalkTarget()
   const durationMs = Math.max(
     900,
     Math.round((animationDuration(spine, animName) || 1.2) * 1000) + 200,
@@ -489,7 +523,7 @@ function playAttack(animationName?: string) {
   if (!spine) return 900
   const attack = preferredAttack(spine, animationName) ?? preferredIdle(spine)
   if (!attack) return 900
-  walkTarget = null
+  clearWalkTarget()
   const durationMs = Math.max(
     900,
     Math.round((animationDuration(spine, attack) || 1.2) * 1000) + 200,
@@ -504,7 +538,7 @@ function playHurt() {
   if (!spine) return 600
   const hurt = preferredHurt(spine) ?? preferredIdle(spine)
   if (!hurt) return 600
-  walkTarget = null
+  clearWalkTarget()
   const durationMs = Math.max(
     500,
     Math.round((animationDuration(spine, hurt) || 0.6) * 1000) + 100,
@@ -519,7 +553,7 @@ function playDie() {
   if (!spine) return 1200
   const die = preferredDie(spine) ?? preferredIdle(spine)
   if (!die) return 1200
-  walkTarget = null
+  clearWalkTarget()
   const durationMs = Math.max(
     1000,
     Math.round((animationDuration(spine, die) || 1.2) * 1000) + 200,
@@ -550,7 +584,7 @@ function setAnim(next: AnimName) {
 
 function handleCareReact(payload: { text: string; animation?: string }) {
   showAiBubble(payload.text)
-  walkTarget = null
+  clearWalkTarget()
   const durationMs = spine
     ? Math.max(900, Math.round((animationDuration(spine, preferredVictory(spine) ?? '') || 1.2) * 1000) + 200)
     : 1200
@@ -745,13 +779,12 @@ function directionFromDelta(dx: number): WalkDir {
 }
 
 async function wander(now: number) {
-  if (ballGame.isActive()) {
-    walkTarget = null
+  if (ballGame.isActive() || heartGame.isActive()) {
+    stopWalk()
     return
   }
   if (!autoWalk) {
-    walkTarget = null
-    if (anim === 'walk') setAnim('idle')
+    stopWalk()
     return
   }
   if (wanderBusy || dragging || anim === 'click' || anim === 'victory' || now < clickLockUntil) return
@@ -762,14 +795,25 @@ async function wander(now: number) {
   wanderBusy = true
   try {
     const info = await bounds()
-    if (!info) return
+    if (!info) {
+      stopWalk()
+      return
+    }
 
     const params = computeWanderParams()
+    // macOS 上 getBounds 可能略超出 workArea（菜单栏/Dock），用夹紧坐标判断是否“到达”
+    const here = clampToWorkAreaLocal(info, info.x, info.y)
 
     if (!walkTarget && now >= nextWanderAt) {
       if (Math.random() < params.startChance) {
-        walkTarget = pickNearbyTarget(info, params.rangeFactor)
-        setAnim('walk')
+        walkTarget = pickReachableTarget(info, params.rangeFactor, here)
+        if (walkTarget) {
+          walkStuck = 0
+          walkStartedAt = now
+        } else {
+          scheduleIdle(params.skipIdleMs, now)
+          setAnim('idle')
+        }
       } else {
         scheduleIdle(params.skipIdleMs, now)
         setAnim('idle')
@@ -781,25 +825,47 @@ async function wander(now: number) {
       return
     }
 
-    const dx = walkTarget.x - info.x
-    const dy = walkTarget.y - info.y
+    if (walkStartedAt > 0 && now - walkStartedAt > WANDER_MAX_MS) {
+      stopWalk(now, params.arriveIdleMs)
+      return
+    }
+
+    const dx = walkTarget.x - here.x
+    const dy = walkTarget.y - here.y
     const dist = Math.hypot(dx, dy)
-    if (dist < 3) {
-      walkTarget = null
-      scheduleIdle(params.arriveIdleMs, now)
-      setAnim('idle')
+    if (dist < WANDER_ARRIVE_PX) {
+      stopWalk(now, params.arriveIdleMs)
       return
     }
 
     walkDir = directionFromDelta(dx)
     setFacing(dx)
     setAnim('walk')
-    if (now - lastWanderMoveAt < WANDER_MOVE_MIN_MS) return
-    lastWanderMoveAt = now
-    await window.electronAPI.petSetPosition(
-      info.x + (dx / dist) * params.speed,
-      info.y + (dy / dist) * params.speed,
-    )
+    const stepX = here.x + (dx / dist) * params.speed
+    const stepY = here.y + (dy / dist) * params.speed
+    const desired = clampToWorkAreaLocal(info, stepX, stepY)
+    // 下一步被夹回原地：贴边/越界目标，直接结束本段行走
+    if (Math.hypot(desired.x - here.x, desired.y - here.y) < 0.5) {
+      stopWalk(now, params.arriveIdleMs)
+      return
+    }
+    const t = performance.now()
+    if (t - lastWanderMoveAt < WANDER_MOVE_MIN_MS) return
+    lastWanderMoveAt = t
+    const applied = await window.electronAPI.petSetPosition(stepX, stepY)
+    if (!applied) {
+      stopWalk(now, params.arriveIdleMs)
+      return
+    }
+    // 用夹紧坐标比位移，避免 macOS getBounds 与 workArea 错位时误判
+    const appliedHere = clampToWorkAreaLocal(info, applied.x, applied.y)
+    const moved = Math.hypot(appliedHere.x - here.x, appliedHere.y - here.y)
+    if (moved < 0.5) {
+      walkStuck += 1
+      if (walkStuck >= WANDER_STUCK_MOVES) stopWalk(now, params.arriveIdleMs)
+      return
+    }
+    walkStuck = 0
   } finally {
     wanderBusy = false
   }
@@ -881,7 +947,7 @@ async function prepareMinigameStart(desiredViewSize: number) {
 
 function startBallGame() {
   if (heartGame.isActive()) heartGame.stop()
-  walkTarget = null
+  clearWalkTarget()
   dragging = false
   if (anim === 'walk' || anim === 'drag') setAnim('idle')
   hideChatMessage()
@@ -895,7 +961,7 @@ function startBallGame() {
 
 function startHeartGame() {
   if (ballGame.isActive()) ballGame.stop()
-  walkTarget = null
+  clearWalkTarget()
   dragging = false
   if (anim === 'walk' || anim === 'drag') setAnim('idle')
   hideChatMessage()
@@ -986,7 +1052,7 @@ canvas.addEventListener('mousedown', async (event) => {
   }
   dragging = true
   dragMoved = false
-  walkTarget = null
+  clearWalkTarget()
   dragOriginX = event.screenX
   dragOriginY = event.screenY
   dragOffsetX = event.screenX - info.x

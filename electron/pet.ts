@@ -173,6 +173,10 @@ let lastPetCrashAt = 0
 const VITALS_FLUSH_MS = 60_000
 /** 桌宠小游戏：当前进行中的 id，null 表示未开始 */
 let activeMinigameId: string | null = null
+/** 一局小游戏：消耗饱食/卫生，提升心情加成 */
+const PLAY_SATIETY_COST = 6
+const PLAY_HYGIENE_COST = 3
+const PLAY_MOOD_GAIN = 20
 
 export type PetMinigameEvent =
   | { action: 'start'; id: 'ball-hit' | 'heart-rally' }
@@ -254,6 +258,7 @@ function getPetStats(settings = ensurePetData()): PetStatsStored {
     satiety: clampStat(stats.satiety),
     hygiene: clampStat(stats.hygiene),
     health: clampStat(stats.health),
+    moodBonus: clampStat(stats.moodBonus ?? 0),
   }
 }
 
@@ -332,6 +337,10 @@ function computeMood(stats: PetStatsStored, profile: PetProfileStored) {
   }
 
   return roundStat(mood)
+}
+
+function resolveMood(stats: PetStatsStored, profile: PetProfileStored) {
+  return roundStat(computeMood(stats, profile) + (stats.moodBonus ?? 0))
 }
 
 function clampReminderMinutes(value: number) {
@@ -509,7 +518,7 @@ export function getPetStatus(): PetStatus {
     satiety: roundStat(stats.satiety),
     hygiene: roundStat(stats.hygiene),
     health: roundStat(stats.health),
-    mood: computeMood(stats, profile),
+    mood: resolveMood(stats, profile),
     profile,
   }
 }
@@ -761,6 +770,7 @@ function applyVitals(
     satiety: clampStat(patch.satiety ?? current.satiety),
     hygiene: clampStat(patch.hygiene ?? current.hygiene),
     health: clampStat(patch.health ?? current.health),
+    moodBonus: clampStat(patch.moodBonus ?? current.moodBonus ?? 0),
   }
   const next: Partial<PetSettings> = { stats }
   if (patch.autoWalk !== undefined) next.autoWalk = patch.autoWalk
@@ -811,7 +821,7 @@ function tickProactiveChat() {
     satiety: stats.satiety,
     hygiene: stats.hygiene,
     health: stats.health,
-    mood: computeMood(stats, profile),
+    mood: resolveMood(stats, profile),
     lastInteractAt: settings.lastInteractAt ?? now,
     lastProactiveAt: settings.lastProactiveAt,
     latches: settings.proactiveLatches ?? {},
@@ -875,6 +885,7 @@ function tickVitals() {
   const rates = getPersonalityDecayRates(getPetProfile(settings).personality)
   const satiety = clampStat(stats.satiety - rates.satiety * elapsedHours)
   const hygiene = clampStat(stats.hygiene - rates.hygiene * elapsedHours)
+  const moodBonus = clampStat((stats.moodBonus ?? 0) - rates.moodBonus * elapsedHours)
   let health = stats.health
   let healthDropPerHour = 0
 
@@ -891,12 +902,13 @@ function tickVitals() {
   const displayChanged =
     roundStat(satiety) !== roundStat(stats.satiety) ||
     roundStat(hygiene) !== roundStat(stats.hygiene) ||
-    roundStat(health) !== roundStat(stats.health)
+    roundStat(health) !== roundStat(stats.health) ||
+    roundStat(moodBonus) !== roundStat(stats.moodBonus ?? 0)
   if (!displayChanged && now - last < VITALS_FLUSH_MS) {
     return getPetStatus()
   }
 
-  return applyVitals({ satiety, hygiene, health, lastVitalAt: now })
+  return applyVitals({ satiety, hygiene, health, moodBonus, lastVitalAt: now })
 }
 
 function notifyEnabled(enabled: boolean) {
@@ -920,9 +932,11 @@ function getPetWindowSize() {
 function clampToWorkArea(x: number, y: number, size = getPetWindowSize()) {
   const display = screen.getDisplayNearestPoint({ x, y })
   const area = display.workArea
+  const maxX = area.x + area.width - size
+  const maxY = area.y + area.height - size
   return {
-    x: Math.min(Math.max(x, area.x), area.x + area.width - size),
-    y: Math.min(Math.max(y, area.y), area.y + area.height - size),
+    x: Math.round(Math.min(Math.max(x, area.x), Math.max(area.x, maxX))),
+    y: Math.round(Math.min(Math.max(y, area.y), Math.max(area.y, maxY))),
   }
 }
 
@@ -1062,6 +1076,17 @@ function restPetAction() {
   return status
 }
 
+function applyPlayVitals() {
+  const stats = getPetStats()
+  const status = applyVitals({
+    satiety: clampStat(stats.satiety - PLAY_SATIETY_COST),
+    hygiene: clampStat(stats.hygiene - PLAY_HYGIENE_COST),
+    moodBonus: clampStat((stats.moodBonus ?? 0) + PLAY_MOOD_GAIN),
+  })
+  markPetInteracted()
+  return status
+}
+
 function emitPetMinigame(event: PetMinigameEvent) {
   if (petWin && !petWin.isDestroyed()) {
     petWin.webContents.send('pet:minigame', event)
@@ -1070,6 +1095,8 @@ function emitPetMinigame(event: PetMinigameEvent) {
 
 function startPetMinigame(id: 'ball-hit' | 'heart-rally') {
   if (!isPetOpen()) createPetWindow()
+  if (activeMinigameId) return
+  applyPlayVitals()
   activeMinigameId = id
   emitPetMinigame({ action: 'start', id })
 }
@@ -1304,10 +1331,15 @@ export function registerPetIpc(
   })
   ipcMain.handle('pet:get-bounds', (): PetBounds | null => {
     if (!isPetOpen()) return null
-    const [x, y] = petWin!.getPosition()
-    const size = getPetWindowSize()
-    const { workArea } = screen.getDisplayNearestPoint({ x, y })
-    return { x, y, width: size, height: size, workArea }
+    const bounds = petWin!.getBounds()
+    const { workArea } = screen.getDisplayNearestPoint({ x: bounds.x, y: bounds.y })
+    return {
+      x: bounds.x,
+      y: bounds.y,
+      width: bounds.width,
+      height: bounds.height,
+      workArea,
+    }
   })
   ipcMain.handle('pet:set-viewport', (_event, size: number, anchor?: PetViewportAnchor) => {
     const valid: PetViewportAnchor[] = ['bottom-center', 'bottom-left', 'bottom-right']
@@ -1318,9 +1350,11 @@ export function registerPetIpc(
   })
   ipcMain.handle('pet:set-position', (_event, x: number, y: number) => {
     if (!isPetOpen()) return null
-    const next = clampToWorkArea(Math.round(x), Math.round(y))
-    petWin!.setPosition(next.x, next.y)
-    return next
+    const size = getPetWindowSize()
+    const next = clampToWorkArea(Math.round(x), Math.round(y), size)
+    petWin!.setBounds({ x: next.x, y: next.y, width: size, height: size })
+    const applied = petWin!.getBounds()
+    return { x: applied.x, y: applied.y }
   })
   ipcMain.handle('pet:ignore-mouse', (_event, ignore: boolean) => {
     if (!isPetOpen()) return

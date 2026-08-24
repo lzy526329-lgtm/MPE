@@ -37,6 +37,8 @@ export type PetStatsStored = {
   satiety: number
   hygiene: number
   health: number
+  /** 玩耍等事件带来的心情加成，随时间衰减 */
+  moodBonus?: number
 }
 
 export const ELEMENT_ZODIACS: Record<PetElement, PetZodiac[]> = {
@@ -170,7 +172,7 @@ export function createDefaultProfile(now = new Date()): PetProfileStored {
 }
 
 export function createDefaultStats(): PetStatsStored {
-  return { satiety: 100, hygiene: 100, health: 100 }
+  return { satiety: 100, hygiene: 100, health: 100, moodBonus: 0 }
 }
 
 export function titleForLevel(level: number) {
@@ -186,15 +188,17 @@ export type VitalDecayRates = {
   satiety: number
   hygiene: number
   healthPenalty: number
+  moodBonus: number
 }
 
 export function getPersonalityDecayRates(personality: PetPersonality): VitalDecayRates {
-  const base = { satiety: 5, hygiene: 2, healthPenalty: 1 }
+  const base = { satiety: 5, hygiene: 2, healthPenalty: 1, moodBonus: 8 }
   switch (personality.element) {
     case 'fire':
       return { ...base, satiety: base.satiety * 1.1 }
     case 'earth':
       return {
+        ...base,
         satiety: base.satiety * 0.85,
         hygiene: base.hygiene * 0.85,
         healthPenalty: base.healthPenalty * 0.85,
