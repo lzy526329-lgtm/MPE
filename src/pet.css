@@ -125,3 +125,11 @@ canvas.pet-ball-mode:active {
   cursor: crosshair;
 }
 
+canvas.pet-heart-mode {
+  cursor: pointer;
+}
+
+canvas.pet-heart-mode:active {
+  cursor: pointer;
+}
+

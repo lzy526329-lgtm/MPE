@@ -10,6 +10,15 @@
       "activeStartMs": 220,
       "activeMs": 200,
       "cooldownMs": 420
+    },
+    "heart_attack": {
+      "animation": "attack",
+      "range": 110,
+      "halfHeight": 42,
+      "minDist": 18,
+      "activeStartMs": 220,
+      "activeMs": 200,
+      "cooldownMs": 420
     }
   },
   "minigames": {
@@ -21,6 +30,16 @@
       "spawnIntervalMs": 1400,
       "ballSpeed": 1.55,
       "bodyHitReach": 26
+    },
+    "heartRally": {
+      "skillId": "heart_attack",
+      "durationMs": 45000,
+      "heartSpeed": 1.75,
+      "arcLift": 3.4,
+      "gravity": 0.075,
+      "clickRadius": 40,
+      "hopPx": 28,
+      "bodyHitReach": 36
     }
   }
 }

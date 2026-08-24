@@ -126,6 +126,9 @@ export type PetBounds = {
   workArea: { x: number; y: number; width: number; height: number }
 }
 
+/** 窗口放大时的水平锚点：贴边时往开阔方向扩，减少 clamp 挪位 */
+export type PetViewportAnchor = 'bottom-center' | 'bottom-left' | 'bottom-right'
+
 export type PetReminderItem = {
   id: string
   enabled: boolean
@@ -172,7 +175,7 @@ const VITALS_FLUSH_MS = 60_000
 let activeMinigameId: string | null = null
 
 export type PetMinigameEvent =
-  | { action: 'start'; id: 'ball-hit' }
+  | { action: 'start'; id: 'ball-hit' | 'heart-rally' }
   | { action: 'stop' }
 
 function settingsFile() {
@@ -924,17 +927,18 @@ function clampToWorkArea(x: number, y: number, size = getPetWindowSize()) {
 }
 
 /** 仅调整实际窗口/画布，不改用户设定的 idle 体型 size */
-function applyPetViewport(raw: number) {
+function applyPetViewport(raw: number, anchor: PetViewportAnchor = 'bottom-center') {
   if (!petWin || petWin.isDestroyed()) return getPetWindowSize()
   const prev = getPetWindowSize()
   const size = Math.max(getPetSize(), Math.round(raw))
   if (size === prev) return size
   const [x, y] = petWin.getPosition()
-  const next = clampToWorkArea(
-    Math.round(x + (prev - size) / 2),
-    y + (prev - size),
-    size,
-  )
+  const delta = size - prev
+  let nextX = x
+  if (anchor === 'bottom-center') nextX = x - Math.round(delta / 2)
+  else if (anchor === 'bottom-right') nextX = x - delta
+  const nextY = y - delta
+  const next = clampToWorkArea(Math.round(nextX), Math.round(nextY), size)
   petWin.setBounds({ x: next.x, y: next.y, width: size, height: size })
   writeSettings({ x: next.x, y: next.y })
   // 尺寸变化后 Windows 透明层可能失效，下一帧强制重绘
@@ -1064,7 +1068,7 @@ function emitPetMinigame(event: PetMinigameEvent) {
   }
 }
 
-function startPetMinigame(id: 'ball-hit') {
+function startPetMinigame(id: 'ball-hit' | 'heart-rally') {
   if (!isPetOpen()) createPetWindow()
   activeMinigameId = id
   emitPetMinigame({ action: 'start', id })
@@ -1080,6 +1084,8 @@ function buildPetMenu() {
   const reminders = getReminderItems()
   const pending = findPendingReminder(reminders)
   const ballHitActive = activeMinigameId === 'ball-hit'
+  const heartRallyActive = activeMinigameId === 'heart-rally'
+  const anyMinigameActive = Boolean(activeMinigameId)
   return Menu.buildFromTemplate([
     { label: '宠物设置', click: () => openMainPage(APP_HOME_PAGE) },
     { label: '与我对话', click: () => openMainPage('pet-chat-page') },
@@ -1115,8 +1121,13 @@ function buildPetMenu() {
       submenu: [
         {
           label: ballHitActive ? '打小球（进行中）' : '打小球',
-          enabled: !ballHitActive,
+          enabled: !anyMinigameActive,
           click: () => startPetMinigame('ball-hit'),
+        },
+        {
+          label: heartRallyActive ? '弹爱心（进行中）' : '弹爱心',
+          enabled: !anyMinigameActive,
+          click: () => startPetMinigame('heart-rally'),
         },
       ],
     },
@@ -1298,8 +1309,12 @@ export function registerPetIpc(
     const { workArea } = screen.getDisplayNearestPoint({ x, y })
     return { x, y, width: size, height: size, workArea }
   })
-  ipcMain.handle('pet:set-viewport', (_event, size: number) => {
-    return applyPetViewport(Number(size))
+  ipcMain.handle('pet:set-viewport', (_event, size: number, anchor?: PetViewportAnchor) => {
+    const valid: PetViewportAnchor[] = ['bottom-center', 'bottom-left', 'bottom-right']
+    const nextAnchor = valid.includes(anchor as PetViewportAnchor)
+      ? (anchor as PetViewportAnchor)
+      : 'bottom-center'
+    return applyPetViewport(Number(size), nextAnchor)
   })
   ipcMain.handle('pet:set-position', (_event, x: number, y: number) => {
     if (!isPetOpen()) return null

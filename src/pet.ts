@@ -2,10 +2,11 @@ import '@pixi/unsafe-eval'
 import 'pixi-spine'
 import { Application, Assets } from 'pixi.js'
 import { Spine } from 'pixi-spine'
-import type { PetBounds, PetChatMessage, PetStatus } from '../electron/pet'
+import type { PetBounds, PetChatMessage, PetStatus, PetViewportAnchor } from '../electron/pet'
 import type { PetElement } from '../electron/petProfile'
 import { createBallHitGame } from './petBallGame'
-import { resolveBallHitConfig } from './petSkillDefaults'
+import { createHeartRallyGame } from './petHeartGame'
+import { resolveBallHitConfig, resolveHeartRallyConfig } from './petSkillDefaults'
 import type { PetCharacter } from '../electron/petCharacters'
 import './pet.css'
 
@@ -245,13 +246,44 @@ function setCanvasSize(size: number) {
   layoutChatBubble()
 }
 
-function syncPetViewport(size: number) {
+/** 与主进程 applyPetViewport 对齐：按锚点补偿画布，避免角色在屏幕上挪位 */
+function keepSpineScreenAnchor(
+  prevView: number,
+  nextView: number,
+  anchor: PetViewportAnchor = 'bottom-center',
+) {
+  if (!spine || prevView === nextView) return
+  const delta = nextView - prevView
+  let dx = 0
+  if (anchor === 'bottom-center') dx = delta / 2
+  else if (anchor === 'bottom-right') dx = delta
+  const dy = delta
+  spine.position.x += dx
+  spine.position.y += dy
+  hitCenterX += dx
+  hitCenterY += dy
+  bubbleAnchorX += dx
+  bubbleAnchorY += dy
+  layoutChatBubble()
+}
+
+function syncPetViewport(
+  size: number,
+  keepSpine = false,
+  anchor: PetViewportAnchor = 'bottom-center',
+) {
+  const prev = viewSize
   const next = Math.max(contentSize, Math.round(size))
   setCanvasSize(next)
+  if (keepSpine) keepSpineScreenAnchor(prev, viewSize, anchor)
   const seq = ++viewportSyncSeq
-  void window.electronAPI?.setPetViewport?.(next).then((applied) => {
-    if (seq !== viewportSyncSeq || typeof applied !== 'number') return
+  if (!window.electronAPI?.setPetViewport) return Promise.resolve(viewSize)
+  return window.electronAPI.setPetViewport(next, anchor).then((applied) => {
+    if (seq !== viewportSyncSeq || typeof applied !== 'number') return viewSize
+    const before = viewSize
     setCanvasSize(applied)
+    if (keepSpine) keepSpineScreenAnchor(before, viewSize, anchor)
+    return viewSize
   })
 }
 
@@ -775,11 +807,12 @@ async function wander(now: number) {
 
 function tick(now: number) {
   ballGame.tick(now)
+  heartGame.tick(now)
   const playingDie = Boolean(spine && preferredDie(spine) === currentAnimationName())
   if (!playingDie && (anim === 'click' || anim === 'victory') && now >= clickLockUntil) {
     setAnim('idle')
   }
-  if (!ballGame.isActive() && !dragging) void wander(now)
+  if (!ballGame.isActive() && !heartGame.isActive() && !dragging) void wander(now)
   requestAnimationFrame(tick)
 }
 
@@ -800,7 +833,24 @@ function stopBallGame(finalScore?: number, reason: 'timeup' | 'dead' | 'stop' = 
   }
 }
 
-/** 靠屏幕左侧朝右、靠右侧朝左（拖拽 / 打小球共用） */
+function stopHeartGame(finalScore?: number, reason: 'timeup' | 'miss' | 'stop' = 'stop') {
+  if (!heartGame.isActive() && finalScore === undefined) return
+  if (heartGame.isActive()) heartGame.stop()
+  void window.electronAPI?.notifyPetMinigameEnded?.()
+  if (typeof finalScore === 'number') {
+    if (reason === 'miss') showAiBubble(`掉球了…本局连击 ${finalScore}`)
+    else showAiBubble(`时间到！本局连击 ${finalScore}`)
+  }
+  if (spine) {
+    fitSpineToView(spine)
+    setFacing(facing)
+    playIdle()
+  } else {
+    syncPetViewport(contentSize)
+  }
+}
+
+/** 靠屏幕左侧朝右、靠右侧朝左（拖拽 / 小游戏共用） */
 function faceByScreenSide(petCenterX: number, workArea: { x: number; width: number }) {
   const screenMidX = workArea.x + workArea.width / 2
   setFacing(petCenterX < screenMidX ? 1 : -1)
@@ -812,31 +862,62 @@ async function faceTowardScreenCenter() {
   faceByScreenSide(info.x + info.width / 2, info.workArea)
 }
 
+/** 贴边时朝开阔一侧开局，窗口也往同侧扩展 */
+async function prepareMinigameStart(desiredViewSize: number) {
+  const info = await bounds()
+  if (!info) {
+    await syncPetViewport(desiredViewSize, true, 'bottom-center')
+    return
+  }
+  const centerX = info.x + info.width / 2
+  const { workArea } = info
+  const spaceLeft = centerX - workArea.x
+  const spaceRight = workArea.x + workArea.width - centerX
+  const openToRight = spaceRight >= spaceLeft
+  setFacing(openToRight ? 1 : -1)
+  const anchor: PetViewportAnchor = openToRight ? 'bottom-left' : 'bottom-right'
+  await syncPetViewport(desiredViewSize, true, anchor)
+}
+
 function startBallGame() {
+  if (heartGame.isActive()) heartGame.stop()
   walkTarget = null
   dragging = false
   if (anim === 'walk' || anim === 'drag') setAnim('idle')
   hideChatMessage()
-  void refreshBallHitConfig().then(async () => {
-    syncPetViewport(ballGame.getDesiredViewSize(contentSize))
-    await faceTowardScreenCenter()
+  void refreshMinigameCharacter().then(async () => {
+    await prepareMinigameStart(ballGame.getDesiredViewSize(contentSize))
     ballGame.start()
     ignoreMouse = false
     void window.electronAPI?.petIgnoreMouse?.(false)
   })
 }
 
-let ballHitCharacter: PetCharacter | null = null
+function startHeartGame() {
+  if (ballGame.isActive()) ballGame.stop()
+  walkTarget = null
+  dragging = false
+  if (anim === 'walk' || anim === 'drag') setAnim('idle')
+  hideChatMessage()
+  void refreshMinigameCharacter().then(async () => {
+    await prepareMinigameStart(heartGame.getDesiredViewSize(contentSize))
+    heartGame.start()
+    ignoreMouse = false
+    void window.electronAPI?.petIgnoreMouse?.(false)
+  })
+}
 
-async function refreshBallHitConfig() {
+let minigameCharacter: PetCharacter | null = null
+
+async function refreshMinigameCharacter() {
   try {
     const catalog = await loadCatalog()
-    ballHitCharacter =
+    minigameCharacter =
       (catalog as PetCharacter[]).find((item) => item.id === loadedCharacterId) ??
       (catalog as PetCharacter[])[0] ??
       null
   } catch {
-    ballHitCharacter = null
+    minigameCharacter = null
   }
 }
 
@@ -846,7 +927,7 @@ const ballGame = createBallHitGame({
   getHitCenter: () => ({ x: hitCenterX, y: hitCenterY }),
   getViewSize: () => viewSize,
   getFacing: () => facing,
-  getConfig: () => resolveBallHitConfig(ballHitCharacter),
+  getConfig: () => resolveBallHitConfig(minigameCharacter),
   playAttack: (animation) => playAttack(animation),
   playHurt,
   playDie,
@@ -861,6 +942,27 @@ const ballGame = createBallHitGame({
   },
 })
 
+const heartGame = createHeartRallyGame({
+  app,
+  root,
+  getHitCenter: () => ({ x: hitCenterX, y: hitCenterY }),
+  getFootY: () => hitCenterY + contentSize * 0.42,
+  getViewSize: () => viewSize,
+  getFacing: () => facing,
+  getConfig: () => resolveHeartRallyConfig(minigameCharacter),
+  playAttack: (animation) => playAttack(animation),
+  playHurt,
+  onActiveChange: (active) => {
+    canvas.classList.toggle('pet-heart-mode', active)
+  },
+  onTimeUp: (score) => {
+    stopHeartGame(score, 'timeup')
+  },
+  onMiss: (score) => {
+    stopHeartGame(score, 'miss')
+  },
+})
+
 canvas.addEventListener('contextmenu', (event) => {
   event.preventDefault()
   if (hasPetApi) void window.electronAPI.petPopupMenu()
@@ -870,6 +972,10 @@ canvas.addEventListener('mousedown', async (event) => {
   if (event.button !== 0) return
   if (ballGame.isActive()) {
     ballGame.handleAttack()
+    return
+  }
+  if (heartGame.isActive()) {
+    heartGame.handleClick(event.clientX, event.clientY)
     return
   }
   const info = await bounds()
@@ -891,7 +997,7 @@ canvas.addEventListener('mousedown', async (event) => {
 })
 
 window.addEventListener('mousemove', async (event) => {
-  if (ballGame.isActive()) {
+  if (ballGame.isActive() || heartGame.isActive()) {
     if (ignoreMouse && hasPetApi) {
       ignoreMouse = false
       await window.electronAPI.petIgnoreMouse(false)
@@ -921,7 +1027,7 @@ window.addEventListener('mousemove', async (event) => {
 })
 
 window.addEventListener('mouseup', (event) => {
-  if (ballGame.isActive()) return
+  if (ballGame.isActive() || heartGame.isActive()) return
   if (!dragging || event.button !== 0) return
   dragging = false
   dragWorkArea = null
@@ -965,7 +1071,14 @@ window.electronAPI?.onPetMinigame?.((event) => {
     startBallGame()
     return
   }
-  if (event.action === 'stop') stopBallGame()
+  if (event.action === 'start' && event.id === 'heart-rally') {
+    startHeartGame()
+    return
+  }
+  if (event.action === 'stop') {
+    stopBallGame()
+    stopHeartGame()
+  }
 })
 
 void boot()

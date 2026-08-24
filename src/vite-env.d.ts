@@ -10,7 +10,7 @@ import type {
   ExtractResult,
 } from '../electron/archive'
 import type { SaveWatermarkResult, WatermarkResult } from '../electron/watermark'
-import type { PetBounds, PetChatMessage, PetReminderItem, PetStatus } from '../electron/pet'
+import type { PetBounds, PetChatMessage, PetReminderItem, PetStatus, PetViewportAnchor } from '../electron/pet'
 import type { PetAiReply, PetAiSettingsView, PetChatHistoryItem } from '../electron/petAi'
 import type { PetCharacter } from '../electron/petCharacters'
 import type {
@@ -72,7 +72,7 @@ declare global {
       setPetEnabled: (enabled: boolean) => Promise<boolean>
       onPetEnabledChanged: (callback: (enabled: boolean) => void) => () => void
       petGetBounds: () => Promise<PetBounds | null>
-      setPetViewport: (size: number) => Promise<number>
+      setPetViewport: (size: number, anchor?: PetViewportAnchor) => Promise<number>
       petSetPosition: (x: number, y: number) => Promise<{ x: number; y: number } | null>
       petIgnoreMouse: (ignore: boolean) => Promise<void>
       petShowMain: (pageId?: string) => Promise<void>
@@ -82,7 +82,7 @@ declare global {
       ) => () => void
       petPopupMenu: () => Promise<void>
       onPetMinigame: (
-        callback: (event: { action: 'start'; id: 'ball-hit' } | { action: 'stop' }) => void,
+        callback: (event: { action: 'start'; id: 'ball-hit' | 'heart-rally' } | { action: 'stop' }) => void,
       ) => () => void
       notifyPetMinigameEnded: () => Promise<void>
       getPetStatus: () => Promise<PetStatus>

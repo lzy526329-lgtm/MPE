@@ -26,12 +26,25 @@ export type BallHitMinigameConfig = {
   bodyHitReach?: number
 }
 
+/** 弹爱心：弧形对打，点击爱心弹回；掉球即结束（无 HP） */
+export type HeartRallyMinigameConfig = {
+  skillId?: string
+  durationMs?: number
+  heartSpeed?: number
+  arcLift?: number
+  gravity?: number
+  clickRadius?: number
+  hopPx?: number
+  bodyHitReach?: number
+}
+
 export type PetCharacterMeta = {
   name?: string
   description?: string
   skills?: Record<string, PetSkillConfig>
   minigames?: {
     ballHit?: BallHitMinigameConfig
+    heartRally?: HeartRallyMinigameConfig
   }
 }
 
@@ -46,6 +59,7 @@ export type PetCharacter = {
   skills?: Record<string, PetSkillConfig>
   minigames?: {
     ballHit?: BallHitMinigameConfig
+    heartRally?: HeartRallyMinigameConfig
   }
 }
 
@@ -131,6 +145,30 @@ function sanitizeBallHit(raw: unknown): BallHitMinigameConfig | undefined {
   return Object.keys(config).length > 0 ? config : undefined
 }
 
+function sanitizeHeartRally(raw: unknown): HeartRallyMinigameConfig | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const source = raw as Record<string, unknown>
+  const config: HeartRallyMinigameConfig = {}
+  if (typeof source.skillId === 'string' && source.skillId.trim()) {
+    config.skillId = source.skillId.trim()
+  }
+  const durationMs = clampNumber(source.durationMs, 5_000, 180_000)
+  const heartSpeed = clampNumber(source.heartSpeed, 0.4, 12)
+  const arcLift = clampNumber(source.arcLift, 0.5, 12)
+  const gravity = clampNumber(source.gravity, 0.02, 1)
+  const clickRadius = clampNumber(source.clickRadius, 4, 80)
+  const hopPx = clampNumber(source.hopPx, 4, 120)
+  const bodyHitReach = clampNumber(source.bodyHitReach, 8, 120)
+  if (durationMs !== undefined) config.durationMs = durationMs
+  if (heartSpeed !== undefined) config.heartSpeed = heartSpeed
+  if (arcLift !== undefined) config.arcLift = arcLift
+  if (gravity !== undefined) config.gravity = gravity
+  if (clickRadius !== undefined) config.clickRadius = clickRadius
+  if (hopPx !== undefined) config.hopPx = hopPx
+  if (bodyHitReach !== undefined) config.bodyHitReach = bodyHitReach
+  return Object.keys(config).length > 0 ? config : undefined
+}
+
 function readMeta(dir: string): PetCharacterMeta {
   try {
     return JSON.parse(fs.readFileSync(path.join(dir, 'meta.json'), 'utf8')) as PetCharacterMeta
@@ -155,6 +193,7 @@ export function scanPetCharacters(root: string): PetCharacter[] {
       const meta = readMeta(dir)
       const skills = sanitizeSkills(meta.skills)
       const ballHit = sanitizeBallHit(meta.minigames?.ballHit)
+      const heartRally = sanitizeHeartRally(meta.minigames?.heartRally)
       const character: PetCharacter = {
         id,
         name: meta.name?.trim() || id,
@@ -165,7 +204,12 @@ export function scanPetCharacters(root: string): PetCharacter[] {
         previewUrl: `${PET_CHARACTERS_URL}/${id}/${previewFile}`,
       }
       if (skills) character.skills = skills
-      if (ballHit) character.minigames = { ballHit }
+      if (ballHit || heartRally) {
+        character.minigames = {
+          ...(ballHit ? { ballHit } : {}),
+          ...(heartRally ? { heartRally } : {}),
+        }
+      }
       return character
     })
     .filter((item): item is PetCharacter => Boolean(item))

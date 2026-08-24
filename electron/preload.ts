@@ -12,7 +12,7 @@ import type { SaveWatermarkResult, WatermarkResult } from './watermark'
 import type { SystemInfo } from './systemInfo'
 import type { ScanResult, CleanResult } from './diskClean'
 import type { PetAiReply, PetAiSettingsView, PetChatHistoryItem } from './petAi'
-import type { PetBounds, PetChatMessage, PetReminderItem, PetStatus } from './pet'
+import type { PetBounds, PetChatMessage, PetReminderItem, PetStatus, PetViewportAnchor } from './pet'
 import type { PetCharacter } from './petCharacters'
 import type {
   PetClipKey,
@@ -93,7 +93,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('pet:enabled-changed', listener)
   },
   petGetBounds: (): Promise<PetBounds | null> => ipcRenderer.invoke('pet:get-bounds'),
-  setPetViewport: (size: number): Promise<number> => ipcRenderer.invoke('pet:set-viewport', size),
+  setPetViewport: (size: number, anchor?: PetViewportAnchor): Promise<number> =>
+    ipcRenderer.invoke('pet:set-viewport', size, anchor),
   petSetPosition: (x: number, y: number): Promise<{ x: number; y: number } | null> =>
     ipcRenderer.invoke('pet:set-position', x, y),
   petIgnoreMouse: (ignore: boolean): Promise<void> =>
@@ -112,11 +113,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   petPopupMenu: (): Promise<void> => ipcRenderer.invoke('pet:popup-menu'),
   onPetMinigame: (
-    callback: (event: { action: 'start'; id: 'ball-hit' } | { action: 'stop' }) => void,
+    callback: (event: { action: 'start'; id: 'ball-hit' | 'heart-rally' } | { action: 'stop' }) => void,
   ) => {
     const listener = (
       _event: unknown,
-      payload: { action: 'start'; id: 'ball-hit' } | { action: 'stop' },
+      payload: { action: 'start'; id: 'ball-hit' | 'heart-rally' } | { action: 'stop' },
     ) => callback(payload)
     ipcRenderer.on('pet:minigame', listener)
     return () => ipcRenderer.removeListener('pet:minigame', listener)
