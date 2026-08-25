@@ -57,6 +57,8 @@ https://ghfast.top/https://github.com/lzy526329-lgtm/MPE/releases/download/v1.0.
 
 依赖发版时上传的 `latest.yml` / `latest-mac.yml`（及对应安装包）。`workflow_dispatch` 打的是 pre-release，默认不会被检查到；正式发版请打 `v*` tag。
 
+构建产物直接上传到 **GitHub Release**，不再经过 Actions Artifact（免费额度很容易被安装包撑满）。
+
 ## 配置 Gitee 同步（推荐）
 
 在 GitHub 仓库 **Settings → Secrets and variables → Actions** 中新增：

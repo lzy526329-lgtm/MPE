@@ -10,29 +10,77 @@ permissions:
   contents: write
 
 jobs:
+  prepare:
+    name: Prepare GitHub Release
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve tag
+        id: meta
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="v${VERSION}"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update release shell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.meta.outputs.tag }}"
+          PRERELEASE_ARGS=()
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            PRERELEASE_ARGS+=(--prerelease)
+          fi
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Release $TAG already exists"
+            gh release edit "$TAG" \
+              --repo "${{ github.repository }}" \
+              --title "MPT ${TAG}" \
+              --latest \
+              "${PRERELEASE_ARGS[@]}" || true
+          else
+            gh release create "$TAG" \
+              --repo "${{ github.repository }}" \
+              --title "MPT ${TAG}" \
+              --generate-notes \
+              --latest \
+              "${PRERELEASE_ARGS[@]}"
+          fi
+
+  # 直接上传到 GitHub Release，避免占用 Actions Artifact 配额
   build:
     name: Build on ${{ matrix.os }}
+    needs: prepare
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: macos-latest
             command: package:mac
-            files: |
+            patterns: |
               release/*/MPT-*.dmg
               release/*/MPT-*.zip
               release/*/latest-mac.yml
               release/*/*.blockmap
           - os: windows-latest
             command: package:win
-            # 只收安装包，排除 win-unpacked 里的 7za/elevate 等工具 exe
-            files: |
+            patterns: |
               release/*/MPT-*-win-*.exe
               release/*/latest.yml
               release/*/*.blockmap
           - os: ubuntu-latest
             command: package:linux
-            files: |
+            patterns: |
               release/*/MPT-*.AppImage
               release/*/MPT-*.deb
               release/*/latest-linux.yml
@@ -46,7 +94,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
@@ -61,68 +109,55 @@ jobs:
           # 无证书时关闭自动签名。不要设置空的 CSC_LINK，否则 mac 会报 “not a file”
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
-      - name: Upload workflow artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: MPT-${{ runner.os }}-${{ runner.arch }}
-          path: ${{ matrix.files }}
-          if-no-files-found: error
+      - name: Collect release files
+        shell: bash
+        run: |
+          mkdir -p dist-out
+          while IFS= read -r pattern; do
+            pattern="${pattern#"${pattern%%[![:space:]]*}"}"
+            pattern="${pattern%"${pattern##*[![:space:]]}"}"
+            [[ -z "$pattern" ]] && continue
+            shopt -s nullglob
+            for file in $pattern; do
+              [[ -f "$file" ]] || continue
+              cp "$file" "dist-out/$(basename "$file")"
+            done
+            shopt -u nullglob
+          done <<< "${{ matrix.patterns }}"
 
-  publish:
-    name: Publish releases
-    needs: build
+          echo "==== dist-out ===="
+          ls -lah dist-out
+          test -n "$(ls -A dist-out 2>/dev/null)"
+
+      - name: Upload assets to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release upload "${{ needs.prepare.outputs.tag }}" dist-out/* \
+            --repo "${{ github.repository }}" \
+            --clobber
+
+  publish-gitee:
+    name: Sync Gitee Release
+    needs: [prepare, build]
     runs-on: ubuntu-latest
     if: success()
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Collect installers
-        id: meta
+      - name: Download GitHub Release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p dist-out
-          # 只收集 MPT 安装包，避免把 7za.exe / elevate.exe / MPT.exe 等误传上去
-          find artifacts -type f \( \
-            -name 'MPT-*-win-*.exe' -o \
-            -name 'MPT-*-mac-*.dmg' -o \
-            -name 'MPT-*-mac-*.zip' -o \
-            -name 'MPT-*.AppImage' -o \
-            -name 'MPT-*.deb' -o \
-            -name 'latest*.yml' -o \
-            -name '*.blockmap' \
-          \) -print0 | while IFS= read -r -d '' file; do
-            cp "$file" "dist-out/$(basename "$file")"
-          done
-
+          gh release download "${{ needs.prepare.outputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --dir dist-out \
+            --pattern 'MPT-*' || true
           echo "==== dist-out ===="
-          ls -lah dist-out
-          test -n "$(ls -A dist-out 2>/dev/null)"
-
-          VERSION="$(node -p "require('./package.json').version")"
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            TAG="${GITHUB_REF_NAME}"
-          else
-            TAG="v${VERSION}"
-          fi
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "Collected for ${TAG}"
-
-      - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.meta.outputs.tag }}
-          name: MPT ${{ steps.meta.outputs.tag }}
-          files: dist-out/*
-          generate_release_notes: true
-          prerelease: ${{ github.event_name == 'workflow_dispatch' }}
-          make_latest: true
-          fail_on_unmatched_files: true
+          ls -lah dist-out || true
 
       - name: Publish Gitee Release
         env:
@@ -134,6 +169,10 @@ jobs:
             echo "未配置 GITEE_TOKEN，跳过 Gitee 同步（可在仓库 Secrets 中添加）"
             exit 0
           fi
+          if [ -z "$(ls -A dist-out 2>/dev/null)" ]; then
+            echo "没有可同步的文件，跳过"
+            exit 0
+          fi
           OWNER="${GITEE_OWNER:-li_ziyang}"
           REPO="${GITEE_REPO:-gongju}"
           chmod +x scripts/publish-gitee-release.sh
@@ -141,6 +180,6 @@ jobs:
           ./scripts/publish-gitee-release.sh \
             "$OWNER" \
             "$REPO" \
-            "${{ steps.meta.outputs.tag }}" \
+            "${{ needs.prepare.outputs.tag }}" \
             "${{ github.repository }}" \
             "${FILES[@]}"
