@@ -47,6 +47,16 @@ git push origin v1.0.0
 https://ghfast.top/https://github.com/lzy526329-lgtm/MPE/releases/download/v1.0.0/<文件名>
 ```
 
+## 应用内更新
+
+打包安装后，在 **宠物设置 → 关于与更新** 可：
+
+1. 点击「检查更新」对比 GitHub Release 最新版
+2. 有新版本时点「下载更新」
+3. 下载完成后点「安装并重启」
+
+依赖发版时上传的 `latest.yml` / `latest-mac.yml`（及对应安装包）。`workflow_dispatch` 打的是 pre-release，默认不会被检查到；正式发版请打 `v*` tag。
+
 ## 配置 Gitee 同步（推荐）
 
 在 GitHub 仓库 **Settings → Secrets and variables → Actions** 中新增：

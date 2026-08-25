@@ -35,6 +35,7 @@ import type {
   SplitPdfResult,
   WatermarkPdfRequest,
 } from './pdf'
+import type { UpdateState } from './updater'
 
 contextBridge.exposeInMainWorld('electronAPI', {
   platform: process.platform,
@@ -208,5 +209,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const listener = (_event: unknown, skin: PetSkinView) => callback(skin)
     ipcRenderer.on('pet:skin-changed', listener)
     return () => ipcRenderer.removeListener('pet:skin-changed', listener)
+  },
+  getAppUpdateState: (): Promise<UpdateState> => ipcRenderer.invoke('app:get-version'),
+  checkAppUpdate: (): Promise<{
+    updateAvailable: boolean
+    currentVersion: string
+    latestVersion?: string
+    releaseName?: string
+    releaseNotes?: string
+    packaged: boolean
+    message: string
+  }> => ipcRenderer.invoke('app:check-update'),
+  downloadAppUpdate: (): Promise<{ ok: boolean; message: string }> =>
+    ipcRenderer.invoke('app:download-update'),
+  installAppUpdate: (): Promise<{ ok: boolean; message: string }> =>
+    ipcRenderer.invoke('app:install-update'),
+  onAppUpdateState: (callback: (state: UpdateState) => void) => {
+    const listener = (_event: unknown, next: UpdateState) => callback(next)
+    ipcRenderer.on('app:update-state', listener)
+    return () => ipcRenderer.removeListener('app:update-state', listener)
   },
 })

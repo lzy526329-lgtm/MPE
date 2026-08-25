@@ -21,16 +21,22 @@ jobs:
             files: |
               release/*/MPT-*.dmg
               release/*/MPT-*.zip
+              release/*/latest-mac.yml
+              release/*/*.blockmap
           - os: windows-latest
             command: package:win
             # 只收安装包，排除 win-unpacked 里的 7za/elevate 等工具 exe
             files: |
               release/*/MPT-*-win-*.exe
+              release/*/latest.yml
+              release/*/*.blockmap
           - os: ubuntu-latest
             command: package:linux
             files: |
               release/*/MPT-*.AppImage
               release/*/MPT-*.deb
+              release/*/latest-linux.yml
+              release/*/*.blockmap
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -86,7 +92,9 @@ jobs:
             -name 'MPT-*-mac-*.dmg' -o \
             -name 'MPT-*-mac-*.zip' -o \
             -name 'MPT-*.AppImage' -o \
-            -name 'MPT-*.deb' \
+            -name 'MPT-*.deb' -o \
+            -name 'latest*.yml' -o \
+            -name '*.blockmap' \
           \) -print0 | while IFS= read -r -d '' file; do
             cp "$file" "dist-out/$(basename "$file")"
           done

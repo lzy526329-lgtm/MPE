@@ -22,6 +22,7 @@ import {
 } from './watermark'
 import { scanDisk, cleanCategories } from './diskClean'
 import { getSystemInfo } from './systemInfo'
+import { registerUpdaterIpc } from './updater'
 import {
   addPdfWatermark,
   compressPdfFile,
@@ -209,6 +210,7 @@ if (!gotSingleInstanceLock) {
   app.whenReady().then(() => {
     attachWatermarkMediaHeaders(session.defaultSession)
     registerPetIpc(() => win, ensureMainWindow)
+    registerUpdaterIpc(() => win)
     createWindow(false)
     restorePetIfNeeded()
   })

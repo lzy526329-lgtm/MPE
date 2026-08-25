@@ -1,5 +1,6 @@
 import type { PetCharacter } from '../electron/petCharacters'
 import type { PetReminderItem, PetStatus } from '../electron/pet'
+import type { UpdateState } from '../electron/updater'
 import {
   ELEMENT_EMOJI,
   formatPersonalitySummary,
@@ -418,7 +419,13 @@ function readReminderForm(root: HTMLElement) {
   return { enabled, mode, minutes, onceAt, dailyTime, text, requireConfirm }
 }
 
-export type PetSettingsTab = 'profile' | 'character' | 'appearance' | 'status' | 'reminders'
+export type PetSettingsTab =
+  | 'profile'
+  | 'character'
+  | 'appearance'
+  | 'status'
+  | 'reminders'
+  | 'about'
 
 export function switchPetSettingsTab(tab: PetSettingsTab) {
   document.querySelectorAll<HTMLButtonElement>('[data-pet-tab]').forEach((button) => {
@@ -632,6 +639,40 @@ export function mountPetSettingsPage() {
               <button class="secondary-button" id="pet-reminder-confirm-now" type="button">确认待处理提醒</button>
             </div>
             <p class="field-hint" id="pet-reminder-hint">可创建多条提醒。</p>
+          </article>
+        </section>
+        <section class="pet-settings-panel" data-pet-panel="about" hidden>
+          <article class="pet-config-card">
+            <h2>关于与更新</h2>
+            <p>检查 GitHub Release 是否有新版本。有更新时先下载，完成后再安装并重启。</p>
+            <div class="pet-profile-grid">
+              <div class="pet-profile-item">
+                <span>当前版本</span>
+                <strong id="app-current-version">-</strong>
+              </div>
+              <div class="pet-profile-item">
+                <span>最新版本</span>
+                <strong id="app-latest-version">-</strong>
+              </div>
+              <div class="pet-profile-item pet-profile-item--wide">
+                <span>状态</span>
+                <strong id="app-update-status">尚未检查</strong>
+              </div>
+            </div>
+            <div class="pet-update-progress" id="app-update-progress" hidden>
+              <div class="pet-stat-label">
+                <span>下载进度</span>
+                <strong id="app-update-progress-value">0%</strong>
+              </div>
+              <div class="pet-stat-bar"><div class="pet-stat-fill" id="app-update-progress-fill" style="width:0%"></div></div>
+            </div>
+            <pre class="pet-update-notes" id="app-update-notes" hidden></pre>
+            <div class="pet-config-actions">
+              <button class="primary-button" id="app-check-update" type="button">检查更新</button>
+              <button class="secondary-button" id="app-download-update" type="button" hidden>下载更新</button>
+              <button class="primary-button" id="app-install-update" type="button" hidden>安装并重启</button>
+            </div>
+            <p class="field-hint" id="app-update-hint">仅打包安装后的应用可检查远程更新。</p>
           </article>
         </section>
     </div>
@@ -867,5 +908,94 @@ export function mountPetSettingsPage() {
     const name = root.querySelector<HTMLInputElement>('#pet-profile-name')?.value.trim()
     if (!name) return
     apply(await window.electronAPI.updatePetProfile({ name }))
+  })
+
+  const currentVersionEl = root.querySelector<HTMLElement>('#app-current-version')
+  const latestVersionEl = root.querySelector<HTMLElement>('#app-latest-version')
+  const statusEl = root.querySelector<HTMLElement>('#app-update-status')
+  const hintEl = root.querySelector<HTMLElement>('#app-update-hint')
+  const notesEl = root.querySelector<HTMLElement>('#app-update-notes')
+  const progressWrap = root.querySelector<HTMLElement>('#app-update-progress')
+  const progressValue = root.querySelector<HTMLElement>('#app-update-progress-value')
+  const progressFill = root.querySelector<HTMLElement>('#app-update-progress-fill')
+  const checkBtn = root.querySelector<HTMLButtonElement>('#app-check-update')
+  const downloadBtn = root.querySelector<HTMLButtonElement>('#app-download-update')
+  const installBtn = root.querySelector<HTMLButtonElement>('#app-install-update')
+
+  const statusLabel = (state: UpdateState) => {
+    switch (state.status) {
+      case 'checking':
+        return '正在检查…'
+      case 'available':
+        return `发现新版本 ${state.latestVersion}`
+      case 'not-available':
+        return '已是最新版本'
+      case 'downloading':
+        return `正在下载… ${state.progress ?? 0}%`
+      case 'downloaded':
+        return '下载完成，可以安装并重启'
+      case 'error':
+        return state.error ? `出错：${state.error}` : '检查或下载失败'
+      case 'dev':
+        return '开发模式不可用'
+      default:
+        return '尚未检查'
+    }
+  }
+
+  const renderUpdateState = (state: UpdateState) => {
+    if (currentVersionEl) currentVersionEl.textContent = state.currentVersion
+    if (latestVersionEl) latestVersionEl.textContent = state.latestVersion || '-'
+    if (statusEl) statusEl.textContent = statusLabel(state)
+
+    const showProgress = state.status === 'downloading' || state.status === 'downloaded'
+    if (progressWrap) progressWrap.hidden = !showProgress
+    if (progressValue) progressValue.textContent = `${state.progress ?? 0}%`
+    if (progressFill) progressFill.style.width = `${state.progress ?? 0}%`
+
+    if (notesEl) {
+      const notes = state.releaseNotes?.trim()
+      notesEl.hidden = !notes
+      notesEl.textContent = notes || ''
+    }
+
+    if (downloadBtn) downloadBtn.hidden = state.status !== 'available'
+    if (installBtn) installBtn.hidden = state.status !== 'downloaded'
+    if (checkBtn) checkBtn.disabled = state.status === 'checking' || state.status === 'downloading'
+    if (downloadBtn) downloadBtn.disabled = state.status === 'downloading'
+  }
+
+  if (window.electronAPI?.getAppUpdateState) {
+    void window.electronAPI.getAppUpdateState().then((state) => {
+      renderUpdateState(state)
+      if (!state.packaged && hintEl) {
+        hintEl.textContent = '当前是开发模式。请用打包后的安装包验证「检查更新」。'
+      }
+    })
+    window.electronAPI.onAppUpdateState?.(renderUpdateState)
+  }
+
+  checkBtn?.addEventListener('click', async () => {
+    if (!window.electronAPI?.checkAppUpdate) return
+    checkBtn.disabled = true
+    const result = await window.electronAPI.checkAppUpdate()
+    if (hintEl) hintEl.textContent = result.message
+    checkBtn.disabled = false
+  })
+
+  downloadBtn?.addEventListener('click', async () => {
+    if (!window.electronAPI?.downloadAppUpdate) return
+    downloadBtn.disabled = true
+    const result = await window.electronAPI.downloadAppUpdate()
+    if (hintEl) hintEl.textContent = result.message
+    if (!result.ok) downloadBtn.disabled = false
+  })
+
+  installBtn?.addEventListener('click', async () => {
+    if (!window.electronAPI?.installAppUpdate) return
+    installBtn.disabled = true
+    const result = await window.electronAPI.installAppUpdate()
+    if (hintEl) hintEl.textContent = result.message
+    if (!result.ok) installBtn.disabled = false
   })
 }

@@ -6,7 +6,7 @@ import electron from 'vite-plugin-electron/simple'
 import { scanPetCharacters } from './electron/petCharacters'
 
 // 原生模块和自带 WASM/可执行文件的依赖必须保持外部引用。
-const nativeExternals = ['sharp', '7zip-bin', 'node-unrar-js']
+const nativeExternals = ['sharp', '7zip-bin', 'node-unrar-js', 'electron-updater']
 
 function petCharactersPlugin(): Plugin {
   const root = path.resolve(__dirname, 'donghua')

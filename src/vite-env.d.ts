@@ -36,6 +36,7 @@ import type {
   SplitPdfResult,
   WatermarkPdfRequest,
 } from '../electron/pdf'
+import type { UpdateState } from '../electron/updater'
 
 declare global {
   interface Window {
@@ -132,6 +133,19 @@ declare global {
       removePetClip: (key: PetClipKey) => Promise<PetSkinView>
       resetPetSkin: () => Promise<PetSkinView>
       onPetSkinChanged: (callback: (skin: PetSkinView) => void) => () => void
+      getAppUpdateState: () => Promise<UpdateState>
+      checkAppUpdate: () => Promise<{
+        updateAvailable: boolean
+        currentVersion: string
+        latestVersion?: string
+        releaseName?: string
+        releaseNotes?: string
+        packaged: boolean
+        message: string
+      }>
+      downloadAppUpdate: () => Promise<{ ok: boolean; message: string }>
+      installAppUpdate: () => Promise<{ ok: boolean; message: string }>
+      onAppUpdateState: (callback: (state: UpdateState) => void) => () => void
     }
   }
 }

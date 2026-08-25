@@ -1564,6 +1564,24 @@ input[type="range"] {
 .pet-config-actions {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pet-update-progress {
+  margin: 12px 0 16px;
+}
+
+.pet-update-notes {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  max-height: 180px;
+  overflow: auto;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel, #fff) 88%, var(--muted, #888));
+  color: var(--text, #222);
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .pet-size-field {

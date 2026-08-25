@@ -32,6 +32,7 @@ app.innerHTML = `
         <button class="nav-item" type="button" data-pet-tab="appearance">外观与行为</button>
         <button class="nav-item" type="button" data-pet-tab="status">状态</button>
         <button class="nav-item" type="button" data-pet-tab="reminders">交流提醒</button>
+        <button class="nav-item" type="button" data-pet-tab="about">关于与更新</button>
       </nav>
       <button class="nav-item pet-chat-sidebar-btn" id="open-pet-chat" type="button">与我对话</button>
       <button class="nav-item pet-chat-sidebar-btn" id="open-pet-home" type="button" hidden>参观家园</button>
