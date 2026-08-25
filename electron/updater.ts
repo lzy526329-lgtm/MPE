@@ -1,7 +1,9 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, net, shell } from 'electron'
+import fs from 'node:fs'
+import path from 'node:path'
 import { autoUpdater, type UpdateInfo, type ProgressInfo } from 'electron-updater'
 
-/** 公开 Release 资源目录（需仓库为 Public，否则检查更新会 404） */
+/** 公开 Release 资源目录（需仓库为 Public） */
 const UPDATE_FEED_URL =
   'https://github.com/lzy526329-lgtm/MPE/releases/latest/download'
 
@@ -24,6 +26,8 @@ export type UpdateState = {
   progress?: number
   error?: string
   packaged: boolean
+  /** Mac 未签名包走 DMG，不走 ShipIt 自动替换 */
+  installMode: 'auto' | 'dmg'
 }
 
 type UpdateCheckResult = {
@@ -36,11 +40,17 @@ type UpdateCheckResult = {
   message: string
 }
 
+const installMode: UpdateState['installMode'] = process.platform === 'darwin' ? 'dmg' : 'auto'
+
 let state: UpdateState = {
   status: 'idle',
   currentVersion: app.getVersion(),
   packaged: app.isPackaged,
+  installMode,
 }
+
+/** Mac 自定义下载的 DMG 本地路径 */
+let macDmgPath: string | null = null
 
 function broadcast(win: BrowserWindow | null) {
   if (!win || win.isDestroyed()) return
@@ -48,7 +58,13 @@ function broadcast(win: BrowserWindow | null) {
 }
 
 function setState(win: BrowserWindow | null, patch: Partial<UpdateState>) {
-  state = { ...state, ...patch, currentVersion: app.getVersion(), packaged: app.isPackaged }
+  state = {
+    ...state,
+    ...patch,
+    currentVersion: app.getVersion(),
+    packaged: app.isPackaged,
+    installMode,
+  }
   broadcast(win)
 }
 
@@ -63,21 +79,135 @@ function friendlyUpdateError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error)
   if (/404|Not Found|authentication token/i.test(message)) {
     return (
-      '无法访问更新源（404）。请把 GitHub 仓库 MPE 设为 Public，' +
-      '或确认 Release 里已上传 latest-mac.yml / latest.yml。'
+      '无法访问更新源（404）。请确认 GitHub 仓库为 Public，' +
+      '且 Release 已上传 latest-mac.yml / latest.yml。'
+    )
+  }
+  if (/code signature|签名|ShipIt|did not pass validation|资源必须存在/i.test(message)) {
+    return (
+      'Mac 未签名安装包无法自动替换（系统签名校验失败）。' +
+      '请到 GitHub Release 下载 .dmg，拖到「应用程序」覆盖安装。'
     )
   }
   return message
 }
 
+function compareVersions(a: string, b: string): number {
+  const pa = a.split('.').map((x) => Number.parseInt(x, 10) || 0)
+  const pb = b.split('.').map((x) => Number.parseInt(x, 10) || 0)
+  const n = Math.max(pa.length, pb.length)
+  for (let i = 0; i < n; i++) {
+    const da = pa[i] ?? 0
+    const db = pb[i] ?? 0
+    if (da > db) return 1
+    if (da < db) return -1
+  }
+  return 0
+}
+
+function parseMacYml(text: string): { version: string; dmgName: string } | null {
+  const version = text.match(/^version:\s*['"]?([^\s'"]+)/m)?.[1]
+  const dmgName =
+    text.match(/url:\s*(MPT-[^\s]+\.dmg)/)?.[1] ||
+    text.match(/-\s*url:\s*(MPT-[^\s]+\.dmg)/)?.[1]
+  if (!version || !dmgName) return null
+  return { version, dmgName }
+}
+
+function fetchText(url: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const request = net.request(url)
+    const chunks: Buffer[] = []
+    request.on('response', (response) => {
+      const status = response.statusCode ?? 0
+      if (status >= 400) {
+        reject(new Error(`HTTP ${status} ${url}`))
+        return
+      }
+      response.on('data', (chunk) => chunks.push(Buffer.from(chunk)))
+      response.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
+      response.on('error', reject)
+    })
+    request.on('error', reject)
+    request.end()
+  })
+}
+
+function downloadToFile(
+  url: string,
+  dest: string,
+  onProgress: (percent: number) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const request = net.request(url)
+    request.on('response', (response) => {
+      const status = response.statusCode ?? 0
+      if (status >= 400) {
+        reject(new Error(`下载失败 HTTP ${status}`))
+        return
+      }
+      const total = Number(response.headers['content-length'] || 0)
+      let received = 0
+      const file = fs.createWriteStream(dest)
+      response.on('data', (chunk) => {
+        received += chunk.length
+        file.write(chunk)
+        if (total > 0) onProgress(Math.min(99, Math.round((received / total) * 100)))
+      })
+      response.on('end', () => {
+        file.end(() => {
+          onProgress(100)
+          resolve()
+        })
+      })
+      response.on('error', (error) => {
+        file.destroy()
+        reject(error)
+      })
+    })
+    request.on('error', reject)
+    request.end()
+  })
+}
+
+async function downloadMacDmg(win: BrowserWindow | null) {
+  const yml = await fetchText(`${UPDATE_FEED_URL}/latest-mac.yml`)
+  const meta = parseMacYml(yml)
+  if (!meta) throw new Error('无法解析 latest-mac.yml（缺少 dmg 条目）')
+
+  const url = `${UPDATE_FEED_URL}/${meta.dmgName}`
+  const destDir = app.getPath('downloads')
+  const dest = path.join(destDir, meta.dmgName)
+
+  setState(win, {
+    status: 'downloading',
+    progress: 0,
+    latestVersion: meta.version,
+    error: undefined,
+  })
+
+  await downloadToFile(url, dest, (progress) => {
+    setState(win, { status: 'downloading', progress })
+  })
+
+  macDmgPath = dest
+  setState(win, {
+    status: 'downloaded',
+    progress: 100,
+    latestVersion: meta.version,
+    error: undefined,
+  })
+  return dest
+}
+
 export function registerUpdaterIpc(getMainWindow: () => BrowserWindow | null) {
-  // generic 直接读 latest*.yml，避免 private 仓库下 releases.atom 必 404
   autoUpdater.setFeedURL({
     provider: 'generic',
     url: UPDATE_FEED_URL,
   })
   autoUpdater.autoDownload = false
-  autoUpdater.autoInstallOnAppQuit = true
+  // Mac 未签名时 ShipIt 会校验失败，禁止退出时静默安装
+  autoUpdater.autoInstallOnAppQuit = process.platform !== 'darwin'
   autoUpdater.allowPrerelease = false
 
   autoUpdater.on('checking-for-update', () => {
@@ -104,6 +234,7 @@ export function registerUpdaterIpc(getMainWindow: () => BrowserWindow | null) {
   })
 
   autoUpdater.on('download-progress', (progress: ProgressInfo) => {
+    if (process.platform === 'darwin') return
     setState(getMainWindow(), {
       status: 'downloading',
       progress: Math.round(progress.percent),
@@ -112,6 +243,7 @@ export function registerUpdaterIpc(getMainWindow: () => BrowserWindow | null) {
   })
 
   autoUpdater.on('update-downloaded', (info) => {
+    if (process.platform === 'darwin') return
     setState(getMainWindow(), {
       status: 'downloaded',
       latestVersion: info.version,
@@ -134,6 +266,7 @@ export function registerUpdaterIpc(getMainWindow: () => BrowserWindow | null) {
     ...state,
     currentVersion: app.getVersion(),
     packaged: app.isPackaged,
+    installMode,
   }))
 
   ipcMain.handle('app:check-update', async (): Promise<UpdateCheckResult> => {
@@ -149,6 +282,41 @@ export function registerUpdaterIpc(getMainWindow: () => BrowserWindow | null) {
 
     setState(getMainWindow(), { status: 'checking', error: undefined, progress: undefined })
     try {
+      // Mac：直接读 yml，避免触发 ShipIt 相关逻辑
+      if (process.platform === 'darwin') {
+        const yml = await fetchText(`${UPDATE_FEED_URL}/latest-mac.yml`)
+        const meta = parseMacYml(yml)
+        if (!meta) throw new Error('无法解析 latest-mac.yml')
+        const newer = compareVersions(meta.version, app.getVersion()) > 0
+        if (newer) {
+          setState(getMainWindow(), {
+            status: 'available',
+            latestVersion: meta.version,
+            releaseName: meta.version,
+            error: undefined,
+          })
+          return {
+            updateAvailable: true,
+            currentVersion: app.getVersion(),
+            latestVersion: meta.version,
+            packaged: true,
+            message: `发现新版本 ${meta.version}（Mac 将下载 DMG 手动安装）`,
+          }
+        }
+        setState(getMainWindow(), {
+          status: 'not-available',
+          latestVersion: meta.version,
+          error: undefined,
+        })
+        return {
+          updateAvailable: false,
+          currentVersion: app.getVersion(),
+          latestVersion: meta.version,
+          packaged: true,
+          message: '当前已是最新版本',
+        }
+      }
+
       await autoUpdater.checkForUpdates()
       if (state.status === 'available') {
         return {
@@ -192,10 +360,17 @@ export function registerUpdaterIpc(getMainWindow: () => BrowserWindow | null) {
     if (!app.isPackaged) {
       return { ok: false as const, message: '开发模式无法下载更新' }
     }
-    if (state.status !== 'available' && state.status !== 'error') {
+    if (state.status !== 'available' && state.status !== 'error' && state.status !== 'downloaded') {
       return { ok: false as const, message: '请先检查更新' }
     }
     try {
+      if (process.platform === 'darwin') {
+        const dest = await downloadMacDmg(getMainWindow())
+        return {
+          ok: true as const,
+          message: `已下载到「下载」文件夹：${path.basename(dest)}`,
+        }
+      }
       setState(getMainWindow(), { status: 'downloading', progress: 0, error: undefined })
       await autoUpdater.downloadUpdate()
       return { ok: true as const, message: '开始下载更新' }
@@ -206,10 +381,26 @@ export function registerUpdaterIpc(getMainWindow: () => BrowserWindow | null) {
     }
   })
 
-  ipcMain.handle('app:install-update', () => {
+  ipcMain.handle('app:install-update', async () => {
     if (state.status !== 'downloaded') {
       return { ok: false as const, message: '更新尚未下载完成' }
     }
+
+    if (process.platform === 'darwin') {
+      if (!macDmgPath || !fs.existsSync(macDmgPath)) {
+        return { ok: false as const, message: '未找到已下载的 DMG，请重新下载' }
+      }
+      const result = await shell.openPath(macDmgPath)
+      if (result) {
+        return { ok: false as const, message: `无法打开安装包：${result}` }
+      }
+      setTimeout(() => app.quit(), 800)
+      return {
+        ok: true as const,
+        message: '已打开 DMG，请拖到「应用程序」覆盖安装后重新打开。应用即将退出。',
+      }
+    }
+
     setTimeout(() => {
       autoUpdater.quitAndInstall(false, true)
     }, 200)

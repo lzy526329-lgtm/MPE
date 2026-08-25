@@ -651,7 +651,7 @@ export function mountPetSettingsPage() {
         <section class="pet-settings-panel" data-pet-panel="about" hidden>
           <article class="pet-config-card">
             <h2>关于与更新</h2>
-            <p>检查 GitHub Release 是否有新版本。有更新时先下载，完成后再安装并重启。</p>
+            <p id="app-update-intro">检查 GitHub Release 是否有新版本。有更新时先下载，完成后再安装。</p>
             <div class="pet-profile-grid">
               <div class="pet-profile-item">
                 <span>当前版本</span>
@@ -921,6 +921,7 @@ export function mountPetSettingsPage() {
   const latestVersionEl = root.querySelector<HTMLElement>('#app-latest-version')
   const statusEl = root.querySelector<HTMLElement>('#app-update-status')
   const hintEl = root.querySelector<HTMLElement>('#app-update-hint')
+  const introEl = root.querySelector<HTMLElement>('#app-update-intro')
   const notesEl = root.querySelector<HTMLElement>('#app-update-notes')
   const progressWrap = root.querySelector<HTMLElement>('#app-update-progress')
   const progressValue = root.querySelector<HTMLElement>('#app-update-progress-value')
@@ -928,6 +929,15 @@ export function mountPetSettingsPage() {
   const checkBtn = root.querySelector<HTMLButtonElement>('#app-check-update')
   const downloadBtn = root.querySelector<HTMLButtonElement>('#app-download-update')
   const installBtn = root.querySelector<HTMLButtonElement>('#app-install-update')
+  const isMac = window.electronAPI?.platform === 'darwin'
+
+  if (introEl && isMac) {
+    introEl.textContent =
+      '检查更新后下载 DMG。因 Mac 未签名，需打开安装包拖到「应用程序」覆盖安装（无法静默自动替换）。'
+  }
+  if (installBtn && isMac) {
+    installBtn.textContent = '打开安装包'
+  }
 
   const statusLabel = (state: UpdateState) => {
     switch (state.status) {
@@ -940,7 +950,9 @@ export function mountPetSettingsPage() {
       case 'downloading':
         return `正在下载… ${state.progress ?? 0}%`
       case 'downloaded':
-        return '下载完成，可以安装并重启'
+        return state.installMode === 'dmg'
+          ? '下载完成，可打开安装包'
+          : '下载完成，可以安装并重启'
       case 'error':
         return state.error ? `出错：${state.error}` : '检查或下载失败'
       case 'dev':
