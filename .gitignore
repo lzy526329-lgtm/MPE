@@ -6,3 +6,6 @@ release
 *.log
 .env
 .env.*
+
+# 本地打包的角色资源，不进仓库
+donghua/*.zip
