@@ -913,6 +913,22 @@ function tickVitals() {
 
 function notifyEnabled(enabled: boolean) {
   getMainWindow()?.webContents.send('pet:enabled-changed', enabled)
+  petEnabledListeners.forEach((listener) => {
+    try {
+      listener(enabled)
+    } catch (error) {
+      console.error('[pet] enabled listener failed', error)
+    }
+  })
+}
+
+const petEnabledListeners = new Set<(enabled: boolean) => void>()
+
+export function onPetEnabledChange(listener: (enabled: boolean) => void) {
+  petEnabledListeners.add(listener)
+  return () => {
+    petEnabledListeners.delete(listener)
+  }
 }
 
 function notifySkinChanged() {
@@ -1167,8 +1183,8 @@ function buildPetMenu() {
     },
     { type: 'separator' },
     {
-      label: '关闭宠物',
-      click: () => setPetEnabled(false),
+      label: '退出',
+      click: () => app.quit(),
     },
   ])
 }

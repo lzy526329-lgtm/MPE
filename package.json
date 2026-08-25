@@ -1,6 +1,6 @@
 {
   "name": "mpt",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "MY PET · 以桌面宠物为中心的本地工具箱",
   "author": {
     "name": "MPT",
@@ -35,12 +35,19 @@
       {
         "provider": "github",
         "owner": "lzy526329-lgtm",
-        "repo": "MPE"
+        "repo": "MPE",
+        "private": false
       }
     ],
     "files": [
       "dist",
       "dist-electron"
+    ],
+    "extraResources": [
+      {
+        "from": "build/icon.png",
+        "to": "icon.png"
+      }
     ],
     "asarUnpack": [
       "**/node_modules/sharp/**",

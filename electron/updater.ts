@@ -1,6 +1,10 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { autoUpdater, type UpdateInfo, type ProgressInfo } from 'electron-updater'
 
+/** 公开 Release 资源目录（需仓库为 Public，否则检查更新会 404） */
+const UPDATE_FEED_URL =
+  'https://github.com/lzy526329-lgtm/MPE/releases/latest/download'
+
 export type UpdateStatus =
   | 'idle'
   | 'checking'
@@ -55,10 +59,25 @@ function notesText(info: UpdateInfo): string | undefined {
   return notes.map((item) => item.note).filter(Boolean).join('\n')
 }
 
+function friendlyUpdateError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error)
+  if (/404|Not Found|authentication token/i.test(message)) {
+    return (
+      '无法访问更新源（404）。请把 GitHub 仓库 MPE 设为 Public，' +
+      '或确认 Release 里已上传 latest-mac.yml / latest.yml。'
+    )
+  }
+  return message
+}
+
 export function registerUpdaterIpc(getMainWindow: () => BrowserWindow | null) {
+  // generic 直接读 latest*.yml，避免 private 仓库下 releases.atom 必 404
+  autoUpdater.setFeedURL({
+    provider: 'generic',
+    url: UPDATE_FEED_URL,
+  })
   autoUpdater.autoDownload = false
   autoUpdater.autoInstallOnAppQuit = true
-  // 手动触发的 workflow_dispatch 会打成 pre-release，开发自测时可打开
   autoUpdater.allowPrerelease = false
 
   autoUpdater.on('checking-for-update', () => {
@@ -106,7 +125,7 @@ export function registerUpdaterIpc(getMainWindow: () => BrowserWindow | null) {
   autoUpdater.on('error', (error) => {
     setState(getMainWindow(), {
       status: 'error',
-      error: error?.message || String(error),
+      error: friendlyUpdateError(error),
       progress: undefined,
     })
   })
@@ -158,7 +177,7 @@ export function registerUpdaterIpc(getMainWindow: () => BrowserWindow | null) {
         message: '当前已是最新版本',
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
+      const message = friendlyUpdateError(error)
       setState(getMainWindow(), { status: 'error', error: message })
       return {
         updateAvailable: false,
@@ -181,7 +200,7 @@ export function registerUpdaterIpc(getMainWindow: () => BrowserWindow | null) {
       await autoUpdater.downloadUpdate()
       return { ok: true as const, message: '开始下载更新' }
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
+      const message = friendlyUpdateError(error)
       setState(getMainWindow(), { status: 'error', error: message })
       return { ok: false as const, message }
     }
@@ -191,7 +210,6 @@ export function registerUpdaterIpc(getMainWindow: () => BrowserWindow | null) {
     if (state.status !== 'downloaded') {
       return { ok: false as const, message: '更新尚未下载完成' }
     }
-    // 稍后退出，让 IPC 先返回
     setTimeout(() => {
       autoUpdater.quitAndInstall(false, true)
     }, 200)

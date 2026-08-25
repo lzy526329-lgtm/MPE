@@ -146,6 +146,9 @@ declare global {
       downloadAppUpdate: () => Promise<{ ok: boolean; message: string }>
       installAppUpdate: () => Promise<{ ok: boolean; message: string }>
       onAppUpdateState: (callback: (state: UpdateState) => void) => () => void
+      getOpenAtLogin: () => Promise<boolean>
+      setOpenAtLogin: (enabled: boolean) => Promise<boolean>
+      onOpenAtLoginChanged: (callback: (enabled: boolean) => void) => () => void
     }
   }
 }

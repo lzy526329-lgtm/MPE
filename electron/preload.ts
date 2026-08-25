@@ -229,4 +229,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('app:update-state', listener)
     return () => ipcRenderer.removeListener('app:update-state', listener)
   },
+  getOpenAtLogin: (): Promise<boolean> => ipcRenderer.invoke('app:get-open-at-login'),
+  setOpenAtLogin: (enabled: boolean): Promise<boolean> =>
+    ipcRenderer.invoke('app:set-open-at-login', enabled),
+  onOpenAtLoginChanged: (callback: (enabled: boolean) => void) => {
+    const listener = (_event: unknown, enabled: boolean) => callback(enabled)
+    ipcRenderer.on('app:open-at-login-changed', listener)
+    return () => ipcRenderer.removeListener('app:open-at-login-changed', listener)
+  },
 })

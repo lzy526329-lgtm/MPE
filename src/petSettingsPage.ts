@@ -543,6 +543,13 @@ export function mountPetSettingsPage() {
                 <em>开启后会在桌面上随机走动。</em>
               </span>
             </label>
+            <label class="pet-config-switch">
+              <input id="app-open-at-login" type="checkbox" />
+              <span>
+                <strong>开机自启</strong>
+                <em>开机后自动启动 MPT（打包安装后生效；可从托盘菜单同样开关）。</em>
+              </span>
+            </label>
           </article>
         </section>
         <section class="pet-settings-panel" data-pet-panel="status" hidden>
@@ -998,4 +1005,23 @@ export function mountPetSettingsPage() {
     if (hintEl) hintEl.textContent = result.message
     if (!result.ok) installBtn.disabled = false
   })
+
+  const openAtLoginInput = root.querySelector<HTMLInputElement>('#app-open-at-login')
+  if (openAtLoginInput && window.electronAPI?.getOpenAtLogin) {
+    void window.electronAPI.getOpenAtLogin().then((enabled) => {
+      openAtLoginInput.checked = enabled
+    })
+    window.electronAPI.onOpenAtLoginChanged?.((enabled) => {
+      openAtLoginInput.checked = enabled
+    })
+    openAtLoginInput.addEventListener('change', async () => {
+      if (!window.electronAPI?.setOpenAtLogin) return
+      openAtLoginInput.disabled = true
+      try {
+        openAtLoginInput.checked = await window.electronAPI.setOpenAtLogin(openAtLoginInput.checked)
+      } finally {
+        openAtLoginInput.disabled = false
+      }
+    })
+  }
 }

@@ -1,7 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, session, shell } from 'electron'
-import { registerPetIpc, restorePetIfNeeded, isPetOpen } from './pet'
+import { registerPetIpc, restorePetIfNeeded, isPetOpen, onPetEnabledChange } from './pet'
 import path from 'node:path'
-import fs from 'node:fs'
 import { compressImage, type CompressRequest } from './compress'
 import {
   archiveFilters,
@@ -23,6 +22,8 @@ import {
 import { scanDisk, cleanCategories } from './diskClean'
 import { getSystemInfo } from './systemInfo'
 import { registerUpdaterIpc } from './updater'
+import { registerAppPrefsIpc, syncOpenAtLoginFromPrefs } from './appPrefs'
+import { createAppTray, destroyAppTray, isAppQuitting, markAppQuitting, requestAppQuit } from './tray'
 import {
   addPdfWatermark,
   compressPdfFile,
@@ -48,6 +49,7 @@ process.env.VITE_PUBLIC = app.isPackaged
   : path.join(process.env.DIST, '../public')
 
 let win: BrowserWindow | null
+let trayApi: { refresh: () => void } | null = null
 
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
 
@@ -73,6 +75,14 @@ function createWindow(show = false) {
     },
   })
 
+  // 点关闭时隐藏到托盘，不退出（托盘「退出 MPT」才真正退出）
+  win.on('close', (event) => {
+    if (!isAppQuitting()) {
+      event.preventDefault()
+      win?.hide()
+    }
+  })
+
   win.on('closed', () => {
     win = null
   })
@@ -89,11 +99,21 @@ function ensureMainWindow() {
   return createWindow(true)
 }
 
+function hideMainWindow() {
+  if (win && !win.isDestroyed()) win.hide()
+}
+
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin' && !isPetOpen()) {
-    app.quit()
+  // 有托盘时保持后台运行；无托盘且无宠物时才退出
+  if (process.platform !== 'darwin' && !isPetOpen() && !trayApi) {
+    requestAppQuit()
     win = null
   }
+})
+
+app.on('before-quit', () => {
+  markAppQuitting()
+  destroyAppTray()
 })
 
 app.on('child-process-gone', (_event, details) => {
@@ -209,9 +229,16 @@ if (!gotSingleInstanceLock) {
 
   app.whenReady().then(() => {
     attachWatermarkMediaHeaders(session.defaultSession)
+    syncOpenAtLoginFromPrefs()
+    registerAppPrefsIpc(() => win, () => trayApi?.refresh())
     registerPetIpc(() => win, ensureMainWindow)
     registerUpdaterIpc(() => win)
     createWindow(false)
     restorePetIfNeeded()
+    trayApi = createAppTray({
+      showMainWindow: ensureMainWindow,
+      hideMainWindow,
+    })
+    onPetEnabledChange(() => trayApi?.refresh())
   })
 }
