@@ -90,8 +90,27 @@ describe('farmEngine settle', () => {
     expect(plot.progressMs).toBe(45_000)
   })
 
+  it('does not count time before a delayed plant toward progress', () => {
+    const state = createDefaultFarm(T0)
+    const planted = plant(state, 0, 'lettuce', T0 + 10_000)
+    expect(planted.ok).toBe(true)
+    if (!planted.ok) return
+
+    const settled = settle(planted.state, T0 + 30_000)
+
+    expect(growingPlot(settled).progressMs).toBe(20_000)
+  })
+
   it('withers lettuce when drought lasts past twice the water interval', () => {
     const state = plantLettuce()
+
+    const settled = settle(state, T0 + 91_000)
+
+    expect(witheredPlot(settled).progressMs).toBe(45_000)
+  })
+
+  it('only grows until the drought point when segmented settle later withers', () => {
+    const state = settle(plantLettuce(), T0 + 40_000)
 
     const settled = settle(state, T0 + 91_000)
 
@@ -168,6 +187,22 @@ describe('farmEngine actions', () => {
       lastWateredAt: T0 + 10,
       progressMs: 0,
     })
+  })
+
+  it('rejects unknown crop ids even when a seed count exists', () => {
+    const state: FarmState = {
+      ...createDefaultFarm(T0),
+      seeds: {
+        ...DEFAULT_SEEDS,
+        weed: 1,
+      },
+    }
+
+    const planted = plant(state, 0, 'weed' as never, T0)
+
+    expect(planted.ok).toBe(false)
+    expect(planted.state).toEqual(state)
+    expect(planted.state.plots[0]).toEqual({ status: 'empty' })
   })
 
   it('waters a growing or ready plot', () => {

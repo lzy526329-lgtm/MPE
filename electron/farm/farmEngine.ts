@@ -1,5 +1,6 @@
 import {
   BUG_CHANCE,
+  CROPS,
   DAILY_SEEDS,
   DEFAULT_SEEDS,
   PLOT_COUNT,
@@ -32,6 +33,10 @@ function waterIntervalForWeather(cropId: CropId, weather: Weather): number {
   return weather === 'rain' ? interval * 1.5 : interval
 }
 
+function isCropId(cropId: string): cropId is CropId {
+  return cropId in CROPS
+}
+
 function advancePlot(plot: PlotState, from: number, now: number, weather: Weather): PlotState {
   if (plot.status !== 'growing') {
     return plot
@@ -39,10 +44,12 @@ function advancePlot(plot: PlotState, from: number, now: number, weather: Weathe
 
   const crop = getCrop(plot.cropId)
   const waterIntervalMs = waterIntervalForWeather(plot.cropId, weather)
+  const growthStart = Math.max(from, plot.plantedAt)
+  const droughtAt = plot.lastWateredAt + waterIntervalMs
   const witherAt = plot.lastWateredAt + 2 * waterIntervalMs
 
   if (now > witherAt) {
-    const growthUntilDrought = Math.max(0, Math.min(waterIntervalMs, witherAt - Math.max(from, plot.lastWateredAt)))
+    const growthUntilDrought = Math.max(0, droughtAt - growthStart)
     const growthDelta = plot.hasBug ? growthUntilDrought * 0.5 : growthUntilDrought
     const progressMs = Math.min(crop.growMs, plot.progressMs + growthDelta)
     if (progressMs >= crop.growMs) {
@@ -60,8 +67,8 @@ function advancePlot(plot: PlotState, from: number, now: number, weather: Weathe
     }
   }
 
-  const growthWindowEnd = Math.min(now, plot.lastWateredAt + waterIntervalMs)
-  const growthMs = Math.max(0, growthWindowEnd - from)
+  const growthWindowEnd = Math.min(now, droughtAt)
+  const growthMs = Math.max(0, growthWindowEnd - growthStart)
   const growthDelta = plot.hasBug ? growthMs * 0.5 : growthMs
   const progressMs = Math.min(crop.growMs, plot.progressMs + growthDelta)
 
@@ -126,6 +133,10 @@ export function settle(state: FarmState, now: number): FarmState {
 export function plant(state: FarmState, plotIndex: number, cropId: CropId, now: number): FarmActionResult {
   if (!validPlot(state, plotIndex)) {
     return failure(state, 'Invalid plot')
+  }
+
+  if (!isCropId(cropId)) {
+    return failure(state, 'Invalid crop')
   }
 
   const plot = state.plots[plotIndex]
