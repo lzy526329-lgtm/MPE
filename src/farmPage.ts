@@ -1,5 +1,5 @@
-import { CROPS, type CropId } from '../electron/farm/farmCatalog'
-import type { FarmState, PlotState, Weather } from '../electron/farm/farmTypes'
+import { CROPS } from '../electron/farm/farmCatalog'
+import type { CropId, FarmState, PlotState, Weather } from '../electron/farm/farmTypes'
 import { onPageChange } from './appNavigation'
 
 type PlotDisplayStatus = 'empty' | 'growing' | 'dry' | 'bug' | 'ready' | 'withered'
@@ -115,7 +115,7 @@ function renderSeedPicker(seeds: Record<string, number>, selected: CropId): stri
   return `<div class="farm-seed-picker" role="radiogroup" aria-label="选择种子">${options}</div>`
 }
 
-function renderFarm(state: FarmState, selectedCrop: CropId, now: number): string {
+function renderFarm(state: FarmState, selectedCrop: CropId, now: number, error: string): string {
   const seedNames = cropNameMap()
   const invNames = itemNameMap()
   const todayClaimed = state.lastDailySeedClaimAt === localDateKey(now)
@@ -148,7 +148,7 @@ function renderFarm(state: FarmState, selectedCrop: CropId, now: number): string
       </button>
     </div>
 
-    <p class="error-message" id="farm-message" role="alert"></p>
+    <p class="error-message" id="farm-message" role="alert">${error ? escapeHtml(error) : ''}</p>
   `
 }
 
@@ -168,37 +168,34 @@ function defaultSelectedCrop(seeds: Record<string, number>): CropId {
 }
 
 export function mountFarmPage() {
-  const root = document.querySelector<HTMLElement>('#farm-root')
-  if (!root) return
+  const farmRoot = document.querySelector<HTMLElement>('#farm-root')
+  if (!farmRoot) return
 
   let farmState: FarmState | null = null
   let selectedCrop: CropId = 'lettuce'
   let busy = false
-
-  function setError(text: string) {
-    const msg = root.querySelector<HTMLElement>('#farm-message')
-    if (msg) msg.textContent = text
-  }
+  let lastError = ''
 
   function paint() {
     if (!farmState) {
-      root.innerHTML = '<p class="sysinfo-loading">加载农场…</p>'
+      farmRoot.innerHTML = '<p class="sysinfo-loading">加载农场…</p>'
       return
     }
-    root.innerHTML = renderFarm(farmState, selectedCrop, Date.now())
+    farmRoot.innerHTML = renderFarm(farmState, selectedCrop, Date.now(), lastError)
     bindEvents()
   }
 
   async function refresh() {
-    setError('')
+    lastError = ''
     try {
       const result = await window.electronAPI.farmGetState()
       farmState = result.state
-      if (!result.ok) setError(result.error)
+      if (!result.ok) lastError = result.error
       selectedCrop = defaultSelectedCrop(farmState.seeds)
       paint()
     } catch {
-      setError('无法读取农场状态，请重试。')
+      lastError = '无法读取农场状态，请重试。'
+      paint()
     }
   }
 
@@ -207,27 +204,28 @@ export function mountFarmPage() {
   ) {
     if (busy) return
     busy = true
-    setError('')
+    lastError = ''
     try {
       const result = await fn()
       farmState = result.state
-      if (!result.ok) setError(result.error ?? '操作失败')
+      if (!result.ok) lastError = result.error ?? '操作失败'
       paint()
     } catch {
-      setError('操作失败，请重试。')
+      lastError = '操作失败，请重试。'
+      paint()
     } finally {
       busy = false
     }
   }
 
   function bindEvents() {
-    root.querySelectorAll<HTMLInputElement>('input[name="farm-seed"]').forEach((input) => {
+    farmRoot.querySelectorAll<HTMLInputElement>('input[name="farm-seed"]').forEach((input) => {
       input.addEventListener('change', () => {
         if (input.checked) selectedCrop = input.value as CropId
       })
     })
 
-    root.querySelectorAll<HTMLButtonElement>('.farm-action').forEach((btn) => {
+    farmRoot.querySelectorAll<HTMLButtonElement>('.farm-action').forEach((btn) => {
       btn.addEventListener('click', () => {
         const plotIndex = Number(btn.dataset.plot)
         const action = btn.dataset.action
@@ -247,7 +245,7 @@ export function mountFarmPage() {
       })
     })
 
-    root.querySelector<HTMLButtonElement>('#farm-claim-daily')?.addEventListener('click', () => {
+    farmRoot.querySelector<HTMLButtonElement>('#farm-claim-daily')?.addEventListener('click', () => {
       void runAction(() => window.electronAPI.farmClaimDailySeeds())
     })
   }
