@@ -181,6 +181,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   petAiGetHistory: (): Promise<PetChatHistoryItem[]> => ipcRenderer.invoke('pet:ai-get-history'),
   petAiClearHistory: (): Promise<PetChatHistoryItem[]> => ipcRenderer.invoke('pet:ai-clear-history'),
   petAiClearMemory: (): Promise<{ cleared: number }> => ipcRenderer.invoke('pet:ai-clear-memory'),
+  petAiGetOwnerNotes: (): Promise<{ notes: string }> => ipcRenderer.invoke('pet:ai-get-owner-notes'),
+  petAiSetOwnerNotes: (notes: string): Promise<{ notes: string }> =>
+    ipcRenderer.invoke('pet:ai-set-owner-notes', { notes }),
   petAiSend: (text: string): Promise<PetAiReply> => ipcRenderer.invoke('pet:ai-send', text),
   onPetAiBubble: (callback: (payload: { text: string }) => void) => {
     const listener = (_event: unknown, payload: { text: string }) => callback(payload)

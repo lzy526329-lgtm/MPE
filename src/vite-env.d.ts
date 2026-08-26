@@ -121,6 +121,8 @@ declare global {
       petAiGetHistory: () => Promise<PetChatHistoryItem[]>
       petAiClearHistory: () => Promise<PetChatHistoryItem[]>
       petAiClearMemory: () => Promise<{ cleared: number }>
+      petAiGetOwnerNotes: () => Promise<{ notes: string }>
+      petAiSetOwnerNotes: (notes: string) => Promise<{ notes: string }>
       petAiSend: (text: string) => Promise<PetAiReply>
       onPetAiBubble: (callback: (payload: { text: string }) => void) => () => void
       onPetCareReact: (

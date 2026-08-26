@@ -200,7 +200,9 @@ export function mountPetChatPage() {
 
   clearMemoryButton.addEventListener('click', async () => {
     setError('')
-    const ok = window.confirm('确定清除宠物的长期记忆吗？喂食、改名、对话摘要都会删掉，且无法恢复。')
+    const ok = window.confirm(
+      '确定清除宠物的长期记忆吗？喂食、改名、对话摘要都会删掉，且无法恢复。控制面板里的「关于主人」不会被清除。',
+    )
     if (!ok) return
     try {
       const result = await window.electronAPI.petAiClearMemory()

@@ -17,10 +17,14 @@ export type PetMemory = {
   petId: string
   entries: MemoryEntry[]
   maxEntries: number
+  /** 主人自我介绍等固定长期记忆，不受条目裁剪影响 */
+  ownerNotes: string
 }
 
 const DEFAULT_MAX_ENTRIES = 100
 const DEFAULT_RECENT_LIMIT = 10
+/** 控制面板「关于主人」文本上限 */
+export const MAX_OWNER_NOTES = 2000
 
 function memoryFile() {
   return path.join(app.getPath('userData'), 'memory.json')
@@ -31,6 +35,7 @@ function emptyMemory(petId: string): PetMemory {
     petId,
     entries: [],
     maxEntries: DEFAULT_MAX_ENTRIES,
+    ownerNotes: '',
   }
 }
 
@@ -46,6 +51,7 @@ export function readPetMemory(petId: string): PetMemory {
       petId: String(raw.petId || petId),
       entries: entries.filter((item) => item && typeof item.content === 'string'),
       maxEntries: Math.max(10, Number(raw.maxEntries) || DEFAULT_MAX_ENTRIES),
+      ownerNotes: typeof raw.ownerNotes === 'string' ? raw.ownerNotes : '',
     }
   } catch {
     return emptyMemory(petId)
@@ -114,6 +120,21 @@ export function getRecentMemorySnippets(petId: string, limit = DEFAULT_RECENT_LI
     .map((item) => item.content)
 }
 
+export function getOwnerNotes(petId: string): string {
+  return readPetMemory(petId).ownerNotes
+}
+
+/** 保存主人自我介绍等固定长期记忆 */
+export function setOwnerNotes(petId: string, notes: string): string {
+  const memory = readPetMemory(petId)
+  memory.petId = petId
+  memory.ownerNotes = String(notes ?? '')
+    .trim()
+    .slice(0, MAX_OWNER_NOTES)
+  writePetMemory(memory)
+  return memory.ownerNotes
+}
+
 export function rememberCareEvent(petId: string, kind: 'feed' | 'clean' | 'rest') {
   const day = todayLabel()
   const content =
@@ -144,7 +165,7 @@ export function rememberConversationSummary(petId: string, summary: string) {
   })
 }
 
-/** 清空长期记忆，返回清除前的条数 */
+/** 清空事件/摘要类长期记忆；主人自我介绍保留，需在控制面板单独清空 */
 export function clearPetMemory(petId: string) {
   const previous = readPetMemory(petId)
   const count = previous.entries.length
@@ -152,6 +173,7 @@ export function clearPetMemory(petId: string) {
     petId,
     entries: [],
     maxEntries: previous.maxEntries || DEFAULT_MAX_ENTRIES,
+    ownerNotes: previous.ownerNotes || '',
   })
   return { cleared: count }
 }

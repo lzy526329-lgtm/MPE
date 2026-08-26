@@ -496,6 +496,26 @@ export function mountPetSettingsPage() {
             </div>
             <p class="field-hint">元素性格：${ELEMENT_EMOJI.fire}火象 ${ELEMENT_EMOJI.earth}土象 ${ELEMENT_EMOJI.air}风象 ${ELEMENT_EMOJI.water}水象。不同元素会影响状态变化速度。</p>
           </article>
+          <article class="pet-config-card pet-owner-notes-card">
+            <h2>关于主人</h2>
+            <p>写下你的自我介绍、称呼偏好、工作习惯等。宠物每次对话都会长期读取这份内容，不会被「清除记忆」删掉。</p>
+            <label class="field pet-owner-notes-field">
+              <span>主人笔记</span>
+              <textarea
+                id="pet-owner-notes"
+                rows="8"
+                maxlength="2000"
+                placeholder="例如：我叫小李，是程序员，喜欢晚上加班；请叫我主人；周末喜欢看球……"
+              ></textarea>
+            </label>
+            <div class="pet-owner-notes-meta">
+              <span class="field-hint" id="pet-owner-notes-count">0 / 2000</span>
+              <span class="field-hint" id="pet-owner-notes-status"></span>
+            </div>
+            <div class="pet-config-actions">
+              <button class="primary-button" id="pet-owner-notes-save" type="button">保存主人笔记</button>
+            </div>
+          </article>
         </section>
         <section class="pet-settings-panel" data-pet-panel="character" hidden>
           <article class="pet-config-card">
@@ -915,6 +935,56 @@ export function mountPetSettingsPage() {
     const name = root.querySelector<HTMLInputElement>('#pet-profile-name')?.value.trim()
     if (!name) return
     apply(await window.electronAPI.updatePetProfile({ name }))
+  })
+
+  const ownerNotesInput = root.querySelector<HTMLTextAreaElement>('#pet-owner-notes')
+  const ownerNotesCount = root.querySelector<HTMLElement>('#pet-owner-notes-count')
+  const ownerNotesStatus = root.querySelector<HTMLElement>('#pet-owner-notes-status')
+  const ownerNotesSave = root.querySelector<HTMLButtonElement>('#pet-owner-notes-save')
+
+  const syncOwnerNotesCount = () => {
+    if (!ownerNotesInput || !ownerNotesCount) return
+    ownerNotesCount.textContent = `${ownerNotesInput.value.length} / 2000`
+  }
+
+  const loadOwnerNotes = async () => {
+    if (!window.electronAPI?.petAiGetOwnerNotes || !ownerNotesInput) return
+    try {
+      const { notes } = await window.electronAPI.petAiGetOwnerNotes()
+      if (document.activeElement !== ownerNotesInput) {
+        ownerNotesInput.value = notes
+        syncOwnerNotesCount()
+      }
+    } catch {
+      // 忽略读取失败，保持空输入框
+    }
+  }
+
+  ownerNotesInput?.addEventListener('input', syncOwnerNotesCount)
+  void loadOwnerNotes()
+
+  ownerNotesSave?.addEventListener('click', async () => {
+    if (!window.electronAPI?.petAiSetOwnerNotes || !ownerNotesInput) return
+    ownerNotesSave.disabled = true
+    if (ownerNotesStatus) ownerNotesStatus.textContent = '保存中…'
+    try {
+      const { notes } = await window.electronAPI.petAiSetOwnerNotes(ownerNotesInput.value)
+      ownerNotesInput.value = notes
+      syncOwnerNotesCount()
+      if (ownerNotesStatus) ownerNotesStatus.textContent = '已保存，对话时会长期读取'
+      window.setTimeout(() => {
+        if (ownerNotesStatus?.textContent === '已保存，对话时会长期读取') {
+          ownerNotesStatus.textContent = ''
+        }
+      }, 2500)
+    } catch (error) {
+      if (ownerNotesStatus) {
+        ownerNotesStatus.textContent =
+          error instanceof Error ? error.message : '保存失败'
+      }
+    } finally {
+      ownerNotesSave.disabled = false
+    }
   })
 
   const currentVersionEl = root.querySelector<HTMLElement>('#app-current-version')

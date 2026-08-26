@@ -41,7 +41,11 @@ function formatBirthdayLabel(date: string) {
   return `${match[1]}年${match[2]}月${match[3]}日`
 }
 
-export function buildPetSystemPrompt(status: PetStatus, memorySnippets: string[] = []) {
+export function buildPetSystemPrompt(
+  status: PetStatus,
+  memorySnippets: string[] = [],
+  ownerNotes = '',
+) {
   const profile = status.profile
   const traits = profile.personality.traits.join('、')
   const elementLabel = ELEMENT_LABELS[profile.personality.element]
@@ -51,6 +55,7 @@ export function buildPetSystemPrompt(status: PetStatus, memorySnippets: string[]
     memorySnippets.length > 0
       ? memorySnippets.map((line) => `- ${line}`).join('\n')
       : '（暂无特别记忆）'
+  const ownerBlock = ownerNotes.trim() || '（主人尚未填写自我介绍）'
 
   return `你是一只虚拟宠物。
 
@@ -72,6 +77,9 @@ ${traits}
 健康：${status.health}/100（${describeHealth(status.health)}）
 心情：${status.mood}/100（${describeMood(status.mood)}）
 
+关于主人（固定长期记忆，请认真记住并在对话中恰当引用）：
+${ownerBlock}
+
 你记得的事：
 ${memoryBlock}
 
@@ -85,7 +93,7 @@ ${memoryBlock}
 - 不要直接说出宠物状态数值（例如"你的饱食度是25"）
 - 把游戏数值自然地转化为宠物的感受和语言
 - 不要讨论或建议修改游戏数值
-- 可以自然提起「你记得的事」里的内容；没有记载的事不要编造
+- 可以自然提起「关于主人」与「你记得的事」里的内容；没有记载的事不要编造
 - 回复保持简短自然，适合桌宠对话（通常 1~4 句话）`
 }
 
@@ -109,6 +117,7 @@ const SITUATION_HINT: Record<SituationalSpeechKind, string> = {
 export function buildSituationalLineSystemPrompt(
   status: PetStatus,
   memorySnippets: string[] = [],
+  ownerNotes = '',
 ) {
   const profile = status.profile
   const traits = profile.personality.traits.join('、')
@@ -117,6 +126,9 @@ export function buildSituationalLineSystemPrompt(
     memorySnippets.length > 0
       ? memorySnippets.map((line) => `- ${line}`).join('\n')
       : '（暂无）'
+  const ownerBlock = ownerNotes.trim()
+    ? ownerNotes.trim().slice(0, 400)
+    : '（暂无）'
 
   return `你是桌面虚拟宠物「${profile.name}」，正在对主人说一句主动搭话或即时反应。
 
@@ -126,6 +138,7 @@ export function buildSituationalLineSystemPrompt(
 - 卫生：${describeHygiene(status.hygiene)}
 - 健康：${describeHealth(status.health)}
 - 心情：${describeMood(status.mood)}
+关于主人：${ownerBlock}
 近期记忆：${memoryBlock}
 
 输出规则：

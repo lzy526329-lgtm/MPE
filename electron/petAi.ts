@@ -6,8 +6,10 @@ import { getPetStatus, markPetInteracted } from './pet'
 import type { AppPageId } from './appPages'
 import {
   clearPetMemory,
+  getOwnerNotes,
   getRecentMemorySnippets,
   rememberConversationSummary,
+  setOwnerNotes,
 } from './petMemory'
 import {
   looksLikeWatermarkRequest,
@@ -237,6 +239,7 @@ export async function generateSituationalLine(
 
   const status = getPetStatus()
   const memorySnippets = getRecentMemorySnippets(status.profile.id)
+  const ownerNotes = getOwnerNotes(status.profile.id)
   const maxLen = kind === 'sing' ? 100 : 80
 
   try {
@@ -244,7 +247,7 @@ export async function generateSituationalLine(
       [
         {
           role: 'system',
-          content: buildSituationalLineSystemPrompt(status, memorySnippets),
+          content: buildSituationalLineSystemPrompt(status, memorySnippets, ownerNotes),
         },
         {
           role: 'user',
@@ -373,7 +376,8 @@ async function runChatWithSkills(playerText: string, openMainPage?: OpenMainPage
   hydrateChatHistory()
   const status = getPetStatus()
   const memorySnippets = getRecentMemorySnippets(status.profile.id)
-  const systemPrompt = buildPetSystemPrompt(status, memorySnippets)
+  const ownerNotes = getOwnerNotes(status.profile.id)
+  const systemPrompt = buildPetSystemPrompt(status, memorySnippets, ownerNotes)
   const usedSkills: Array<{ id: string; label: string }> = []
   let openPage: AppPageId | undefined
 
@@ -529,6 +533,17 @@ export function registerPetAiIpc(
   ipcMain.handle('pet:ai-clear-memory', () => {
     const status = getPetStatus()
     return clearPetMemory(status.profile.id)
+  })
+
+  ipcMain.handle('pet:ai-get-owner-notes', () => {
+    const status = getPetStatus()
+    return { notes: getOwnerNotes(status.profile.id) }
+  })
+
+  ipcMain.handle('pet:ai-set-owner-notes', (_event, input: { notes?: string }) => {
+    const status = getPetStatus()
+    const notes = setOwnerNotes(status.profile.id, String(input?.notes ?? ''))
+    return { notes }
   })
 
   ipcMain.handle('pet:ai-send', async (_event, text: string) => {
