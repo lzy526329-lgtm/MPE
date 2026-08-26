@@ -36,6 +36,8 @@ import type {
   WatermarkPdfRequest,
 } from './pdf'
 import type { UpdateState } from './updater'
+import type { FarmActionResult } from './farm/farmEngine'
+import type { CropId } from './farm/farmTypes'
 
 contextBridge.exposeInMainWorld('electronAPI', {
   platform: process.platform,
@@ -243,4 +245,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('app:open-at-login-changed', listener)
     return () => ipcRenderer.removeListener('app:open-at-login-changed', listener)
   },
+  farmGetState: (): Promise<FarmActionResult> => ipcRenderer.invoke('farm:get-state'),
+  farmPlant: (request: { plotIndex: number; cropId: CropId }): Promise<FarmActionResult> =>
+    ipcRenderer.invoke('farm:plant', request),
+  farmWater: (request: { plotIndex: number }): Promise<FarmActionResult> =>
+    ipcRenderer.invoke('farm:water', request),
+  farmDebug: (request: { plotIndex: number }): Promise<FarmActionResult> =>
+    ipcRenderer.invoke('farm:debug', request),
+  farmHarvest: (request: { plotIndex: number }): Promise<FarmActionResult> =>
+    ipcRenderer.invoke('farm:harvest', request),
+  farmClearWithered: (request: { plotIndex: number }): Promise<FarmActionResult> =>
+    ipcRenderer.invoke('farm:clear-withered', request),
+  farmClaimDailySeeds: (): Promise<FarmActionResult> =>
+    ipcRenderer.invoke('farm:claim-daily-seeds'),
 })

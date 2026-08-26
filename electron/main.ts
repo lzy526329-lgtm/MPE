@@ -23,6 +23,7 @@ import { scanDisk, cleanCategories } from './diskClean'
 import { getSystemInfo } from './systemInfo'
 import { registerUpdaterIpc } from './updater'
 import { registerAppPrefsIpc, syncOpenAtLoginFromPrefs } from './appPrefs'
+import { registerFarmIpc } from './farm/farmIpc'
 import { createAppTray, destroyAppTray, isAppQuitting, markAppQuitting, requestAppQuit } from './tray'
 import {
   addPdfWatermark,
@@ -232,6 +233,7 @@ if (!gotSingleInstanceLock) {
     syncOpenAtLoginFromPrefs()
     registerAppPrefsIpc(() => win, () => trayApi?.refresh())
     registerPetIpc(() => win, ensureMainWindow)
+    registerFarmIpc()
     registerUpdaterIpc(() => win)
     createWindow(false)
     restorePetIfNeeded()

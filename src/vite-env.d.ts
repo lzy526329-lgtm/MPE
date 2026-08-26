@@ -37,6 +37,8 @@ import type {
   WatermarkPdfRequest,
 } from '../electron/pdf'
 import type { UpdateState } from '../electron/updater'
+import type { FarmActionResult } from '../electron/farm/farmEngine'
+import type { CropId } from '../electron/farm/farmTypes'
 
 declare global {
   interface Window {
@@ -154,6 +156,13 @@ declare global {
       getOpenAtLogin: () => Promise<boolean>
       setOpenAtLogin: (enabled: boolean) => Promise<boolean>
       onOpenAtLoginChanged: (callback: (enabled: boolean) => void) => () => void
+      farmGetState: () => Promise<FarmActionResult>
+      farmPlant: (request: { plotIndex: number; cropId: CropId }) => Promise<FarmActionResult>
+      farmWater: (request: { plotIndex: number }) => Promise<FarmActionResult>
+      farmDebug: (request: { plotIndex: number }) => Promise<FarmActionResult>
+      farmHarvest: (request: { plotIndex: number }) => Promise<FarmActionResult>
+      farmClearWithered: (request: { plotIndex: number }) => Promise<FarmActionResult>
+      farmClaimDailySeeds: () => Promise<FarmActionResult>
     }
   }
 }
