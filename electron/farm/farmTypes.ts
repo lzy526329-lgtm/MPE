@@ -34,4 +34,5 @@ export type FarmState = {
   weather: Weather
   lastSettledAt: number
   lastDailySeedClaimAt?: string
+  lastWeatherRollAt?: number
 }
