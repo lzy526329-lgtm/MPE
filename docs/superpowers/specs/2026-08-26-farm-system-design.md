@@ -1,7 +1,7 @@
 # 桌宠种菜系统（Farm）设计文档
 
 > 日期：2026-08-26  
-> 状态：已确认（方案一 · 事件驱动农场）  
+> 状态：已实现（方案一 · 事件驱动农场）  
 > 产品：MPT · MY PET
 
 ## 1. 目标与范围
@@ -107,10 +107,21 @@ type FarmState = {
   weather: Weather
   lastSettledAt: number
   lastDailySeedClaimAt?: string // 本地日期 YYYY-MM-DD，防刷每日种子
+  lastWeatherRollAt?: number    // 上次天气 roll 时间戳（毫秒）
 }
 ```
 
-首次初始化：6 空地；种子起步包例如 `lettuce:5, tomato:3, pumpkin:1`；`weather: 'clear'`；`lastSettledAt: Date.now()`。
+首次初始化：6 空地；种子起步包 `lettuce:5, tomato:3, pumpkin:1`；`weather: 'clear'`；`lastSettledAt: Date.now()`。
+
+实现常量（`electron/farm/farmCatalog.ts`，与上表一致）：
+
+| 常量 | 值 |
+|------|-----|
+| `DEFAULT_SEEDS` | lettuce 5, tomato 3, pumpkin 1 |
+| `DAILY_SEEDS` | lettuce +2, tomato +1 |
+| `BUG_CHANCE` | 0.15 |
+| `RAIN_CHANCE` | 0.3 |
+| `WEATHER_COOLDOWN_MS` | 30 min |
 
 枯萎不返还种子。
 
