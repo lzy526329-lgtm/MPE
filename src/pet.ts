@@ -90,6 +90,9 @@ let petHealth = 100
 let petMood = 100
 let petElement: PetElement = 'earth'
 let contentSize = DEFAULT_VIEW_SIZE
+let viewWidth = DEFAULT_VIEW_SIZE
+let viewHeight = DEFAULT_VIEW_SIZE
+/** 兼容旧逻辑：多数场景仍按「主边」取宽 */
 let viewSize = DEFAULT_VIEW_SIZE
 let hitCenterX = DEFAULT_VIEW_SIZE / 2
 let hitCenterY = DEFAULT_VIEW_SIZE * 0.58
@@ -271,28 +274,34 @@ function stopWalk(now = performance.now(), idleRange?: [number, number]) {
   if (anim === 'walk') setAnim('idle')
 }
 
-function setCanvasSize(size: number) {
-  const next = Math.max(64, Math.round(size))
-  if (next === viewSize) return
-  viewSize = next
-  canvas.style.width = `${next}px`
-  canvas.style.height = `${next}px`
-  app.renderer.resize(next, next)
+function setCanvasSize(width: number, height = width) {
+  const nextW = Math.max(64, Math.round(width))
+  const nextH = Math.max(64, Math.round(height))
+  if (nextW === viewWidth && nextH === viewHeight) return
+  viewWidth = nextW
+  viewHeight = nextH
+  viewSize = nextW
+  canvas.style.width = `${nextW}px`
+  canvas.style.height = `${nextH}px`
+  app.renderer.resize(nextW, nextH)
   layoutChatBubble()
 }
 
 /** 与主进程 applyPetViewport 对齐：按锚点补偿画布，避免角色在屏幕上挪位 */
 function keepSpineScreenAnchor(
-  prevView: number,
-  nextView: number,
+  prevW: number,
+  prevH: number,
+  nextW: number,
+  nextH: number,
   anchor: PetViewportAnchor = 'bottom-center',
 ) {
-  if (!spine || prevView === nextView) return
-  const delta = nextView - prevView
+  if (!spine || (prevW === nextW && prevH === nextH)) return
+  const deltaW = nextW - prevW
+  const deltaH = nextH - prevH
   let dx = 0
-  if (anchor === 'bottom-center') dx = delta / 2
-  else if (anchor === 'bottom-right') dx = delta
-  const dy = delta
+  if (anchor === 'bottom-center') dx = deltaW / 2
+  else if (anchor === 'bottom-right') dx = deltaW
+  const dy = deltaH
   spine.position.x += dx
   spine.position.y += dy
   hitCenterX += dx
@@ -303,22 +312,26 @@ function keepSpineScreenAnchor(
 }
 
 function syncPetViewport(
-  size: number,
+  width: number,
+  height = width,
   keepSpine = false,
   anchor: PetViewportAnchor = 'bottom-center',
 ) {
-  const prev = viewSize
-  const next = Math.max(contentSize, Math.round(size))
-  setCanvasSize(next)
-  if (keepSpine) keepSpineScreenAnchor(prev, viewSize, anchor)
+  const prevW = viewWidth
+  const prevH = viewHeight
+  const nextW = Math.max(contentSize, Math.round(width))
+  const nextH = Math.max(contentSize, Math.round(height))
+  setCanvasSize(nextW, nextH)
+  if (keepSpine) keepSpineScreenAnchor(prevW, prevH, viewWidth, viewHeight, anchor)
   const seq = ++viewportSyncSeq
-  if (!window.electronAPI?.setPetViewport) return Promise.resolve(viewSize)
-  return window.electronAPI.setPetViewport(next, anchor).then((applied) => {
-    if (seq !== viewportSyncSeq || typeof applied !== 'number') return viewSize
-    const before = viewSize
-    setCanvasSize(applied)
-    if (keepSpine) keepSpineScreenAnchor(before, viewSize, anchor)
-    return viewSize
+  if (!window.electronAPI?.setPetViewport) return Promise.resolve({ width: viewWidth, height: viewHeight })
+  return window.electronAPI.setPetViewport({ width: nextW, height: nextH }, anchor).then((applied) => {
+    if (seq !== viewportSyncSeq || !applied) return { width: viewWidth, height: viewHeight }
+    const beforeW = viewWidth
+    const beforeH = viewHeight
+    setCanvasSize(applied.width, applied.height)
+    if (keepSpine) keepSpineScreenAnchor(beforeW, beforeH, viewWidth, viewHeight, anchor)
+    return { width: viewWidth, height: viewHeight }
   })
 }
 
@@ -374,8 +387,8 @@ function layoutChatBubble() {
   const gap = Math.max(4, Math.round(contentSize * 0.04))
   let left = bubbleAnchorX - bw / 2
   let top = bubbleAnchorY - bh - gap
-  left = Math.max(4, Math.min(viewSize - bw - 4, left))
-  top = Math.max(4, Math.min(viewSize - bh - 4, top))
+  left = Math.max(4, Math.min(viewWidth - bw - 4, left))
+  top = Math.max(4, Math.min(viewHeight - bh - 4, top))
   chatBubble.style.left = `${Math.round(left)}px`
   chatBubble.style.top = `${Math.round(top)}px`
 }
@@ -929,10 +942,12 @@ async function faceTowardScreenCenter() {
 }
 
 /** 贴边时朝开阔一侧开局，窗口也往同侧扩展 */
-async function prepareMinigameStart(desiredViewSize: number) {
+async function prepareMinigameStart(desired: number | { width: number; height: number }) {
+  const width = typeof desired === 'number' ? desired : desired.width
+  const height = typeof desired === 'number' ? desired : desired.height
   const info = await bounds()
   if (!info) {
-    await syncPetViewport(desiredViewSize, true, 'bottom-center')
+    await syncPetViewport(width, height, true, 'bottom-center')
     return
   }
   const centerX = info.x + info.width / 2
@@ -942,7 +957,7 @@ async function prepareMinigameStart(desiredViewSize: number) {
   const openToRight = spaceRight >= spaceLeft
   setFacing(openToRight ? 1 : -1)
   const anchor: PetViewportAnchor = openToRight ? 'bottom-left' : 'bottom-right'
-  await syncPetViewport(desiredViewSize, true, anchor)
+  await syncPetViewport(width, height, true, anchor)
 }
 
 function startBallGame() {
@@ -966,7 +981,7 @@ function startHeartGame() {
   if (anim === 'walk' || anim === 'drag') setAnim('idle')
   hideChatMessage()
   void refreshMinigameCharacter().then(async () => {
-    await prepareMinigameStart(heartGame.getDesiredViewSize(contentSize))
+    await prepareMinigameStart(heartGame.getDesiredView(contentSize))
     heartGame.start()
     ignoreMouse = false
     void window.electronAPI?.petIgnoreMouse?.(false)
@@ -991,7 +1006,7 @@ const ballGame = createBallHitGame({
   app,
   root,
   getHitCenter: () => ({ x: hitCenterX, y: hitCenterY }),
-  getViewSize: () => viewSize,
+  getViewSize: () => viewWidth,
   getFacing: () => facing,
   getConfig: () => resolveBallHitConfig(minigameCharacter),
   playAttack: (animation) => playAttack(animation),
@@ -1013,7 +1028,8 @@ const heartGame = createHeartRallyGame({
   root,
   getHitCenter: () => ({ x: hitCenterX, y: hitCenterY }),
   getFootY: () => hitCenterY + contentSize * 0.42,
-  getViewSize: () => viewSize,
+  getViewSize: () => viewWidth,
+  getViewHeight: () => viewHeight,
   getFacing: () => facing,
   getConfig: () => resolveHeartRallyConfig(minigameCharacter),
   playAttack: (animation) => playAttack(animation),
@@ -1077,7 +1093,7 @@ window.addEventListener('mousemove', async (event) => {
     const nextX = event.screenX - dragOffsetX
     const nextY = event.screenY - dragOffsetY
     if (dragWorkArea) {
-      faceByScreenSide(nextX + viewSize / 2, dragWorkArea)
+      faceByScreenSide(nextX + viewWidth / 2, dragWorkArea)
     }
     if (hasPetApi) {
       await window.electronAPI.petSetPosition(nextX, nextY)

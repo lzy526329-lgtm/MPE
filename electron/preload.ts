@@ -94,7 +94,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('pet:enabled-changed', listener)
   },
   petGetBounds: (): Promise<PetBounds | null> => ipcRenderer.invoke('pet:get-bounds'),
-  setPetViewport: (size: number, anchor?: PetViewportAnchor): Promise<number> =>
+  setPetViewport: (
+    size: number | { width: number; height: number },
+    anchor?: PetViewportAnchor,
+  ): Promise<{ width: number; height: number }> =>
     ipcRenderer.invoke('pet:set-viewport', size, anchor),
   petSetPosition: (x: number, y: number): Promise<{ x: number; y: number } | null> =>
     ipcRenderer.invoke('pet:set-position', x, y),

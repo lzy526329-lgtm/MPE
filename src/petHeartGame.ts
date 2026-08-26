@@ -7,7 +7,10 @@ export type HeartRallyGameOptions = {
   getHitCenter: () => { x: number; y: number }
   /** 宠物脚底 y（画布坐标），爱心低于此即掉球结束 */
   getFootY: () => number
+  /** 画布宽度（横向弹射距离） */
   getViewSize: () => number
+  /** 画布高度 */
+  getViewHeight: () => number
   /** 1 朝右，-1 朝左；爱心朝正面飞出 */
   getFacing: () => number
   getConfig: () => ResolvedHeartRallyConfig
@@ -31,8 +34,8 @@ type Heart = {
   spin: number
 }
 
-/** 更大视野 → 弹得更远 */
-const GAME_VIEW_MIN = 960
+/** 横向要远；高度只需略高于宠物 */
+const GAME_VIEW_WIDTH_MIN = 720
 
 export type HeartRallyGame = {
   isActive: () => boolean
@@ -41,7 +44,7 @@ export type HeartRallyGame = {
   tick: (now: number) => void
   /** 左键点击：命中爱心则弹回 */
   handleClick: (clientX: number, clientY: number) => boolean
-  getDesiredViewSize: (contentSize: number) => number
+  getDesiredView: (contentSize: number) => { width: number; height: number }
 }
 
 function drawHeart(gfx: Graphics, r: number, fill = 0xff4d6d, stroke = 0xffffff) {
@@ -211,6 +214,14 @@ export function createHeartRallyGame(options: HeartRallyGameOptions): HeartRally
     heart.x += heart.vx * dt
     heart.y += heart.vy * dt
     heart.spin += 0.08 * dt * Math.sign(heart.vx || face)
+
+    // 碰到顶边：反弹，不判失败
+    const topLimit = heart.r + 4
+    if (heart.y < topLimit) {
+      heart.y = topLimit
+      if (heart.vy < 0) heart.vy = Math.abs(heart.vy) * 0.85
+    }
+
     heart.gfx.x = heart.x
     heart.gfx.y = heart.y
     heart.gfx.rotation = heart.spin * 0.35
@@ -237,19 +248,24 @@ export function createHeartRallyGame(options: HeartRallyGameOptions): HeartRally
       }
     }
 
+    // 只判「飞出玩家一侧」失败；顶边不算失败
     const pastPlayer =
       heart.dir === 'outbound' &&
       ((face > 0 && heart.x > size + heart.r + 8) || (face < 0 && heart.x < -heart.r - 8))
-    const above = heart.y < -heart.r - 40
-    if (pastPlayer || above) {
+    if (pastPlayer) {
       finishMiss()
     }
   }
 
   return {
     isActive: () => active || ending,
-    getDesiredViewSize(contentSize: number) {
-      return Math.max(contentSize, GAME_VIEW_MIN)
+    getDesiredView(contentSize: number) {
+      // 宽：横向弹射；高：约 2 倍宠物高，给抛物线留空
+      const height = Math.round(Math.max(contentSize * 2, contentSize + 160))
+      return {
+        width: Math.max(contentSize, GAME_VIEW_WIDTH_MIN),
+        height,
+      }
     },
     start() {
       if (active || ending) return

@@ -945,11 +945,20 @@ function getPetWindowSize() {
   return getPetSize()
 }
 
-function clampToWorkArea(x: number, y: number, size = getPetWindowSize()) {
+function getPetWindowExtent() {
+  if (petWin && !petWin.isDestroyed()) {
+    const [width, height] = petWin.getSize()
+    return { width, height }
+  }
+  const size = getPetSize()
+  return { width: size, height: size }
+}
+
+function clampToWorkArea(x: number, y: number, width = getPetWindowSize(), height = width) {
   const display = screen.getDisplayNearestPoint({ x, y })
   const area = display.workArea
-  const maxX = area.x + area.width - size
-  const maxY = area.y + area.height - size
+  const maxX = area.x + area.width - width
+  const maxY = area.y + area.height - height
   return {
     x: Math.round(Math.min(Math.max(x, area.x), Math.max(area.x, maxX))),
     y: Math.round(Math.min(Math.max(y, area.y), Math.max(area.y, maxY))),
@@ -957,23 +966,29 @@ function clampToWorkArea(x: number, y: number, size = getPetWindowSize()) {
 }
 
 /** 仅调整实际窗口/画布，不改用户设定的 idle 体型 size */
-function applyPetViewport(raw: number, anchor: PetViewportAnchor = 'bottom-center') {
-  if (!petWin || petWin.isDestroyed()) return getPetWindowSize()
-  const prev = getPetWindowSize()
-  const size = Math.max(getPetSize(), Math.round(raw))
-  if (size === prev) return size
+function applyPetViewport(
+  rawWidth: number,
+  rawHeight = rawWidth,
+  anchor: PetViewportAnchor = 'bottom-center',
+) {
+  if (!petWin || petWin.isDestroyed()) return getPetWindowExtent()
+  const prev = getPetWindowExtent()
+  const minSide = getPetSize()
+  const width = Math.max(minSide, Math.round(rawWidth))
+  const height = Math.max(minSide, Math.round(rawHeight))
+  if (width === prev.width && height === prev.height) return prev
   const [x, y] = petWin.getPosition()
-  const delta = size - prev
+  const deltaW = width - prev.width
+  const deltaH = height - prev.height
   let nextX = x
-  if (anchor === 'bottom-center') nextX = x - Math.round(delta / 2)
-  else if (anchor === 'bottom-right') nextX = x - delta
-  const nextY = y - delta
-  const next = clampToWorkArea(Math.round(nextX), Math.round(nextY), size)
-  petWin.setBounds({ x: next.x, y: next.y, width: size, height: size })
+  if (anchor === 'bottom-center') nextX = x - Math.round(deltaW / 2)
+  else if (anchor === 'bottom-right') nextX = x - deltaW
+  const nextY = y - deltaH
+  const next = clampToWorkArea(Math.round(nextX), Math.round(nextY), width, height)
+  petWin.setBounds({ x: next.x, y: next.y, width, height })
   writeSettings({ x: next.x, y: next.y })
-  // 尺寸变化后 Windows 透明层可能失效，下一帧强制重绘
   setTimeout(refreshPetWinTransparency, 0)
-  return size
+  return { width, height }
 }
 
 /**
@@ -1357,18 +1372,33 @@ export function registerPetIpc(
       workArea,
     }
   })
-  ipcMain.handle('pet:set-viewport', (_event, size: number, anchor?: PetViewportAnchor) => {
-    const valid: PetViewportAnchor[] = ['bottom-center', 'bottom-left', 'bottom-right']
-    const nextAnchor = valid.includes(anchor as PetViewportAnchor)
-      ? (anchor as PetViewportAnchor)
-      : 'bottom-center'
-    return applyPetViewport(Number(size), nextAnchor)
-  })
+  ipcMain.handle(
+    'pet:set-viewport',
+    (
+      _event,
+      size: number | { width: number; height: number },
+      anchor?: PetViewportAnchor,
+    ) => {
+      const valid: PetViewportAnchor[] = ['bottom-center', 'bottom-left', 'bottom-right']
+      const nextAnchor = valid.includes(anchor as PetViewportAnchor)
+        ? (anchor as PetViewportAnchor)
+        : 'bottom-center'
+      if (typeof size === 'number') {
+        return applyPetViewport(Number(size), Number(size), nextAnchor)
+      }
+      return applyPetViewport(Number(size?.width), Number(size?.height), nextAnchor)
+    },
+  )
   ipcMain.handle('pet:set-position', (_event, x: number, y: number) => {
     if (!isPetOpen()) return null
-    const size = getPetWindowSize()
-    const next = clampToWorkArea(Math.round(x), Math.round(y), size)
-    petWin!.setBounds({ x: next.x, y: next.y, width: size, height: size })
+    const extent = getPetWindowExtent()
+    const next = clampToWorkArea(Math.round(x), Math.round(y), extent.width, extent.height)
+    petWin!.setBounds({
+      x: next.x,
+      y: next.y,
+      width: extent.width,
+      height: extent.height,
+    })
     const applied = petWin!.getBounds()
     return { x: applied.x, y: applied.y }
   })
