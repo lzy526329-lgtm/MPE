@@ -6,6 +6,8 @@ release
 *.log
 .env
 .env.*
+.worktrees
+.superpowers
 
 # 本地打包的角色资源，不进仓库
 donghua/*.zip
