@@ -2741,6 +2741,170 @@ input[type="range"] {
   font-size: 11px;
 }
 
+/* ─── Farm page ─────────────────────────────────────────────── */
+
+.farm-top-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.farm-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 120px;
+}
+
+.farm-stat-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.farm-seed-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.farm-seed-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 13px;
+  cursor: pointer;
+  background: #fff;
+}
+
+.farm-seed-option:has(input:checked) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, #fff);
+}
+
+.farm-seed-option:has(input:disabled) {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.farm-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.farm-plot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fafafa;
+  min-height: 140px;
+}
+
+.farm-plot--empty {
+  background: #f5f5f5;
+}
+
+.farm-plot--growing {
+  background: #eef8ee;
+  border-color: #b8ddb8;
+}
+
+.farm-plot--dry {
+  background: #fff8e8;
+  border-color: #e8c878;
+}
+
+.farm-plot--bug {
+  background: #fff0f0;
+  border-color: #e8a8a8;
+}
+
+.farm-plot--ready {
+  background: #e8f4ff;
+  border-color: #7eb8e8;
+}
+
+.farm-plot--withered {
+  background: #ece8e4;
+  border-color: #c4bab0;
+  opacity: 0.85;
+}
+
+.farm-plot-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.farm-plot-index {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.farm-plot-status {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.farm-plot-crop {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.farm-progress {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.farm-progress-bar {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+}
+
+.farm-progress-label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.farm-plot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: auto;
+}
+
+.farm-plot-actions .secondary-button,
+.farm-plot-actions .primary-button {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.farm-footer {
+  display: flex;
+  justify-content: flex-start;
+}
+
+#farm-message:empty {
+  display: none;
+}
+
 @media (max-width: 900px) {
   .tool-page--chat {
     height: auto;

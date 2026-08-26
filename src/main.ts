@@ -8,6 +8,7 @@ import { mountPdfPage } from './pdfPage'
 import { mountPetSettingsPage } from './petSettingsPage'
 import { mountPetChatPage } from './petChatPage'
 import { mountPetHomePage } from './petHomePage'
+import { mountFarmPage } from './farmPage'
 import { setupAppNavigation, navigateToPage } from './appNavigation'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
@@ -36,6 +37,7 @@ app.innerHTML = `
       </nav>
       <button class="nav-item pet-chat-sidebar-btn" id="open-pet-chat" type="button">与我对话</button>
       <button class="nav-item pet-chat-sidebar-btn" id="open-pet-home" type="button" hidden>参观家园</button>
+      <button class="nav-item pet-chat-sidebar-btn" id="open-farm" type="button">农场</button>
       <p class="local-tip">所有工具均在本地完成，不上传文件。</p>
     </aside>
 
@@ -670,6 +672,17 @@ app.innerHTML = `
         </div>
       </section>
 
+      <section class="tool-page" id="farm-page" hidden>
+        <header>
+          <div>
+            <p class="eyebrow">桌宠玩法</p>
+            <h1>农场</h1>
+            <p class="subtitle">播种、浇水、赶虫、收割。离开后作物仍会生长。</p>
+          </div>
+        </header>
+        <div class="panel" id="farm-root"></div>
+      </section>
+
       <section class="tool-page" id="pet-settings-page">
         <header>
           <div>
@@ -1146,6 +1159,7 @@ mountPdfPage()
 mountPetSettingsPage()
 mountPetChatPage()
 mountPetHomePage()
+mountFarmPage()
 setupAppNavigation()
 
 document.querySelector<HTMLButtonElement>('#open-pet-chat')?.addEventListener('click', () => {
@@ -1153,4 +1167,7 @@ document.querySelector<HTMLButtonElement>('#open-pet-chat')?.addEventListener('c
 })
 document.querySelector<HTMLButtonElement>('#open-pet-home')?.addEventListener('click', () => {
   navigateToPage('pet-home-page')
+})
+document.querySelector<HTMLButtonElement>('#open-farm')?.addEventListener('click', () => {
+  navigateToPage('farm-page')
 })
