@@ -57,7 +57,7 @@ https://ghfast.top/https://github.com/lzy526329-lgtm/MPE/releases/download/v1.0.
    - **Windows / Linux**：点「安装并重启」自动替换
    - **macOS（当前未签名）**：点「打开安装包」，把 DMG 里的 App 拖到「应用程序」覆盖安装
 
-Mac 自动更新依赖 Apple 代码签名；未配置开发者证书时，ShipIt 会报签名校验失败，因此改为打开 DMG 手动覆盖。
+依赖发版时上传的 `latest.yml` / `latest-mac.yml`。应用内更新**优先走 GitHub 镜像**（`ghfast.top` → `ghproxy.net` → 官方），减轻国内 `ERR_CONNECTION_RESET`。
 
 构建产物直接上传到 **GitHub Release**，不再经过 Actions Artifact（免费额度很容易被安装包撑满）。
 

@@ -3,9 +3,22 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { autoUpdater, type UpdateInfo, type ProgressInfo } from 'electron-updater'
 
-/** 公开 Release 资源目录（需仓库为 Public） */
-const UPDATE_FEED_URL =
+/** GitHub 原始 Release 目录 */
+const ORIGIN_FEED_URL =
   'https://github.com/lzy526329-lgtm/MPE/releases/latest/download'
+
+/**
+ * 国内优先走镜像，失败再回退官方 GitHub。
+ * 镜像格式：https://ghfast.top/https://github.com/...
+ */
+const UPDATE_FEED_CANDIDATES = [
+  `https://ghfast.top/${ORIGIN_FEED_URL}`,
+  `https://ghproxy.net/${ORIGIN_FEED_URL}`,
+  ORIGIN_FEED_URL,
+]
+
+/** 当前选用的 feed（检查/下载成功后记住，减少来回试） */
+let activeFeedUrl = UPDATE_FEED_CANDIDATES[0]
 
 export type UpdateStatus =
   | 'idle'
@@ -83,6 +96,9 @@ function friendlyUpdateError(error: unknown): string {
       '且 Release 已上传 latest-mac.yml / latest.yml。'
     )
   }
+  if (/ERR_CONNECTION_RESET|ERR_CONNECTION_TIMED_OUT|ERR_NAME_NOT_RESOLVED|net::|ENOTFOUND|ECONNRESET|ETIMEDOUT/i.test(message)) {
+    return '网络无法连接更新源。可稍后重试，或到 GitHub / Gitee Release 手动下载安装包。'
+  }
   if (/code signature|签名|ShipIt|did not pass validation|资源必须存在/i.test(message)) {
     return (
       'Mac 未签名安装包无法自动替换（系统签名校验失败）。' +
@@ -116,7 +132,7 @@ function parseMacYml(text: string): { version: string; dmgName: string } | null 
 
 function fetchText(url: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    const request = net.request(url)
+    const request = net.request({ url, redirect: 'follow' })
     const chunks: Buffer[] = []
     request.on('response', (response) => {
       const status = response.statusCode ?? 0
@@ -133,13 +149,31 @@ function fetchText(url: string): Promise<string> {
   })
 }
 
+async function fetchTextFromFeeds(fileName: string): Promise<{ text: string; feedUrl: string }> {
+  const ordered = [
+    activeFeedUrl,
+    ...UPDATE_FEED_CANDIDATES.filter((url) => url !== activeFeedUrl),
+  ]
+  let lastError: unknown
+  for (const feedUrl of ordered) {
+    try {
+      const text = await fetchText(`${feedUrl}/${fileName}`)
+      activeFeedUrl = feedUrl
+      return { text, feedUrl }
+    } catch (error) {
+      lastError = error
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError))
+}
+
 function downloadToFile(
   url: string,
   dest: string,
   onProgress: (percent: number) => void,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    const request = net.request(url)
+    const request = net.request({ url, redirect: 'follow' })
     request.on('response', (response) => {
       const status = response.statusCode ?? 0
       if (status >= 400) {
@@ -170,12 +204,38 @@ function downloadToFile(
   })
 }
 
+async function downloadFileFromFeeds(
+  fileName: string,
+  dest: string,
+  onProgress: (percent: number) => void,
+) {
+  const ordered = [
+    activeFeedUrl,
+    ...UPDATE_FEED_CANDIDATES.filter((url) => url !== activeFeedUrl),
+  ]
+  let lastError: unknown
+  for (const feedUrl of ordered) {
+    try {
+      await downloadToFile(`${feedUrl}/${fileName}`, dest, onProgress)
+      activeFeedUrl = feedUrl
+      return feedUrl
+    } catch (error) {
+      lastError = error
+      try {
+        if (fs.existsSync(dest)) fs.unlinkSync(dest)
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError))
+}
+
 async function downloadMacDmg(win: BrowserWindow | null) {
-  const yml = await fetchText(`${UPDATE_FEED_URL}/latest-mac.yml`)
+  const { text: yml } = await fetchTextFromFeeds('latest-mac.yml')
   const meta = parseMacYml(yml)
   if (!meta) throw new Error('无法解析 latest-mac.yml（缺少 dmg 条目）')
 
-  const url = `${UPDATE_FEED_URL}/${meta.dmgName}`
   const destDir = app.getPath('downloads')
   const dest = path.join(destDir, meta.dmgName)
 
@@ -186,7 +246,7 @@ async function downloadMacDmg(win: BrowserWindow | null) {
     error: undefined,
   })
 
-  await downloadToFile(url, dest, (progress) => {
+  await downloadFileFromFeeds(meta.dmgName, dest, (progress) => {
     setState(win, { status: 'downloading', progress })
   })
 
@@ -201,9 +261,10 @@ async function downloadMacDmg(win: BrowserWindow | null) {
 }
 
 export function registerUpdaterIpc(getMainWindow: () => BrowserWindow | null) {
+  // 默认走国内镜像；Windows/Linux 的 electron-updater 也用同一源
   autoUpdater.setFeedURL({
     provider: 'generic',
-    url: UPDATE_FEED_URL,
+    url: activeFeedUrl,
   })
   autoUpdater.autoDownload = false
   // Mac 未签名时 ShipIt 会校验失败，禁止退出时静默安装
@@ -282,9 +343,10 @@ export function registerUpdaterIpc(getMainWindow: () => BrowserWindow | null) {
 
     setState(getMainWindow(), { status: 'checking', error: undefined, progress: undefined })
     try {
-      // Mac：直接读 yml，避免触发 ShipIt 相关逻辑
+      // Mac：直接读 yml（镜像优先），避免触发 ShipIt
       if (process.platform === 'darwin') {
-        const yml = await fetchText(`${UPDATE_FEED_URL}/latest-mac.yml`)
+        const { text: yml, feedUrl } = await fetchTextFromFeeds('latest-mac.yml')
+        autoUpdater.setFeedURL({ provider: 'generic', url: feedUrl })
         const meta = parseMacYml(yml)
         if (!meta) throw new Error('无法解析 latest-mac.yml')
         const newer = compareVersions(meta.version, app.getVersion()) > 0
@@ -317,33 +379,43 @@ export function registerUpdaterIpc(getMainWindow: () => BrowserWindow | null) {
         }
       }
 
-      await autoUpdater.checkForUpdates()
-      if (state.status === 'available') {
-        return {
-          updateAvailable: true,
-          currentVersion: app.getVersion(),
-          latestVersion: state.latestVersion,
-          releaseName: state.releaseName,
-          releaseNotes: state.releaseNotes,
-          packaged: true,
-          message: `发现新版本 ${state.latestVersion}`,
+      // Win/Linux：先试镜像，失败切换下一个源再检查
+      let lastError: unknown
+      for (const feedUrl of [
+        activeFeedUrl,
+        ...UPDATE_FEED_CANDIDATES.filter((url) => url !== activeFeedUrl),
+      ]) {
+        try {
+          autoUpdater.setFeedURL({ provider: 'generic', url: feedUrl })
+          await autoUpdater.checkForUpdates()
+          if (state.status === 'error') {
+            lastError = new Error(state.error || '检查更新失败')
+            continue
+          }
+          activeFeedUrl = feedUrl
+          if (state.status === 'available') {
+            return {
+              updateAvailable: true,
+              currentVersion: app.getVersion(),
+              latestVersion: state.latestVersion,
+              releaseName: state.releaseName,
+              releaseNotes: state.releaseNotes,
+              packaged: true,
+              message: `发现新版本 ${state.latestVersion}`,
+            }
+          }
+          return {
+            updateAvailable: false,
+            currentVersion: app.getVersion(),
+            latestVersion: state.latestVersion || app.getVersion(),
+            packaged: true,
+            message: '当前已是最新版本',
+          }
+        } catch (error) {
+          lastError = error
         }
       }
-      if (state.status === 'error') {
-        return {
-          updateAvailable: false,
-          currentVersion: app.getVersion(),
-          packaged: true,
-          message: state.error || '检查更新失败',
-        }
-      }
-      return {
-        updateAvailable: false,
-        currentVersion: app.getVersion(),
-        latestVersion: state.latestVersion || app.getVersion(),
-        packaged: true,
-        message: '当前已是最新版本',
-      }
+      throw lastError instanceof Error ? lastError : new Error(String(lastError))
     } catch (error) {
       const message = friendlyUpdateError(error)
       setState(getMainWindow(), { status: 'error', error: message })
