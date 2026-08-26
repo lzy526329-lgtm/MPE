@@ -170,7 +170,10 @@ function defaultSelectedCrop(seeds: Record<string, number>): CropId {
 export function mountFarmPage() {
   const farmRoot = document.querySelector<HTMLElement>('#farm-root')
   if (!farmRoot) return
+  setupFarmPage(farmRoot)
+}
 
+function setupFarmPage(farmRoot: HTMLElement) {
   let farmState: FarmState | null = null
   let selectedCrop: CropId = 'lettuce'
   let busy = false
