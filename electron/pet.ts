@@ -1189,6 +1189,7 @@ function buildPetMenu() {
         },
       ],
     },
+    { label: '农场', click: () => openMainPage('farm-page') },
     {
       label: '工具箱',
       submenu: PET_TOOL_MENU.map((item) => ({
