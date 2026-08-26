@@ -20,7 +20,8 @@
     "package:mac": "npm run build:app && electron-builder --mac --publish never",
     "package:win": "npm run build:app && electron-builder --win --publish never",
     "package:linux": "npm run build:app && electron-builder --linux --publish never",
-    "preview": "node scripts/run.mjs vite preview"
+    "preview": "node scripts/run.mjs vite preview",
+    "test": "vitest run"
   },
   "build": {
     "appId": "com.mpt.app",
@@ -119,7 +120,8 @@
     "typescript": "^5.8.2",
     "vite": "^6.2.1",
     "vite-plugin-electron": "^0.29.0",
-    "vite-plugin-electron-renderer": "^0.14.6"
+    "vite-plugin-electron-renderer": "^0.14.6",
+    "vitest": "^4.1.11"
   },
   "dependencies": {
     "@napi-rs/canvas": "^1.0.7",
