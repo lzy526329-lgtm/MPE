@@ -1,21 +1,21 @@
 import { CROPS } from '../electron/farm/farmCatalog'
 import type { CropId, FarmState, PlotState, Weather } from '../electron/farm/farmTypes'
+import {
+  cropGrowthStage,
+  cropSpriteStyle,
+  FARM_ASSETS,
+  FARM_BG_ASPECT,
+  plotSoilSrc,
+  plotTileStyle,
+  toolbarIconStyle,
+} from './farmAssets'
 import { onPageChange } from './appNavigation'
 
 type PlotDisplayStatus = 'empty' | 'growing' | 'dry' | 'bug' | 'ready' | 'withered'
 
 const WEATHER_LABEL: Record<Weather, string> = {
-  clear: '晴天',
-  rain: '雨天',
-}
-
-const STATUS_LABEL: Record<PlotDisplayStatus, string> = {
-  empty: '空地',
-  growing: '生长中',
-  dry: '缺水',
-  bug: '生虫',
-  ready: '可收割',
-  withered: '已枯萎',
+  clear: '☀️ 晴天',
+  rain: '🌧️ 雨天（自动浇水）',
 }
 
 function escapeHtml(value: string) {
@@ -26,13 +26,14 @@ function escapeHtml(value: string) {
 
 function waterIntervalMs(cropId: CropId, weather: Weather): number {
   const base = CROPS[cropId].waterIntervalMs
-  return weather === 'rain' ? base * 1.5 : base
+  return weather === 'rain' ? base * 2 : base
 }
 
 function getPlotDisplayStatus(plot: PlotState, weather: Weather, now: number): PlotDisplayStatus {
   if (plot.status === 'empty') return 'empty'
   if (plot.status === 'withered') return 'withered'
   if (plot.status === 'ready') return 'ready'
+  if (weather === 'rain') return plot.hasBug ? 'bug' : 'growing'
   if (plot.hasBug) return 'bug'
   if (now > plot.lastWateredAt + waterIntervalMs(plot.cropId, weather)) return 'dry'
   return 'growing'
@@ -41,7 +42,7 @@ function getPlotDisplayStatus(plot: PlotState, weather: Weather, now: number): P
 function formatRecordSummary(record: Record<string, number>, nameMap: Record<string, string>): string {
   const entries = Object.entries(record).filter(([, count]) => count > 0)
   if (entries.length === 0) return '无'
-  return entries.map(([id, count]) => `${nameMap[id] ?? id}×${count}`).join('、')
+  return entries.map(([id, count]) => `${nameMap[id] ?? id}×${count}`).join(' ')
 }
 
 function cropNameMap(): Record<string, string> {
@@ -54,101 +55,109 @@ function itemNameMap(): Record<string, string> {
 
 function renderPlot(plot: PlotState, index: number, state: FarmState, now: number): string {
   const display = getPlotDisplayStatus(plot, state.weather, now)
-  const crop =
-    plot.status !== 'empty'
-      ? CROPS[plot.cropId]
-      : null
+  const crop = plot.status !== 'empty' ? CROPS[plot.cropId] : null
+  const ready = plot.status === 'ready'
   const progress =
-    plot.status === 'growing' || plot.status === 'ready'
-      ? Math.min(100, Math.round((plot.progressMs / crop!.growMs) * 100))
-      : plot.status === 'withered' && crop
-        ? Math.min(100, Math.round((plot.progressMs / crop.growMs) * 100))
-        : 0
+    crop && plot.status !== 'empty'
+      ? Math.min(100, Math.round((plot.progressMs / crop.growMs) * 100))
+      : 0
+  const stage = crop && plot.status !== 'empty' ? cropGrowthStage(progress / 100, ready) : 0
+  const soil = plotSoilSrc(display)
 
-  const actions: string[] = []
-  if (plot.status === 'empty') {
-    actions.push(`<button class="secondary-button farm-action" type="button" data-action="plant" data-plot="${index}">播种</button>`)
-  } else if (plot.status === 'growing' || plot.status === 'ready') {
-    actions.push(`<button class="secondary-button farm-action" type="button" data-action="water" data-plot="${index}">浇水</button>`)
-    if (plot.hasBug) {
-      actions.push(`<button class="secondary-button farm-action" type="button" data-action="debug" data-plot="${index}">赶虫</button>`)
-    }
-    if (plot.status === 'ready') {
-      actions.push(`<button class="primary-button farm-action" type="button" data-action="harvest" data-plot="${index}">收割</button>`)
-    }
-  } else if (plot.status === 'withered') {
-    actions.push(`<button class="secondary-button farm-action" type="button" data-action="clear" data-plot="${index}">清理</button>`)
-  }
+  let hint = ''
+  if (display === 'dry') hint = '缺水 · 点击浇水'
+  else if (display === 'bug') hint = '生虫 · 点击除虫'
+  else if (display === 'ready') hint = '成熟 · 点击收割'
+  else if (display === 'withered') hint = '枯萎 · 点击清理'
+  else if (display === 'growing') hint = `${progress}%`
+
+  const cropLayer =
+    crop && plot.status !== 'empty' && display !== 'withered'
+      ? `<div class="farm-crop-sprite" style="${cropSpriteStyle(plot.cropId, stage)}" title="${escapeHtml(crop.name)}"></div>`
+      : ''
+
+  const badges: string[] = []
+  if (display === 'bug') badges.push('<span class="farm-plot-badge farm-plot-badge--bug">虫</span>')
+  if (display === 'ready') badges.push('<span class="farm-plot-badge farm-plot-badge--ready">熟</span>')
+  if (display === 'dry') badges.push('<span class="farm-plot-badge farm-plot-badge--dry">旱</span>')
 
   return `
-    <article class="farm-plot farm-plot--${display}" data-plot="${index}">
-      <div class="farm-plot-head">
-        <span class="farm-plot-index">#${index + 1}</span>
-        <span class="farm-plot-status">${STATUS_LABEL[display]}</span>
-      </div>
-      <p class="farm-plot-crop">${crop ? escapeHtml(crop.name) : '—'}</p>
-      ${crop && plot.status !== 'empty' ? `
-        <div class="farm-progress" aria-hidden="true">
-          <span class="farm-progress-bar" style="width: ${progress}%"></span>
-        </div>
-        <span class="farm-progress-label">${progress}%</span>
-      ` : ''}
-      <div class="farm-plot-actions">${actions.join('')}</div>
-    </article>
+    <button class="farm-plot-tile farm-plot-tile--${display}" type="button" data-plot="${index}" aria-label="地块 ${index + 1} ${hint}" style="${plotTileStyle(index)}">
+      <img class="farm-plot-soil" src="${soil}" alt="" draggable="false" />
+      ${cropLayer}
+      <div class="farm-plot-badges">${badges.join('')}</div>
+      <span class="farm-plot-hint">${escapeHtml(hint)}</span>
+    </button>
   `
 }
 
 function renderSeedPicker(seeds: Record<string, number>, selected: CropId): string {
-  const options = (Object.keys(CROPS) as CropId[])
+  return (Object.keys(CROPS) as CropId[])
     .map((id) => {
       const count = seeds[id] ?? 0
-      const selectedAttr = id === selected ? 'checked' : ''
-      const disabled = count < 1 ? 'disabled' : ''
+      const active = id === selected ? ' farm-seed-chip--active' : ''
+      const disabled = count < 1 ? ' disabled' : ''
       return `
-        <label class="farm-seed-option">
-          <input type="radio" name="farm-seed" value="${id}" ${selectedAttr} ${disabled} />
-          <span>${escapeHtml(CROPS[id].name)} (${count})</span>
-        </label>
+        <button class="farm-seed-chip${active}" type="button" data-crop="${id}"${disabled}>
+          ${escapeHtml(CROPS[id].name)} <em>${count}</em>
+        </button>
       `
     })
     .join('')
-  return `<div class="farm-seed-picker" role="radiogroup" aria-label="选择种子">${options}</div>`
 }
 
-function renderFarm(state: FarmState, selectedCrop: CropId, now: number, error: string): string {
+function renderFarm(state: FarmState, selectedCrop: CropId, now: number, error: string, toast: string): string {
   const seedNames = cropNameMap()
   const invNames = itemNameMap()
   const todayClaimed = state.lastDailySeedClaimAt === localDateKey(now)
+  const readyCount = state.plots.filter((p) => p.status === 'ready').length
+  const dryCount = state.plots.filter((p) => {
+    const d = getPlotDisplayStatus(p, state.weather, now)
+    return d === 'dry'
+  }).length
+  const seedTotal = totalSeeds(state.seeds)
+  const noSeedsHint =
+    seedTotal === 0
+      ? `<p class="farm-no-seeds">${todayClaimed ? '种子用完了，明天再来领吧 🌱' : '种子用完了，点下方「领种子」继续种'}</p>`
+      : ''
 
   return `
-    <div class="farm-top-bar">
-      <div class="farm-stat">
-        <span class="farm-stat-label">天气</span>
-        <strong>${WEATHER_LABEL[state.weather]}</strong>
-      </div>
-      <div class="farm-stat">
-        <span class="farm-stat-label">种子</span>
-        <strong>${escapeHtml(formatRecordSummary(state.seeds, seedNames))}</strong>
-      </div>
-      <div class="farm-stat">
-        <span class="farm-stat-label">背包</span>
-        <strong>${escapeHtml(formatRecordSummary(state.inventory, invNames))}</strong>
+    <div class="farm-scene">
+      <div class="farm-stage" style="aspect-ratio:${FARM_BG_ASPECT};background-image:url('${FARM_ASSETS.bg}')">
+        <div class="farm-hud">
+          <div class="farm-hud-pill">${WEATHER_LABEL[state.weather]}</div>
+          <div class="farm-hud-pill">🌱 ${escapeHtml(formatRecordSummary(state.seeds, seedNames))}</div>
+          <div class="farm-hud-pill">🧺 ${escapeHtml(formatRecordSummary(state.inventory, invNames))}</div>
+        </div>
+
+        ${state.plots.map((plot, i) => renderPlot(plot, i, state, now)).join('')}
+
+        <div class="farm-toolbar">
+          <button class="farm-tool" type="button" data-tool="water-all" title="一键浇水">
+            <span class="farm-tool-icon" style="${toolbarIconStyle(0)}"></span>
+            <span>一键浇水${dryCount > 0 ? ` (${dryCount})` : ''}</span>
+          </button>
+          <button class="farm-tool" type="button" data-tool="harvest-all" title="一键收割">
+            <span class="farm-tool-icon" style="${toolbarIconStyle(1)}"></span>
+            <span>一键收割${readyCount > 0 ? ` (${readyCount})` : ''}</span>
+          </button>
+          <button class="farm-tool" type="button" data-tool="claim" title="领取种子" ${todayClaimed ? 'disabled' : ''}>
+            <span class="farm-tool-icon" style="${toolbarIconStyle(2)}"></span>
+            <span>${todayClaimed ? '已领取' : '领种子'}</span>
+          </button>
+        </div>
+
+        <div class="farm-seed-bar" role="toolbar" aria-label="选择种子">
+          <span class="farm-seed-label">种子</span>
+          ${renderSeedPicker(state.seeds, selectedCrop)}
+        </div>
+
+        ${noSeedsHint}
+
+        ${toast ? `<p class="farm-toast">${escapeHtml(toast)}</p>` : ''}
+        <p class="error-message farm-error" role="alert">${error ? escapeHtml(error) : ''}</p>
       </div>
     </div>
-
-    ${renderSeedPicker(state.seeds, selectedCrop)}
-
-    <div class="farm-grid">
-      ${state.plots.map((plot, i) => renderPlot(plot, i, state, now)).join('')}
-    </div>
-
-    <div class="farm-footer">
-      <button class="primary-button" id="farm-claim-daily" type="button" ${todayClaimed ? 'disabled' : ''}>
-        ${todayClaimed ? '今日种子已领取' : '领取今日种子'}
-      </button>
-    </div>
-
-    <p class="error-message" id="farm-message" role="alert">${error ? escapeHtml(error) : ''}</p>
   `
 }
 
@@ -158,6 +167,10 @@ function localDateKey(now: number): string {
   const month = `${date.getMonth() + 1}`.padStart(2, '0')
   const day = `${date.getDate()}`.padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+function totalSeeds(seeds: Record<string, number>): number {
+  return Object.values(seeds).reduce((sum, n) => sum + (n > 0 ? n : 0), 0)
 }
 
 function defaultSelectedCrop(seeds: Record<string, number>): CropId {
@@ -178,13 +191,24 @@ function setupFarmPage(farmRoot: HTMLElement) {
   let selectedCrop: CropId = 'lettuce'
   let busy = false
   let lastError = ''
+  let toast = ''
+  let toastTimer: ReturnType<typeof setTimeout> | undefined
+
+  function showToast(message: string) {
+    toast = message
+    if (toastTimer) clearTimeout(toastTimer)
+    toastTimer = setTimeout(() => {
+      toast = ''
+      paint()
+    }, 2200)
+  }
 
   function paint() {
     if (!farmState) {
       farmRoot.innerHTML = '<p class="sysinfo-loading">加载农场…</p>'
       return
     }
-    farmRoot.innerHTML = renderFarm(farmState, selectedCrop, Date.now(), lastError)
+    farmRoot.innerHTML = renderFarm(farmState, selectedCrop, Date.now(), lastError, toast)
     bindEvents()
   }
 
@@ -193,7 +217,7 @@ function setupFarmPage(farmRoot: HTMLElement) {
     try {
       const result = await window.electronAPI.farmGetState()
       farmState = result.state
-      if (!result.ok) lastError = result.error
+      if (!result.ok) lastError = result.error ?? '读取失败'
       selectedCrop = defaultSelectedCrop(farmState.seeds)
       paint()
     } catch {
@@ -204,6 +228,7 @@ function setupFarmPage(farmRoot: HTMLElement) {
 
   async function runAction(
     fn: () => Promise<{ ok: boolean; error?: string; state: FarmState }>,
+    successMsg?: string,
   ) {
     if (busy) return
     busy = true
@@ -211,7 +236,11 @@ function setupFarmPage(farmRoot: HTMLElement) {
     try {
       const result = await fn()
       farmState = result.state
-      if (!result.ok) lastError = result.error ?? '操作失败'
+      if (!result.ok) {
+        lastError = result.error ?? '操作失败'
+      } else if (successMsg) {
+        showToast(successMsg)
+      }
       paint()
     } catch {
       lastError = '操作失败，请重试。'
@@ -221,35 +250,75 @@ function setupFarmPage(farmRoot: HTMLElement) {
     }
   }
 
-  function bindEvents() {
-    farmRoot.querySelectorAll<HTMLInputElement>('input[name="farm-seed"]').forEach((input) => {
-      input.addEventListener('change', () => {
-        if (input.checked) selectedCrop = input.value as CropId
-      })
-    })
+  function handlePlotClick(plotIndex: number) {
+    if (!farmState) return
+    const plot = farmState.plots[plotIndex]
+    const display = getPlotDisplayStatus(plot, farmState.weather, Date.now())
 
-    farmRoot.querySelectorAll<HTMLButtonElement>('.farm-action').forEach((btn) => {
+    if (plot.status === 'empty') {
+      const count = farmState.seeds[selectedCrop] ?? 0
+      if (count < 1) {
+        const todayClaimed = farmState.lastDailySeedClaimAt === localDateKey(Date.now())
+        lastError =
+          count === 0 && totalSeeds(farmState.seeds) === 0
+            ? todayClaimed
+              ? '种子都用完了，明天可以再来领'
+              : '种子不够了，请先点下方「领种子」'
+            : `${CROPS[selectedCrop].name}种子不够，请换别的种子或领取`
+        paint()
+        return
+      }
+      void runAction(
+        () => window.electronAPI.farmPlant({ plotIndex, cropId: selectedCrop }),
+        `已种下${CROPS[selectedCrop].name}`,
+      )
+      return
+    }
+    if (plot.status === 'ready') {
+      void runAction(() => window.electronAPI.farmHarvest({ plotIndex }), '收割成功')
+      return
+    }
+    if (display === 'dry') {
+      void runAction(() => window.electronAPI.farmWater({ plotIndex }), '浇水完成')
+      return
+    }
+    if (display === 'bug') {
+      void runAction(() => window.electronAPI.farmDebug({ plotIndex }), '除虫完成')
+      return
+    }
+    if (plot.status === 'withered') {
+      void runAction(() => window.electronAPI.farmClearWithered({ plotIndex }), '已清理')
+    }
+  }
+
+  function bindEvents() {
+    farmRoot.querySelectorAll<HTMLButtonElement>('.farm-plot-tile').forEach((btn) => {
       btn.addEventListener('click', () => {
         const plotIndex = Number(btn.dataset.plot)
-        const action = btn.dataset.action
-        if (!Number.isInteger(plotIndex) || !action) return
-
-        if (action === 'plant') {
-          void runAction(() => window.electronAPI.farmPlant({ plotIndex, cropId: selectedCrop }))
-        } else if (action === 'water') {
-          void runAction(() => window.electronAPI.farmWater({ plotIndex }))
-        } else if (action === 'debug') {
-          void runAction(() => window.electronAPI.farmDebug({ plotIndex }))
-        } else if (action === 'harvest') {
-          void runAction(() => window.electronAPI.farmHarvest({ plotIndex }))
-        } else if (action === 'clear') {
-          void runAction(() => window.electronAPI.farmClearWithered({ plotIndex }))
-        }
+        if (!Number.isInteger(plotIndex)) return
+        handlePlotClick(plotIndex)
       })
     })
 
-    farmRoot.querySelector<HTMLButtonElement>('#farm-claim-daily')?.addEventListener('click', () => {
-      void runAction(() => window.electronAPI.farmClaimDailySeeds())
+    farmRoot.querySelectorAll<HTMLButtonElement>('.farm-seed-chip').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn.disabled) return
+        selectedCrop = btn.dataset.crop as CropId
+        showToast(`已选 ${CROPS[selectedCrop].name}`)
+        paint()
+      })
+    })
+
+    farmRoot.querySelector<HTMLButtonElement>('[data-tool="water-all"]')?.addEventListener('click', () => {
+      void runAction(() => window.electronAPI.farmWaterAll(), '全部浇好了')
+    })
+
+    farmRoot.querySelector<HTMLButtonElement>('[data-tool="harvest-all"]')?.addEventListener('click', () => {
+      void runAction(() => window.electronAPI.farmHarvestAll(), '全部收割完成')
+    })
+
+    farmRoot.querySelector<HTMLButtonElement>('[data-tool="claim"]')?.addEventListener('click', () => {
+      void runAction(() => window.electronAPI.farmClaimDailySeeds(), '种子已领取')
     })
   }
 
@@ -258,4 +327,7 @@ function setupFarmPage(farmRoot: HTMLElement) {
   })
 
   void refresh()
+  window.setInterval(() => {
+    if (farmState && !busy) paint()
+  }, 5000)
 }

@@ -1,7 +1,9 @@
 import './style.css'
 import type { CompressRequest } from '../electron/compress'
 import type { ArchiveInfo, CompressionSource } from '../electron/archive'
+import { mountCutoutPage } from './cutoutPage'
 import { mountWatermarkPage } from './watermarkPage'
+import { mountPhotoplusPage } from './photoplusPage'
 import { mountSystemInfoPage } from './systemInfoPage'
 import { mountDiskCleanPage } from './diskCleanPage'
 import { mountPdfPage } from './pdfPage'
@@ -114,6 +116,94 @@ app.innerHTML = `
         </div>
       </section>
 
+      <section class="tool-page" id="cutout-page" hidden>
+        <header>
+          <div>
+            <p class="eyebrow">图像工具</p>
+            <h1>图片抠图</h1>
+            <p class="subtitle">去除白底、棋盘格等纯色背景，导出透明 PNG。适合 AI 出图素材。</p>
+          </div>
+        </header>
+        <div class="panel">
+          <label class="drop-zone" id="cutout-drop-zone" for="cutout-file-input">
+            <input id="cutout-file-input" type="file" accept="image/png,image/jpeg,image/webp,image/avif" hidden />
+            <span class="upload-icon">✂</span>
+            <strong>拖拽图片到这里，或点击选择</strong>
+            <span>支持 PNG、JPG、WebP；输出透明 PNG</span>
+          </label>
+
+          <div class="editor" id="cutout-editor" hidden>
+            <div class="cutout-compare">
+              <div class="preview-card">
+                <div class="preview-heading">
+                  <span>原图</span>
+                  <button class="text-button" id="cutout-replace-button" type="button">重新选择</button>
+                </div>
+                <div class="preview-frame cutout-preview-frame">
+                  <img id="cutout-preview-before" alt="原图预览" />
+                </div>
+                <div class="file-summary">
+                  <div>
+                    <strong id="cutout-file-name"></strong>
+                    <span id="cutout-file-info"></span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="preview-card">
+                <div class="preview-heading">
+                  <span>抠图结果</span>
+                </div>
+                <div class="preview-frame cutout-preview-frame cutout-preview-frame--result">
+                  <img id="cutout-preview-after" alt="抠图结果预览" hidden />
+                  <span class="cutout-placeholder" id="cutout-placeholder">点击「开始抠图」预览</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-card">
+              <h2>抠图设置</h2>
+              <label class="field">
+                <span>背景类型</span>
+                <select id="cutout-mode">
+                  <option value="auto" selected>自动（白底 + 棋盘格）</option>
+                  <option value="white">纯白底</option>
+                  <option value="checker">棋盘格 / 灰白底</option>
+                </select>
+              </label>
+              <label class="field cutout-range-field">
+                <span>背景容差 <em id="cutout-tolerance-value">40</em></span>
+                <input id="cutout-tolerance" type="range" min="0" max="100" value="40" />
+              </label>
+              <label class="field cutout-range-field">
+                <span>边缘收缩（去白边）<em id="cutout-choke-value">2</em> px</span>
+                <input id="cutout-choke" type="range" min="0" max="6" value="2" />
+              </label>
+              <label class="field cutout-check-field">
+                <input id="cutout-despill" type="checkbox" checked />
+                <span>去除边缘白晕</span>
+              </label>
+              <p class="field-hint">
+                适用于豆包等 AI 导出的白底/棋盘格 PNG。复杂照片背景请用专业抠图工具。
+              </p>
+              <button class="primary-button" id="cutout-run-button" type="button">开始抠图</button>
+            </div>
+          </div>
+
+          <div class="result" id="cutout-result" hidden>
+            <div class="result-copy">
+              <span class="success-icon">✓</span>
+              <div>
+                <strong>抠图完成</strong>
+                <span id="cutout-result-detail"></span>
+              </div>
+            </div>
+            <button class="download-button" id="cutout-download-button" type="button">下载 PNG</button>
+          </div>
+          <p class="error-message" id="cutout-error" role="alert"></p>
+        </div>
+      </section>
+
       <section class="tool-page" id="watermark-page" hidden>
         <header>
           <div>
@@ -191,6 +281,57 @@ app.innerHTML = `
             <button class="download-button" id="watermark-reveal-button" type="button">查看文件</button>
           </div>
           <p class="error-message" id="watermark-error" role="alert"></p>
+        </div>
+      </section>
+
+      <section class="tool-page" id="photoplus-page" hidden>
+        <header>
+          <div>
+            <p class="eyebrow">图像工具</p>
+            <h1>拉取图片</h1>
+            <p class="subtitle">粘贴 PhotoPlus 相册链接，按日期/专辑文件夹下载到桌面。</p>
+          </div>
+        </header>
+        <div class="panel">
+          <div class="watermark-input-card photoplus-input-card">
+            <label class="field" for="photoplus-input">
+              <span>相册链接</span>
+              <textarea
+                id="photoplus-input"
+                placeholder="例如：https://live.photoplus.cn/live/pc/55543392/#/live"
+              ></textarea>
+            </label>
+            <p class="field-hint">
+              仅支持 live.photoplus.cn。有日期/专辑 tab 时按 tab 名建文件夹；没有 tab 时全部放在相册文件夹内。尽量下载最大分辨率原图。
+            </p>
+            <div class="photoplus-actions">
+              <button class="primary-button" id="photoplus-start-button" type="button">开始拉取</button>
+              <button class="secondary-button" id="photoplus-pause-button" type="button" hidden>暂停</button>
+              <button class="secondary-button" id="photoplus-cancel-button" type="button" hidden>取消</button>
+            </div>
+          </div>
+
+          <div class="photoplus-progress" id="photoplus-progress" hidden>
+            <div class="photoplus-progress-copy">
+              <strong>进度</strong>
+              <span id="photoplus-progress-detail"></span>
+            </div>
+            <div class="photoplus-progress-track" aria-hidden="true">
+              <div class="photoplus-progress-bar" id="photoplus-progress-bar"></div>
+            </div>
+          </div>
+
+          <div class="result" id="photoplus-result" hidden>
+            <div class="result-copy">
+              <span class="success-icon">✓</span>
+              <div>
+                <strong>已完成</strong>
+                <span id="photoplus-result-detail"></span>
+              </div>
+            </div>
+            <button class="download-button" id="photoplus-open-button" type="button">打开文件夹</button>
+          </div>
+          <p class="error-message" id="photoplus-error" role="alert"></p>
         </div>
       </section>
 
@@ -677,7 +818,7 @@ app.innerHTML = `
           <div>
             <p class="eyebrow">桌宠玩法</p>
             <h1>农场</h1>
-            <p class="subtitle">播种、浇水、赶虫、收割。离开后作物仍会生长。</p>
+            <p class="subtitle">QQ 农场风格：点地块操作，雨天自动浇水，也可一键浇水 / 一键收割。</p>
           </div>
         </header>
         <div class="panel" id="farm-root"></div>
@@ -1152,7 +1293,9 @@ window.addEventListener('beforeunload', () => {
   if (compressedUrl) URL.revokeObjectURL(compressedUrl)
 })
 
+mountCutoutPage()
 mountWatermarkPage()
+mountPhotoplusPage()
 mountSystemInfoPage()
 mountDiskCleanPage()
 mountPdfPage()

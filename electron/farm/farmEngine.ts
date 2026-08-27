@@ -28,9 +28,15 @@ function localDateKey(now: number): string {
   return `${year}-${month}-${day}`
 }
 
+const WITHER_MULTIPLIER = 3
+
 function waterIntervalForWeather(cropId: CropId, weather: Weather): number {
   const interval = getCrop(cropId).waterIntervalMs
-  return weather === 'rain' ? interval * 1.5 : interval
+  return weather === 'rain' ? interval * 2 : interval
+}
+
+function isRainAutoWater(weather: Weather): boolean {
+  return weather === 'rain'
 }
 
 function isCropId(cropId: string): cropId is CropId {
@@ -45,10 +51,12 @@ function advancePlot(plot: PlotState, from: number, now: number, weather: Weathe
   const crop = getCrop(plot.cropId)
   const waterIntervalMs = waterIntervalForWeather(plot.cropId, weather)
   const growthStart = Math.max(from, plot.plantedAt)
-  const droughtAt = plot.lastWateredAt + waterIntervalMs
-  const witherAt = plot.lastWateredAt + 2 * waterIntervalMs
+  const droughtAt = isRainAutoWater(weather) ? Number.POSITIVE_INFINITY : plot.lastWateredAt + waterIntervalMs
+  const witherAt = isRainAutoWater(weather)
+    ? Number.POSITIVE_INFINITY
+    : plot.lastWateredAt + WITHER_MULTIPLIER * waterIntervalMs
 
-  if (now > witherAt) {
+  if (!isRainAutoWater(weather) && now > witherAt) {
     const growthUntilDrought = Math.max(0, droughtAt - growthStart)
     const growthDelta = plot.hasBug ? growthUntilDrought * 0.5 : growthUntilDrought
     const progressMs = Math.min(crop.growMs, plot.progressMs + growthDelta)
@@ -132,21 +140,21 @@ export function settle(state: FarmState, now: number): FarmState {
 
 export function plant(state: FarmState, plotIndex: number, cropId: CropId, now: number): FarmActionResult {
   if (!validPlot(state, plotIndex)) {
-    return failure(state, 'Invalid plot')
+    return failure(state, '地块无效')
   }
 
   if (!isCropId(cropId)) {
-    return failure(state, 'Invalid crop')
+    return failure(state, '未知作物')
   }
 
   const plot = state.plots[plotIndex]
   if (plot.status !== 'empty') {
-    return failure(state, 'Plot is not empty')
+    return failure(state, '这块地已经有作物了')
   }
 
   const seedCount = state.seeds[cropId] ?? 0
   if (seedCount < 1) {
-    return failure(state, 'Not enough seeds')
+    return failure(state, `${getCrop(cropId).name}种子不够了，请先点下方「领种子」`)
   }
 
   return success(
@@ -172,25 +180,61 @@ export function plant(state: FarmState, plotIndex: number, cropId: CropId, now: 
 
 export function water(state: FarmState, plotIndex: number, now: number): FarmActionResult {
   if (!validPlot(state, plotIndex)) {
-    return failure(state, 'Invalid plot')
+    return failure(state, '地块无效')
   }
 
   const plot = state.plots[plotIndex]
   if (plot.status !== 'growing' && plot.status !== 'ready') {
-    return failure(state, 'Plot cannot be watered')
+    return failure(state, '这块地现在不用浇水')
   }
 
   return success(replacePlot(state, plotIndex, { ...plot, lastWateredAt: now }))
 }
 
+export function waterAll(state: FarmState, now: number): FarmActionResult {
+  let next = state
+  let watered = 0
+  for (let i = 0; i < next.plots.length; i += 1) {
+    const plot = next.plots[i]
+    if (plot.status === 'growing' || plot.status === 'ready') {
+      next = replacePlot(next, i, { ...plot, lastWateredAt: now })
+      watered += 1
+    }
+  }
+  if (watered === 0) {
+    return failure(state, '没有需要浇水的地块')
+  }
+  return success(next)
+}
+
+export function harvestAll(
+  state: FarmState,
+  now: number,
+  rng: () => number = Math.random,
+): FarmActionResult {
+  let next = state
+  let harvested = 0
+  for (let i = 0; i < next.plots.length; i += 1) {
+    if (next.plots[i].status !== 'ready') continue
+    const result = harvest(next, i, now, rng)
+    if (!result.ok) continue
+    next = result.state
+    harvested += 1
+  }
+  if (harvested === 0) {
+    return failure(state, '没有可收割的作物')
+  }
+  return success(next)
+}
+
 export function squashBug(state: FarmState, plotIndex: number): FarmActionResult {
   if (!validPlot(state, plotIndex)) {
-    return failure(state, 'Invalid plot')
+    return failure(state, '地块无效')
   }
 
   const plot = state.plots[plotIndex]
   if (plot.status === 'empty' || !plot.hasBug) {
-    return failure(state, 'No bug to squash')
+    return failure(state, '这里没有虫子')
   }
 
   const nextPlot: PlotPlanted = { ...plot }
@@ -207,12 +251,12 @@ export function harvest(
   rng: () => number = Math.random,
 ): FarmActionResult {
   if (!validPlot(state, plotIndex)) {
-    return failure(state, 'Invalid plot')
+    return failure(state, '地块无效')
   }
 
   const plot = state.plots[plotIndex]
   if (plot.status !== 'ready') {
-    return failure(state, 'Plot is not ready')
+    return failure(state, '还没成熟，不能收割')
   }
 
   const crop = getCrop(plot.cropId)
@@ -237,11 +281,11 @@ export function harvest(
 
 export function clearWithered(state: FarmState, plotIndex: number): FarmActionResult {
   if (!validPlot(state, plotIndex)) {
-    return failure(state, 'Invalid plot')
+    return failure(state, '地块无效')
   }
 
   if (state.plots[plotIndex].status !== 'withered') {
-    return failure(state, 'Plot is not withered')
+    return failure(state, '这块地没有枯萎的作物')
   }
 
   return success(replacePlot(state, plotIndex, { status: 'empty' }))
@@ -250,7 +294,7 @@ export function clearWithered(state: FarmState, plotIndex: number): FarmActionRe
 export function claimDailySeeds(state: FarmState, now: number): FarmActionResult {
   const today = localDateKey(now)
   if (state.lastDailySeedClaimAt === today) {
-    return failure(state, 'Daily seeds already claimed')
+    return failure(state, '今天的免费种子已经领过了')
   }
 
   const seeds = cloneRecord(state.seeds)

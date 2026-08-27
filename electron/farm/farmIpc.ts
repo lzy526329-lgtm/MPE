@@ -4,10 +4,12 @@ import {
   claimDailySeeds,
   clearWithered,
   harvest,
+  harvestAll,
   plant,
   rollOpenEvents,
   squashBug,
   water,
+  waterAll,
 } from './farmEngine'
 import { withFarm } from './farmStore'
 import type { CropId } from './farmTypes'
@@ -51,5 +53,15 @@ export function registerFarmIpc() {
   ipcMain.handle('farm:claim-daily-seeds', () => {
     const now = Date.now()
     return withFarm(root(), now, (s) => claimDailySeeds(s, now))
+  })
+
+  ipcMain.handle('farm:water-all', () => {
+    const now = Date.now()
+    return withFarm(root(), now, (s) => waterAll(s, now))
+  })
+
+  ipcMain.handle('farm:harvest-all', () => {
+    const now = Date.now()
+    return withFarm(root(), now, (s) => harvestAll(s, now))
   })
 }

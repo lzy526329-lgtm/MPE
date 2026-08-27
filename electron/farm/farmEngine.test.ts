@@ -6,11 +6,13 @@ import {
   clearWithered,
   createDefaultFarm,
   harvest,
+  harvestAll,
   plant,
   rollOpenEvents,
   settle,
   squashBug,
   water,
+  waterAll,
 } from './farmEngine'
 import type { FarmState, PlotPlanted } from './farmTypes'
 
@@ -41,20 +43,16 @@ function plantLettuce(state = createDefaultFarm(T0), now = T0): FarmState {
   return planted.state
 }
 
+function plantTomato(state = createDefaultFarm(T0), now = T0): FarmState {
+  const planted = plant(state, 0, 'tomato', now)
+  expect(planted.ok).toBe(true)
+  if (!planted.ok) return state
+  return planted.state
+}
+
 function growReadyLettuce(): FarmState {
-  let state = plantLettuce()
-
-  state = settle(state, T0 + 40_000)
-  const firstWater = water(state, 0, T0 + 40_000)
-  expect(firstWater.ok).toBe(true)
-  if (!firstWater.ok) return state
-
-  state = settle(firstWater.state, T0 + 80_000)
-  const secondWater = water(state, 0, T0 + 80_000)
-  expect(secondWater.ok).toBe(true)
-  if (!secondWater.ok) return state
-
-  return settle(secondWater.state, T0 + 120_000)
+  const state = plantLettuce()
+  return settle(state, T0 + 120_000)
 }
 
 describe('farmEngine default state', () => {
@@ -81,13 +79,13 @@ describe('farmEngine settle', () => {
     expect(state.plots[0]).toMatchObject({ status: 'ready' })
   })
 
-  it('pauses growth while lettuce is short of water', () => {
-    const state = plantLettuce()
+  it('pauses growth while tomato is short of water', () => {
+    const state = plantTomato()
 
-    const settled = settle(state, T0 + 80_000)
+    const settled = settle(state, T0 + 20 * 60_000)
 
     const plot = growingPlot(settled)
-    expect(plot.progressMs).toBe(45_000)
+    expect(plot.progressMs).toBe(15 * 60_000)
   })
 
   it('does not count time before a delayed plant toward progress', () => {
@@ -101,20 +99,20 @@ describe('farmEngine settle', () => {
     expect(growingPlot(settled).progressMs).toBe(20_000)
   })
 
-  it('withers lettuce when drought lasts past twice the water interval', () => {
-    const state = plantLettuce()
+  it('withers tomato when drought lasts past three water intervals', () => {
+    const state = plantTomato()
 
-    const settled = settle(state, T0 + 91_000)
+    const settled = settle(state, T0 + 46 * 60_000)
 
-    expect(witheredPlot(settled).progressMs).toBe(45_000)
+    expect(witheredPlot(settled).progressMs).toBe(15 * 60_000)
   })
 
   it('only grows until the drought point when segmented settle later withers', () => {
-    const state = settle(plantLettuce(), T0 + 40_000)
+    const state = settle(plantTomato(), T0 + 20 * 60_000)
 
-    const settled = settle(state, T0 + 91_000)
+    const settled = settle(state, T0 + 46 * 60_000)
 
-    expect(witheredPlot(settled).progressMs).toBe(45_000)
+    expect(witheredPlot(settled).progressMs).toBe(15 * 60_000)
   })
 
   it('keeps a crop ready when it matured before later drought would wither it', () => {
@@ -134,7 +132,7 @@ describe('farmEngine settle', () => {
     expect(settled.plots[0]).toMatchObject({ status: 'ready', progressMs: 120_000 })
   })
 
-  it('extends the water interval while raining', () => {
+  it('auto-waters while raining so growth never pauses for drought', () => {
     const state = {
       ...plantLettuce(),
       weather: 'rain' as const,
@@ -218,6 +216,20 @@ describe('farmEngine actions', () => {
     expect(readyPlot(readyWatered.state).lastWateredAt).toBe(T0 + 150_000)
   })
 
+  it('waters all planted plots at once', () => {
+    let state = plantLettuce()
+    const second = plant(state, 1, 'tomato', T0)
+    expect(second.ok).toBe(true)
+    if (!second.ok) return
+    state = second.state
+
+    const watered = waterAll(state, T0 + 1)
+    expect(watered.ok).toBe(true)
+    if (!watered.ok) return
+    expect(growingPlot(watered.state, 0).lastWateredAt).toBe(T0 + 1)
+    expect(growingPlot(watered.state, 1).lastWateredAt).toBe(T0 + 1)
+  })
+
   it('clears a bug from a planted plot', () => {
     const state = plantLettuce()
     const buggyState: FarmState = {
@@ -234,6 +246,15 @@ describe('farmEngine actions', () => {
     expect(growingPlot(cleared.state).hasBug).toBeUndefined()
   })
 
+  it('harvests all ready plots at once', () => {
+    const ready = growReadyLettuce()
+    const harvested = harvestAll(ready, T0 + 120_000, () => 0)
+    expect(harvested.ok).toBe(true)
+    if (!harvested.ok) return
+    expect(harvested.state.plots[0].status).toBe('empty')
+    expect(harvested.state.inventory.lettuce).toBeGreaterThan(0)
+  })
+
   it('harvests a ready plot into inventory and empties the plot', () => {
     const state = growReadyLettuce()
 
@@ -246,14 +267,14 @@ describe('farmEngine actions', () => {
   })
 
   it('clears withered plots without refunding seeds', () => {
-    const state = settle(plantLettuce(), T0 + 91_000)
+    const state = settle(plantTomato(), T0 + 46 * 60_000)
 
     const cleared = clearWithered(state, 0)
 
     expect(cleared.ok).toBe(true)
     if (!cleared.ok) return
     expect(cleared.state.plots[0]).toEqual({ status: 'empty' })
-    expect(cleared.state.seeds.lettuce).toBe(DEFAULT_SEEDS.lettuce - 1)
+    expect(cleared.state.seeds.tomato).toBe(DEFAULT_SEEDS.tomato - 1)
   })
 
   it('grants daily seeds once per local day', () => {
@@ -283,7 +304,7 @@ describe('farmEngine rollOpenEvents', () => {
       ...planted,
       lastWeatherRollAt: T0 - 30 * 60_000 - 1,
     } as FarmState
-    const rolls = [0.1, 0.2]
+    const rolls = [0.05, 0.2]
 
     const rolled = rollOpenEvents(state, T0, () => rolls.shift() ?? 1)
 

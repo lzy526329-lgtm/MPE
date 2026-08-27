@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 
 import type { CompressRequest, CompressResult } from '../electron/compress'
+import type { CutoutRequest, CutoutResult } from '../electron/cutout'
 import type {
   ArchiveInfo,
   CompressArchiveRequest,
@@ -10,6 +11,7 @@ import type {
   ExtractResult,
 } from '../electron/archive'
 import type { SaveWatermarkResult, WatermarkResult } from '../electron/watermark'
+import type { PhotoplusDownloadResult, PhotoplusProgress } from '../electron/photoplus'
 import type { PetBounds, PetChatMessage, PetReminderItem, PetStatus, PetViewportAnchor } from '../electron/pet'
 import type { PetAiReply, PetAiSettingsView, PetChatHistoryItem } from '../electron/petAi'
 import type { PetCharacter } from '../electron/petCharacters'
@@ -45,6 +47,7 @@ declare global {
     electronAPI: {
       platform: NodeJS.Platform
       compressImage: (request: CompressRequest) => Promise<CompressResult>
+      cutoutImage: (request: CutoutRequest) => Promise<CutoutResult>
       getPathForFile: (file: File) => string
       chooseArchive: () => Promise<ArchiveInfo | null>
       inspectArchive: (archivePath: string) => Promise<ArchiveInfo>
@@ -68,6 +71,11 @@ declare global {
       choosePdfOutputFolder: (defaultPath?: string) => Promise<string | null>
       parseWatermark: (url: string) => Promise<WatermarkResult>
       saveWatermark: (result: WatermarkResult) => Promise<SaveWatermarkResult | null>
+      downloadPhotoplus: (url: string) => Promise<PhotoplusDownloadResult>
+      pausePhotoplus: () => Promise<{ ok: boolean; status: string }>
+      resumePhotoplus: () => Promise<{ ok: boolean; status: string }>
+      cancelPhotoplus: () => Promise<{ ok: boolean; status: string }>
+      onPhotoplusProgress: (callback: (progress: PhotoplusProgress) => void) => () => void
       getSystemInfo: () => Promise<SystemInfo>
       scanDisk: () => Promise<ScanResult>
       cleanDisk: (ids: string[]) => Promise<CleanResult>
@@ -163,6 +171,8 @@ declare global {
       farmHarvest: (request: { plotIndex: number }) => Promise<FarmActionResult>
       farmClearWithered: (request: { plotIndex: number }) => Promise<FarmActionResult>
       farmClaimDailySeeds: () => Promise<FarmActionResult>
+      farmWaterAll: () => Promise<FarmActionResult>
+      farmHarvestAll: () => Promise<FarmActionResult>
     }
   }
 }

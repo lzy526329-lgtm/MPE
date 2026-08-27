@@ -9,6 +9,7 @@ import type {
   ExtractResult,
 } from './archive'
 import type { SaveWatermarkResult, WatermarkResult } from './watermark'
+import type { PhotoplusDownloadResult, PhotoplusProgress } from './photoplus'
 import type { SystemInfo } from './systemInfo'
 import type { ScanResult, CleanResult } from './diskClean'
 import type { PetAiReply, PetAiSettingsView, PetChatHistoryItem } from './petAi'
@@ -37,12 +38,15 @@ import type {
 } from './pdf'
 import type { UpdateState } from './updater'
 import type { FarmActionResult } from './farm/farmEngine'
+import type { CutoutRequest, CutoutResult } from './cutout'
 import type { CropId } from './farm/farmTypes'
 
 contextBridge.exposeInMainWorld('electronAPI', {
   platform: process.platform,
   compressImage: (request: CompressRequest): Promise<CompressResult> =>
     ipcRenderer.invoke('image:compress', request),
+  cutoutImage: (request: CutoutRequest): Promise<CutoutResult> =>
+    ipcRenderer.invoke('image:cutout', request),
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
   chooseArchive: (): Promise<ArchiveInfo | null> => ipcRenderer.invoke('archive:choose'),
   inspectArchive: (archivePath: string): Promise<ArchiveInfo> =>
@@ -84,6 +88,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('watermark:parse', url),
   saveWatermark: (result: WatermarkResult): Promise<SaveWatermarkResult | null> =>
     ipcRenderer.invoke('watermark:save', result),
+  downloadPhotoplus: (url: string): Promise<PhotoplusDownloadResult> =>
+    ipcRenderer.invoke('photoplus:download', url),
+  pausePhotoplus: (): Promise<{ ok: boolean; status: string }> =>
+    ipcRenderer.invoke('photoplus:pause'),
+  resumePhotoplus: (): Promise<{ ok: boolean; status: string }> =>
+    ipcRenderer.invoke('photoplus:resume'),
+  cancelPhotoplus: (): Promise<{ ok: boolean; status: string }> =>
+    ipcRenderer.invoke('photoplus:cancel'),
+  onPhotoplusProgress: (callback: (progress: PhotoplusProgress) => void) => {
+    const listener = (_event: unknown, progress: PhotoplusProgress) => callback(progress)
+    ipcRenderer.on('photoplus:progress', listener)
+    return () => ipcRenderer.removeListener('photoplus:progress', listener)
+  },
   getSystemInfo: (): Promise<SystemInfo> => ipcRenderer.invoke('system:info'),
   scanDisk: (): Promise<ScanResult> => ipcRenderer.invoke('disk:scan'),
   cleanDisk: (ids: string[]): Promise<CleanResult> => ipcRenderer.invoke('disk:clean', ids),
@@ -258,4 +275,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('farm:clear-withered', request),
   farmClaimDailySeeds: (): Promise<FarmActionResult> =>
     ipcRenderer.invoke('farm:claim-daily-seeds'),
+  farmWaterAll: (): Promise<FarmActionResult> => ipcRenderer.invoke('farm:water-all'),
+  farmHarvestAll: (): Promise<FarmActionResult> => ipcRenderer.invoke('farm:harvest-all'),
 })

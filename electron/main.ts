@@ -2,6 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, session, shell } from 'electron'
 import { registerPetIpc, restorePetIfNeeded, isPetOpen, onPetEnabledChange } from './pet'
 import path from 'node:path'
 import { compressImage, type CompressRequest } from './compress'
+import { cutoutImage, type CutoutRequest } from './cutout'
 import {
   archiveFilters,
   compressArchive,
@@ -19,6 +20,8 @@ import {
   type SaveWatermarkRequest,
   type WatermarkResult,
 } from './watermark'
+import { downloadPhotoplusAlbum, PhotoplusDownloadController } from './photoplus'
+import type { PhotoplusProgress } from './photoplus'
 import { scanDisk, cleanCategories } from './diskClean'
 import { getSystemInfo } from './systemInfo'
 import { registerUpdaterIpc } from './updater'
@@ -134,6 +137,7 @@ app.on('activate', () => {
 })
 
 ipcMain.handle('image:compress', (_event, request: CompressRequest) => compressImage(request))
+ipcMain.handle('image:cutout', (_event, request: CutoutRequest) => cutoutImage(request))
 ipcMain.handle('archive:choose', async () => {
   const selection = await dialog.showOpenDialog(win!, {
     title: '选择压缩包',
@@ -198,6 +202,70 @@ ipcMain.handle('pdf:choose-folder', async (_event, defaultPath?: string) => {
   return selection.canceled ? null : selection.filePaths[0]
 })
 ipcMain.handle('watermark:parse', (_event, url: string) => parseWatermark(url))
+let photoplusController: PhotoplusDownloadController | null = null
+let photoplusLastProgress: PhotoplusProgress | null = null
+
+ipcMain.handle('photoplus:download', async (event, url: string) => {
+  photoplusController?.cancel()
+  const controller = new PhotoplusDownloadController()
+  photoplusController = controller
+  photoplusLastProgress = null
+  try {
+    return await downloadPhotoplusAlbum(url, {
+      desktopDir: app.getPath('desktop'),
+      controller,
+      onProgress: (progress) => {
+        photoplusLastProgress = progress
+        event.sender.send('photoplus:progress', progress)
+      },
+    })
+  } finally {
+    if (photoplusController === controller) photoplusController = null
+  }
+})
+
+ipcMain.handle('photoplus:pause', (event) => {
+  photoplusController?.pause()
+  if (photoplusLastProgress) {
+    const progress: PhotoplusProgress = {
+      ...photoplusLastProgress,
+      phase: 'paused',
+      message: `已暂停 ${photoplusLastProgress.completed + photoplusLastProgress.failed + photoplusLastProgress.skipped}/${photoplusLastProgress.total}，剩余 ${photoplusLastProgress.remaining} 张`,
+    }
+    photoplusLastProgress = progress
+    event.sender.send('photoplus:progress', progress)
+  }
+  return { ok: true, status: photoplusController?.status ?? 'cancelled' }
+})
+
+ipcMain.handle('photoplus:resume', (event) => {
+  photoplusController?.resume()
+  if (photoplusLastProgress) {
+    const progress: PhotoplusProgress = {
+      ...photoplusLastProgress,
+      phase: 'downloading',
+      message: `继续下载 ${photoplusLastProgress.completed + photoplusLastProgress.failed + photoplusLastProgress.skipped}/${photoplusLastProgress.total}`,
+    }
+    photoplusLastProgress = progress
+    event.sender.send('photoplus:progress', progress)
+  }
+  return { ok: true, status: photoplusController?.status ?? 'cancelled' }
+})
+
+ipcMain.handle('photoplus:cancel', (event) => {
+  photoplusController?.cancel()
+  if (photoplusLastProgress) {
+    const progress: PhotoplusProgress = {
+      ...photoplusLastProgress,
+      phase: 'cancelled',
+      message: `正在取消… 已处理 ${photoplusLastProgress.completed + photoplusLastProgress.failed + photoplusLastProgress.skipped}/${photoplusLastProgress.total}`,
+    }
+    photoplusLastProgress = progress
+    event.sender.send('photoplus:progress', progress)
+  }
+  return { ok: true, status: photoplusController?.status ?? 'cancelled' }
+})
+
 ipcMain.handle('watermark:save', async (_event, result: WatermarkResult) => {
   const defaultName = suggestedFileName(result)
   const selection = await dialog.showSaveDialog(win!, {
