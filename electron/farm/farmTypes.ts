@@ -11,6 +11,7 @@ export type CropDef = {
 }
 
 export type PlotEmpty = { status: 'empty' }
+export type PlotLocked = { status: 'locked' }
 
 export type PlotPlanted = {
   status: 'growing' | 'ready'
@@ -21,9 +22,14 @@ export type PlotPlanted = {
   hasBug?: boolean
 }
 
-export type PlotState = PlotEmpty | PlotPlanted
+export type PlotState = PlotEmpty | PlotLocked | PlotPlanted
 
 export type Weather = 'clear' | 'rain'
+
+export type FarmPageContext = {
+  playerLevel: number
+  walletCoins: number
+}
 
 export type FarmState = {
   version: 1

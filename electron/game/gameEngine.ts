@@ -1,6 +1,6 @@
-import { createDefaultFarm, type FarmActionResult } from '../farm/farmEngine'
+import { createDefaultFarm, settle, unlockPlot, type FarmActionResult } from '../farm/farmEngine'
 import type { CropId, FarmState } from '../farm/farmTypes'
-import { mergeLegacyProduce, mergeLegacySeeds } from '../farm/farmCatalog'
+import { mergeLegacyProduce, mergeLegacySeeds, plotUnlockRequirement } from '../farm/farmCatalog'
 import { INITIAL_COINS, SEED_OFFERS, normalizeItemCount, seedCounts } from './gameCatalog'
 import type {
   FarmCoreState,
@@ -161,6 +161,57 @@ export function runFarmAction(
   const game = applyCompatFarmState(state, farm.state)
 
   return farm.ok ? { ok: true, game, farm } : { ok: false, game, farm }
+}
+
+export function unlockPlotWithPayment(
+  state: GameState,
+  plotIndex: number,
+  playerLevel: number,
+  now: number,
+): FarmGameMutationResult {
+  const settledGame = applyCompatFarmState(state, settle(toCompatFarmState(state), now))
+  const requirement = plotUnlockRequirement(plotIndex)
+  const farmView = toCompatFarmState(settledGame)
+
+  if (!requirement) {
+    return {
+      ok: false,
+      game: cloneGameState(settledGame),
+      farm: { ok: false, error: '这块地无需解锁', state: farmView },
+    }
+  }
+
+  if (playerLevel < requirement.level) {
+    return {
+      ok: false,
+      game: cloneGameState(settledGame),
+      farm: {
+        ok: false,
+        error: `需要等级 ${requirement.level} 才能解锁`,
+        state: farmView,
+      },
+    }
+  }
+
+  if (settledGame.wallet.coins < requirement.coins) {
+    return {
+      ok: false,
+      game: cloneGameState(settledGame),
+      farm: { ok: false, error: '金币不足', state: farmView },
+    }
+  }
+
+  const unlocked = unlockPlot(farmView, plotIndex)
+  if (!unlocked.ok) {
+    return { ok: false, game: cloneGameState(settledGame), farm: unlocked }
+  }
+
+  const game: GameState = {
+    ...applyCompatFarmState(settledGame, unlocked.state),
+    wallet: { coins: settledGame.wallet.coins - requirement.coins },
+  }
+
+  return { ok: true, game, farm: unlocked }
 }
 
 export function buySeed(state: GameState, cropId: string): GameMutationResult {

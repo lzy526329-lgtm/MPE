@@ -34,7 +34,8 @@ describe('farm plot layout', () => {
   })
 
   it('uses isometric dikuai soils instead of top-down plot sprites', () => {
-    expect(plotSoilSrc('empty')).toBe(FARM_ASSETS.plotIsoEmpty)
+    expect(plotSoilSrc('empty')).toBe(FARM_ASSETS.plotIsoSoil)
+    expect(plotSoilSrc('locked')).toBe(FARM_ASSETS.plotIsoEmpty)
     expect(plotSoilSrc('growing')).toBe(FARM_ASSETS.plotIsoSoil)
     expect(plotSoilSrc('dry')).toBe(FARM_ASSETS.plotIsoSoil)
     expect(plotSoilSrc('ready')).toBe(FARM_ASSETS.plotIsoSoil)

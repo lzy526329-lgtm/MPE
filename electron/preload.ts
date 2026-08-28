@@ -272,6 +272,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('farm:debug', request),
   farmHarvest: (request: { plotIndex: number }): Promise<FarmActionResult> =>
     ipcRenderer.invoke('farm:harvest', request),
+  farmUnlockPlot: (request: { plotIndex: number }): Promise<FarmActionResult> =>
+    ipcRenderer.invoke('farm:unlock-plot', request),
   farmClaimDailySeeds: (): Promise<FarmActionResult> =>
     ipcRenderer.invoke('farm:claim-daily-seeds'),
   farmWaterAll: (): Promise<FarmActionResult> => ipcRenderer.invoke('farm:water-all'),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_SEEDS, DAILY_SEEDS } from './farmCatalog'
+import { INITIAL_UNLOCKED_PLOTS, DEFAULT_SEEDS, DAILY_SEEDS } from './farmCatalog'
 import {
   claimDailySeeds,
   createDefaultFarm,
@@ -10,6 +10,8 @@ import {
   rollOpenEvents,
   settle,
   squashBug,
+  unlockPlot,
+  migratePlotLocks,
   water,
   waterAll,
 } from './farmEngine'
@@ -42,7 +44,7 @@ function growReadyWheat(): FarmState {
 }
 
 describe('farmEngine default state', () => {
-  it('creates twenty-four empty plots with starter seeds and clear weather', () => {
+  it('creates four unlocked plots and locks the rest by default', () => {
     const state = createDefaultFarm(T0)
 
     expect(state).toMatchObject({
@@ -54,7 +56,12 @@ describe('farmEngine default state', () => {
       inventory: {},
     })
     expect(state.plots).toHaveLength(24)
-    expect(state.plots.every((plot) => plot.status === 'empty')).toBe(true)
+    expect(state.plots.slice(0, INITIAL_UNLOCKED_PLOTS).every((plot) => plot.status === 'empty')).toBe(
+      true,
+    )
+    expect(state.plots.slice(INITIAL_UNLOCKED_PLOTS).every((plot) => plot.status === 'locked')).toBe(
+      true,
+    )
   })
 })
 
@@ -250,6 +257,32 @@ describe('farmEngine actions', () => {
     if (!harvested.ok) return
     expect(harvested.state.inventory.wheat).toBe(2)
     expect(harvested.state.plots[0]).toEqual({ status: 'empty' })
+  })
+
+  it('rejects planting on locked plots', () => {
+    const state = createDefaultFarm(T0)
+    const planted = plant(state, 4, 'wheat', T0)
+    expect(planted.ok).toBe(false)
+    expect(planted.error).toContain('解锁')
+  })
+
+  it('unlocks a locked plot into empty land', () => {
+    const state = createDefaultFarm(T0)
+    const unlocked = unlockPlot(state, 4)
+    expect(unlocked.ok).toBe(true)
+    if (!unlocked.ok) return
+    expect(unlocked.state.plots[4]).toEqual({ status: 'empty' })
+  })
+
+  it('keeps player-unlocked empty plots after migratePlotLocks', () => {
+    const state = createDefaultFarm(T0)
+    const unlocked = unlockPlot(state, 4)
+    expect(unlocked.ok).toBe(true)
+    if (!unlocked.ok) return
+
+    const migrated = migratePlotLocks(unlocked.state.plots)
+    expect(migrated[4]).toEqual({ status: 'empty' })
+    expect(migrated[5]).toEqual({ status: 'locked' })
   })
 
   it('grants daily seeds once per local day', () => {

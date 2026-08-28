@@ -61,6 +61,7 @@ function harness(fileOps: Partial<GameStoreFileOps> = {}): Harness {
   const handlers = createFarmHandlers({
     userDataPath: () => dir,
     now: () => NOW,
+    getPlayerLevel: () => 5,
     publish,
     publishPetStatus,
     fileOps,
@@ -89,6 +90,7 @@ const successCases: SuccessCase[] = [
     expect: (result) => {
       expect(result.state.plots).toHaveLength(24)
       expect(result.state.seeds).toEqual({ wheat: 5 })
+      expect(result.context).toMatchObject({ playerLevel: 5, walletCoins: 100 })
     },
   },
   {
@@ -154,7 +156,7 @@ const successCases: SuccessCase[] = [
 ]
 
 describe('createFarmHandlers wiring', () => {
-  it('exposes exactly the eight farm channels', () => {
+  it('exposes exactly the nine farm channels', () => {
     const { handlers } = harness()
 
     expect(Object.keys(handlers).sort()).toEqual(
@@ -165,6 +167,7 @@ describe('createFarmHandlers wiring', () => {
         'harvest',
         'harvestAll',
         'plant',
+        'unlockPlot',
         'water',
         'waterAll',
       ].sort(),
@@ -197,6 +200,20 @@ describe('createFarmHandlers wiring', () => {
       expect(publishPetStatus).not.toHaveBeenCalled()
     },
   )
+
+  it('unlockPlot deducts coins, publishes wallet changes and refreshes pet status', async () => {
+    const { dir, handlers, publish, publishPetStatus } = harness()
+
+    const result = await handlers.unlockPlot({ plotIndex: 4 })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.state.plots[4]).toEqual({ status: 'empty' })
+    expect(result.context?.walletCoins).toBe(85)
+    expect(storedGame(dir).wallet.coins).toBe(85)
+    expect(publish).toHaveBeenCalledOnce()
+    expect(publishPetStatus).toHaveBeenCalledOnce()
+  })
 })
 
 describe('createFarmHandlers failures', () => {
@@ -284,6 +301,7 @@ describe('registerFarmIpc', () => {
     'farm:water',
     'farm:debug',
     'farm:harvest',
+    'farm:unlock-plot',
     'farm:claim-daily-seeds',
     'farm:water-all',
     'farm:harvest-all',

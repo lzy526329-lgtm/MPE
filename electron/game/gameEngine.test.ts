@@ -10,6 +10,7 @@ import {
   runFarmAction,
   toCompatFarmState,
   toGameActionResult,
+  unlockPlotWithPayment,
 } from './gameEngine'
 
 const legacyFarm: FarmState = {
@@ -259,5 +260,36 @@ describe('game state immutability', () => {
     expect(next.inventory.seeds).not.toBe(farm.seeds)
     expect(next.inventory.produce).not.toBe(farm.inventory)
     expect(next.wallet).not.toBe(game.wallet)
+  })
+})
+
+describe('gameEngine unlockPlotWithPayment', () => {
+  it('unlocks a plot and deducts coins when level is sufficient', () => {
+    const game = createDefaultGameState(1_000)
+    const result = unlockPlotWithPayment(game, 4, 0, 1_000)
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.game.wallet.coins).toBe(85)
+    expect(result.game.farm.plots[4]).toEqual({ status: 'empty' })
+  })
+
+  it('rejects unlock when level is too low', () => {
+    const game = createDefaultGameState(1_000)
+    const result = unlockPlotWithPayment(game, 9, 0, 1_000)
+
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.farm.error).toContain('等级')
+    expect(result.game.wallet.coins).toBe(100)
+  })
+
+  it('rejects unlock when coins are insufficient', () => {
+    const game = { ...createDefaultGameState(1_000), wallet: { coins: 5 } }
+    const result = unlockPlotWithPayment(game, 4, 0, 1_000)
+
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.farm.error).toContain('金币')
   })
 })

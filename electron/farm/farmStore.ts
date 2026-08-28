@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { CROPS, mergeLegacyProduce, mergeLegacySeeds, normalizeLegacyCropId, PLOT_COUNT } from './farmCatalog'
-import { createDefaultFarm, settle, type FarmActionResult } from './farmEngine'
+import { createDefaultFarm, migratePlotLocks, settle, type FarmActionResult } from './farmEngine'
 import type { CropId, FarmState, PlotState } from './farmTypes'
 
 type ParseFarmResult = {
@@ -33,6 +33,7 @@ function isCropId(value: unknown): value is CropId {
 
 function normalizePlot(value: unknown): PlotState {
   if (!isRecord(value) || value.status === 'empty') return { status: 'empty' }
+  if (value.status === 'locked') return { status: 'locked' }
   const rawStatus = value.status === 'withered' ? 'growing' : value.status
   if (rawStatus !== 'growing' && rawStatus !== 'ready') {
     return { status: 'empty' }
@@ -76,7 +77,7 @@ function normalizeFarmPayload(value: unknown, plotCount: number): FarmState | nu
 
   const seeds = mergeLegacySeeds(isNumberRecord(value.seeds) ? value.seeds : {})
   const inventory = mergeLegacyProduce(isNumberRecord(value.inventory) ? value.inventory : {})
-  const plots = value.plots.map(normalizePlot)
+  const plots = migratePlotLocks(value.plots.map(normalizePlot))
 
   return {
     version: 1,
@@ -93,7 +94,7 @@ function normalizeFarmPayload(value: unknown, plotCount: number): FarmState | nu
 
 function isPlotState(value: unknown): value is PlotState {
   if (!isRecord(value)) return false
-  if (value.status === 'empty') return true
+  if (value.status === 'empty' || value.status === 'locked') return true
   if (value.status !== 'growing' && value.status !== 'ready') return false
   return (
     isCropId(value.cropId) &&

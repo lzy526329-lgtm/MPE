@@ -1,11 +1,12 @@
 import { app, ipcMain, type BrowserWindow } from 'electron'
 
-import { notifyPetStatusChanged } from '../pet'
+import { notifyPetStatusChanged, getPetPlayerLevel } from '../pet'
 import {
   createDefaultGameState,
   runFarmAction,
   toCompatFarmState,
   toGameViewState,
+  unlockPlotWithPayment,
 } from '../game/gameEngine'
 import { readGameState, withGame, type GameStoreFileOps } from '../game/gameStore'
 import type { FarmGameMutationResult, GameViewState } from '../game/gameTypes'
@@ -21,7 +22,7 @@ import {
   waterAll,
   type FarmActionResult,
 } from './farmEngine'
-import type { CropId, FarmState } from './farmTypes'
+import type { CropId, FarmPageContext, FarmState } from './farmTypes'
 
 export const FARM_PERSISTENCE_ERROR = '保存失败，请重试'
 
@@ -34,6 +35,7 @@ export type FarmHandlers = {
   water: (request: PlotRequest) => Promise<FarmActionResult>
   debug: (request: PlotRequest) => Promise<FarmActionResult>
   harvest: (request: PlotRequest) => Promise<FarmActionResult>
+  unlockPlot: (request: PlotRequest) => Promise<FarmActionResult>
   claimDailySeeds: () => Promise<FarmActionResult>
   waterAll: () => Promise<FarmActionResult>
   harvestAll: () => Promise<FarmActionResult>
@@ -44,6 +46,7 @@ export type FarmHandlerName = keyof FarmHandlers
 export type FarmHandlerOptions = {
   userDataPath: () => string
   now: () => number
+  getPlayerLevel: () => number
   publish: (state: GameViewState) => void
   publishPetStatus: () => void
   fileOps?: Partial<GameStoreFileOps>
@@ -51,14 +54,23 @@ export type FarmHandlerOptions = {
 
 type FarmMutation = FarmGameMutationResult & { coinsChanged: boolean }
 
+function buildFarmContext(game: { wallet: { coins: number } }, playerLevel: number): FarmPageContext {
+  return {
+    playerLevel,
+    walletCoins: game.wallet.coins,
+  }
+}
+
+function attachContext(
+  result: FarmActionResult,
+  context: FarmPageContext,
+): FarmActionResult {
+  return { ...result, context }
+}
+
 export function createFarmHandlers(options: FarmHandlerOptions): FarmHandlers {
   const fileOps = options.fileOps ?? {}
 
-  /**
-   * A failed write leaves the previous `game.json` intact, so the state still on
-   * disk is what the renderer should keep showing. A default farm is the last
-   * resort when even that read is impossible.
-   */
   const fallbackFarm = (userDataPath: string, now: number): FarmState => {
     try {
       return toCompatFarmState(readGameState(userDataPath, now, fileOps).state)
@@ -67,16 +79,21 @@ export function createFarmHandlers(options: FarmHandlerOptions): FarmHandlers {
     }
   }
 
-  /**
-   * Every farm channel runs the same pipeline: settle offline progress, apply one
-   * pure farm action, commit the whole `GameState` once, then broadcast so the
-   * shop, backpack and farm pages stay in sync.
-   */
+  const fallbackContext = (userDataPath: string, now: number): FarmPageContext => {
+    try {
+      const game = readGameState(userDataPath, now, fileOps).state
+      return buildFarmContext(game, options.getPlayerLevel())
+    } catch {
+      return { playerLevel: options.getPlayerLevel(), walletCoins: 0 }
+    }
+  }
+
   const run = async (
     action: (farm: FarmState, now: number) => FarmActionResult,
   ): Promise<FarmActionResult> => {
     const now = options.now()
     const userDataPath = options.userDataPath()
+    const playerLevel = options.getPlayerLevel()
 
     let mutation: FarmMutation
     try {
@@ -92,15 +109,49 @@ export function createFarmHandlers(options: FarmHandlerOptions): FarmHandlers {
       )
     } catch (error) {
       console.error('[farm] failed to persist a farm action', error)
-      return { ok: false, error: FARM_PERSISTENCE_ERROR, state: fallbackFarm(userDataPath, now) }
+      return attachContext(
+        { ok: false, error: FARM_PERSISTENCE_ERROR, state: fallbackFarm(userDataPath, now) },
+        fallbackContext(userDataPath, now),
+      )
     }
 
-    if (!mutation.ok) return mutation.farm
+    const context = buildFarmContext(mutation.game, playerLevel)
+    if (!mutation.ok) return attachContext(mutation.farm, context)
     options.publish(toGameViewState(mutation.game))
-    // The pet status only surfaces coins, so it is refreshed only when a farm
-    // action actually moved the wallet.
     if (mutation.coinsChanged) options.publishPetStatus()
-    return mutation.farm
+    return attachContext(mutation.farm, context)
+  }
+
+  const runUnlock = async (plotIndex: number): Promise<FarmActionResult> => {
+    const now = options.now()
+    const userDataPath = options.userDataPath()
+    const playerLevel = options.getPlayerLevel()
+
+    let mutation: FarmMutation
+    try {
+      mutation = await withGame<FarmMutation>(
+        userDataPath,
+        now,
+        (game) => {
+          const coinsBefore = game.wallet.coins
+          const result = unlockPlotWithPayment(game, plotIndex, playerLevel, now)
+          return { ...result, coinsChanged: result.game.wallet.coins !== coinsBefore }
+        },
+        fileOps,
+      )
+    } catch (error) {
+      console.error('[farm] failed to unlock plot', error)
+      return attachContext(
+        { ok: false, error: FARM_PERSISTENCE_ERROR, state: fallbackFarm(userDataPath, now) },
+        fallbackContext(userDataPath, now),
+      )
+    }
+
+    const context = buildFarmContext(mutation.game, playerLevel)
+    if (!mutation.ok) return attachContext(mutation.farm, context)
+    options.publish(toGameViewState(mutation.game))
+    if (mutation.coinsChanged) options.publishPetStatus()
+    return attachContext(mutation.farm, context)
   }
 
   return {
@@ -109,6 +160,7 @@ export function createFarmHandlers(options: FarmHandlerOptions): FarmHandlers {
     water: (request) => run((farm, now) => water(farm, request.plotIndex, now)),
     debug: (request) => run((farm) => squashBug(farm, request.plotIndex)),
     harvest: (request) => run((farm, now) => harvest(farm, request.plotIndex, now)),
+    unlockPlot: (request) => runUnlock(request.plotIndex),
     claimDailySeeds: () => run((farm, now) => claimDailySeeds(farm, now)),
     waterAll: () => run((farm, now) => waterAll(farm, now)),
     harvestAll: () => run((farm, now) => harvestAll(farm, now)),
@@ -119,6 +171,7 @@ export function registerFarmIpc(getMain: () => BrowserWindow | null): void {
   const handlers = createFarmHandlers({
     userDataPath: () => app.getPath('userData'),
     now: Date.now,
+    getPlayerLevel: getPetPlayerLevel,
     publish: (state) => getMain()?.webContents.send('game:state-changed', state),
     publishPetStatus: notifyPetStatusChanged,
   })
@@ -128,6 +181,7 @@ export function registerFarmIpc(getMain: () => BrowserWindow | null): void {
   ipcMain.handle('farm:water', (_event, request: PlotRequest) => handlers.water(request))
   ipcMain.handle('farm:debug', (_event, request: PlotRequest) => handlers.debug(request))
   ipcMain.handle('farm:harvest', (_event, request: PlotRequest) => handlers.harvest(request))
+  ipcMain.handle('farm:unlock-plot', (_event, request: PlotRequest) => handlers.unlockPlot(request))
   ipcMain.handle('farm:claim-daily-seeds', () => handlers.claimDailySeeds())
   ipcMain.handle('farm:water-all', () => handlers.waterAll())
   ipcMain.handle('farm:harvest-all', () => handlers.harvestAll())

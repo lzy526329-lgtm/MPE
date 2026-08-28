@@ -1,6 +1,26 @@
 import type { CropDef, CropId } from './farmTypes'
 
 export const PLOT_COUNT = 24
+export const INITIAL_UNLOCKED_PLOTS = 4
+
+export type PlotUnlockRequirement = {
+  level: number
+  coins: number
+}
+
+/** 第 5 块起按序号递增等级与金币需求 */
+export function plotUnlockRequirement(plotIndex: number): PlotUnlockRequirement | null {
+  if (plotIndex < INITIAL_UNLOCKED_PLOTS || plotIndex >= PLOT_COUNT) return null
+  const tier = plotIndex - INITIAL_UNLOCKED_PLOTS
+  return {
+    level: Math.floor(tier / 5),
+    coins: 15 + tier * 10,
+  }
+}
+
+export function isPlotLocked(plot: { status: string }): boolean {
+  return plot.status === 'locked'
+}
 
 export const LEGACY_CROP_IDS = ['lettuce', 'tomato', 'pumpkin'] as const
 

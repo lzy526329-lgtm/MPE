@@ -2,9 +2,9 @@ import type { CropId } from '../electron/farm/farmTypes'
 
 export const FARM_ASSETS = {
   bg: '/farm/farm-bg.png',
-  /** 未开垦：等距草地块（透明底；?v= 用于强制刷新旧缓存） */
+  /** 未解锁：等距草地块 */
   plotIsoEmpty: '/farm/dikuai2.png?v=4',
-  /** 开垦/种植：等距土块 */
+  /** 已解锁空地 / 种植：等距土块 dikuai1 */
   plotIsoSoil: '/farm/dikuai1.png?v=4',
   wheatStages: [
     '/farm/小麦/1-cutout.png',
@@ -45,7 +45,7 @@ export type PlotLayoutConfig = {
 /** farm-bg.png 设计稿宽度；地块按此统一缩放，保证与背景等比 */
 export const LAYOUT_REF_WIDTH = 2516
 
-/** 当前写入代码的默认布局；页面「调布局」工具会基于此微调 */
+/** 当前默认布局 */
 export const DEFAULT_PLOT_LAYOUT_CONFIG: PlotLayoutConfig = {
   width: 14,
   cols: 4,
@@ -55,8 +55,6 @@ export const DEFAULT_PLOT_LAYOUT_CONFIG: PlotLayoutConfig = {
   colStep: { left: 7, top: 5.3 },
   offsetPx: { left: 13, top: -48 },
 }
-
-const LAYOUT_STORAGE_KEY = 'farm-plot-layout-draft'
 
 export function buildPlotLayout(config: PlotLayoutConfig = DEFAULT_PLOT_LAYOUT_CONFIG): PlotLayout[] {
   return Array.from({ length: config.cols * config.rows }, (_, index) => {
@@ -69,6 +67,8 @@ export function buildPlotLayout(config: PlotLayoutConfig = DEFAULT_PLOT_LAYOUT_C
     }
   })
 }
+
+export const PLOT_LAYOUT = buildPlotLayout()
 
 /** 布局 top（相对 stage 高度 %）→ 统一按容器宽度 cqw 渲染，避免逐行累积错位 */
 export function layoutTopToCqw(topPercent: number): number {
@@ -137,10 +137,8 @@ export function applyPlotPositions(
 export function syncFarmPlotLayout(container: ParentNode, config?: PlotLayoutConfig): void {
   const stage = container.querySelector<HTMLElement>('.farm-stage')
   if (!stage) return
-  applyPlotPositions(container, stage, config ?? loadPlotLayoutDraft())
+  applyPlotPositions(container, stage, config ?? DEFAULT_PLOT_LAYOUT_CONFIG)
 }
-
-export const PLOT_LAYOUT = buildPlotLayout()
 
 /** 等距深度：越大越靠近镜头，应叠在上层 */
 export function plotRenderDepth(index: number, config: PlotLayoutConfig = DEFAULT_PLOT_LAYOUT_CONFIG): number {
@@ -300,43 +298,11 @@ export function findPlotIndexAtClientPoint(
   return bestIndex
 }
 
-export function plotTileStyle(_index: number, _config: PlotLayoutConfig = DEFAULT_PLOT_LAYOUT_CONFIG): string {
-  return ''
-}
+export type PlotSoilDisplay = 'empty' | 'growing' | 'dry' | 'bug' | 'ready' | 'locked'
 
-export function loadPlotLayoutDraft(): PlotLayoutConfig {
-  try {
-    const raw = localStorage.getItem(LAYOUT_STORAGE_KEY)
-    if (!raw) return structuredClone(DEFAULT_PLOT_LAYOUT_CONFIG)
-    return { ...DEFAULT_PLOT_LAYOUT_CONFIG, ...JSON.parse(raw) }
-  } catch {
-    return structuredClone(DEFAULT_PLOT_LAYOUT_CONFIG)
-  }
-}
-
-export function savePlotLayoutDraft(config: PlotLayoutConfig) {
-  localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(config))
-}
-
-export function clearPlotLayoutDraft() {
-  localStorage.removeItem(LAYOUT_STORAGE_KEY)
-}
-
-export function formatPlotLayoutConfigForCode(config: PlotLayoutConfig): string {
-  const round = (n: number) => Math.round(n * 1000) / 1000
-  return [
-    `PLOT_WIDTH = ${round(config.width)}`,
-    `PLOT_ORIGIN = { left: ${round(config.origin.left)}, top: ${round(config.origin.top)} }`,
-    `PLOT_ROW_STEP = { left: ${round(config.rowStep.left)}, top: ${round(config.rowStep.top)} }`,
-    `PLOT_COL_STEP = { left: ${round(config.colStep.left)}, top: ${round(config.colStep.top)} }`,
-    `PLOT_OFFSET_PX = { left: ${Math.round(config.offsetPx.left)}, top: ${Math.round(config.offsetPx.top)} }`,
-  ].join('\n')
-}
-
-export type PlotSoilDisplay = 'empty' | 'growing' | 'dry' | 'bug' | 'ready'
-
-export function plotSoilSrc(display: PlotSoilDisplay): string {
-  if (display === 'empty') return FARM_ASSETS.plotIsoEmpty
+export function plotSoilSrc(display: PlotSoilDisplay): string | null {
+  if (display === 'empty') return FARM_ASSETS.plotIsoSoil
+  if (display === 'locked') return FARM_ASSETS.plotIsoEmpty
   return FARM_ASSETS.plotIsoSoil
 }
 

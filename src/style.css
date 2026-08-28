@@ -2924,157 +2924,6 @@ input[type="range"] {
   align-items: center;
 }
 
-.farm-layout-edit-toggle {
-  margin-left: auto;
-  padding: 6px 10px;
-  border: 1px dashed rgba(58, 90, 40, 0.35);
-  border-radius: 999px;
-  background: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  color: #3a5a28;
-  cursor: pointer;
-}
-
-.farm-layout-edit-toggle:hover {
-  background: #f4fbee;
-}
-
-.farm-hit-debug-toggle {
-  padding: 6px 10px;
-  border: 1px dashed rgba(200, 60, 60, 0.35);
-  border-radius: 999px;
-  background: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  color: #a33;
-  cursor: pointer;
-}
-
-.farm-hit-debug-toggle:hover {
-  background: #fff5f5;
-}
-
-.farm-stage--hit-debug {
-  cursor: crosshair;
-}
-
-/* 命中区 = dikuai1 透明菱形；百分比相对地块，尺寸随地块等比，无 stage 级 SVG 缩放 */
-.farm-stage--hit-debug .farm-plot-tile::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  pointer-events: none;
-  background: rgba(255, 40, 40, 0.22);
-  clip-path: polygon(48.8% 22.1%, 93.9% 50.1%, 49.9% 78.1%, 5.8% 50.1%);
-  -webkit-clip-path: polygon(48.8% 22.1%, 93.9% 50.1%, 49.9% 78.1%, 5.8% 50.1%);
-  filter: drop-shadow(0 0 0 2px rgba(220, 30, 30, 0.9));
-}
-
-.farm-plot-hit-debug {
-  display: none !important;
-}
-
-.farm-stage--layout-edit {
-  cursor: grab;
-  outline: 2px dashed rgba(106, 158, 74, 0.55);
-  outline-offset: -2px;
-}
-
-.farm-stage--layout-edit:active {
-  cursor: grabbing;
-}
-
-.farm-layout-panel {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  z-index: 20;
-  width: min(280px, calc(100% - 24px));
-  padding: 12px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  font-size: 12px;
-  color: #2f4a22;
-}
-
-.farm-layout-panel__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.farm-layout-panel__close {
-  border: none;
-  background: transparent;
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-  color: #5a7348;
-}
-
-.farm-layout-panel__hint {
-  margin: 0 0 10px;
-  line-height: 1.5;
-  color: #5a7348;
-}
-
-.farm-layout-field {
-  display: grid;
-  gap: 4px;
-  margin-bottom: 8px;
-}
-
-.farm-layout-field input {
-  width: 100%;
-  padding: 6px 8px;
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  border-radius: 8px;
-  font: inherit;
-}
-
-.farm-layout-panel__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-
-.farm-layout-panel__actions button {
-  flex: 1 1 calc(50% - 6px);
-  padding: 6px 8px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
-  background: #f7faf4;
-  cursor: pointer;
-  font: inherit;
-}
-
-.farm-layout-panel__actions--primary .farm-layout-panel__confirm {
-  flex: 1 1 100%;
-  background: #6a9e4a;
-  border-color: #6a9e4a;
-  color: #fff;
-  font-weight: 700;
-}
-
-.farm-layout-panel__code {
-  margin: 0 0 8px;
-  padding: 8px;
-  border-radius: 8px;
-  background: #1e2a18;
-  color: #d7f0c2;
-  font-size: 11px;
-  line-height: 1.45;
-  white-space: pre-wrap;
-  word-break: break-word;
-  max-height: 120px;
-  overflow: auto;
-}
-
 .farm-hud-pill {
   padding: 6px 12px;
   border-radius: 999px;
@@ -3097,6 +2946,28 @@ input[type="range"] {
 
 .farm-plot-tile--dry .farm-plot-soil {
   filter: saturate(0.75) brightness(1.08) sepia(0.25) drop-shadow(0 3px 6px rgba(0, 0, 0, 0.15));
+}
+
+/* 未解锁：仅显示绿色草地块，不叠加额外标记 */
+.farm-plot-tile--locked .farm-plot-soil {
+  opacity: 0.92;
+}
+
+.farm-plot-unlock-label {
+  position: absolute;
+  top: calc(var(--plot-face-y, 0.5) * 100% - 16px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.45);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  z-index: 2;
+  white-space: nowrap;
 }
 
 .farm-plot-soil {

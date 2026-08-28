@@ -549,6 +549,10 @@ export function getPetStatus(): PetStatus {
   }
 }
 
+export function getPetPlayerLevel(): number {
+  return getPetProfile().level ?? 0
+}
+
 function notifyStatusChanged(status = getPetStatus()) {
   getMainWindow()?.webContents.send('pet:status-changed', status)
   if (petWin && !petWin.isDestroyed()) {

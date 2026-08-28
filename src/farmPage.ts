@@ -1,20 +1,19 @@
-import { CROPS } from '../electron/farm/farmCatalog'
-import type { CropId, FarmState, PlotState, Weather } from '../electron/farm/farmTypes'
+import { CROPS, plotUnlockRequirement } from '../electron/farm/farmCatalog'
+import type { CropId, FarmPageContext, FarmState, PlotState, Weather } from '../electron/farm/farmTypes'
 import {
   cropGrowthStage,
   cropSpriteStyle,
   FARM_ASSETS,
   findPlotIndexAtClientPoint,
-  loadPlotLayoutDraft,
   plotSoilSrc,
   syncFarmPlotLayout,
   toolbarIconStyle,
 } from './farmAssets'
 import { onPageChange } from './appNavigation'
-import { syncFarmPlotLayoutEditor, isFarmLayoutEditEnabled } from './farmPlotLayoutEditor'
-import { refreshFarmPlotHitDebugIfEnabled, syncFarmPlotHitDebug } from './farmPlotHitDebug'
 
-type PlotDisplayStatus = 'empty' | 'growing' | 'dry' | 'bug' | 'ready'
+type PlotDisplayStatus = 'empty' | 'growing' | 'dry' | 'bug' | 'ready' | 'locked'
+
+const DEFAULT_FARM_CONTEXT: FarmPageContext = { playerLevel: 0, walletCoins: 0 }
 
 const WEATHER_LABEL: Record<Weather, string> = {
   clear: '☀️ 晴天',
@@ -33,6 +32,7 @@ function waterIntervalMs(cropId: CropId, weather: Weather): number {
 }
 
 function getPlotDisplayStatus(plot: PlotState, weather: Weather, now: number): PlotDisplayStatus {
+  if (plot.status === 'locked') return 'locked'
   if (plot.status === 'empty') return 'empty'
   if (plot.status === 'ready') return 'ready'
   if (weather === 'rain') return plot.hasBug ? 'bug' : 'growing'
@@ -55,22 +55,15 @@ function itemNameMap(): Record<string, string> {
   return Object.fromEntries(Object.values(CROPS).map((c) => [c.yieldItemId, c.name]))
 }
 
-function plotHint(plot: PlotState, state: FarmState, now: number): string {
+function renderPlot(
+  plot: PlotState,
+  index: number,
+  state: FarmState,
+  now: number,
+  context: FarmPageContext,
+): string {
   const display = getPlotDisplayStatus(plot, state.weather, now)
-  if (display === 'dry') return '缺水 · 点击浇水'
-  if (display === 'bug') return '生虫 · 点击除虫'
-  if (display === 'ready') return '成熟 · 点击收割'
-  if (display === 'growing' && plot.status !== 'empty') {
-    const crop = CROPS[plot.cropId]
-    const progress = Math.min(100, Math.round((plot.progressMs / crop.growMs) * 100))
-    return `${progress}%`
-  }
-  return ''
-}
-
-function renderPlot(plot: PlotState, index: number, state: FarmState, now: number): string {
-  const display = getPlotDisplayStatus(plot, state.weather, now)
-  const crop = plot.status !== 'empty' ? CROPS[plot.cropId] : null
+  const crop = plot.status !== 'empty' && plot.status !== 'locked' ? CROPS[plot.cropId] : null
   const ready = plot.status === 'ready'
   const progress =
     crop && plot.status !== 'empty'
@@ -78,7 +71,6 @@ function renderPlot(plot: PlotState, index: number, state: FarmState, now: numbe
       : 0
   const stage = crop && plot.status !== 'empty' ? cropGrowthStage(progress / 100, ready) : 0
   const soil = plotSoilSrc(display)
-  const hint = plotHint(plot, state, now)
 
   const cropLayer =
     crop && plot.status !== 'empty'
@@ -90,12 +82,17 @@ function renderPlot(plot: PlotState, index: number, state: FarmState, now: numbe
   if (display === 'ready') badges.push('<span class="farm-plot-badge farm-plot-badge--ready">熟</span>')
   if (display === 'dry') badges.push('<span class="farm-plot-badge farm-plot-badge--dry">旱</span>')
 
+  const soilLayer = soil
+    ? `<img class="farm-plot-soil" src="${soil}" alt="" draggable="false" />`
+    : ''
+  const unlockLabel = display === 'locked' ? '<span class="farm-plot-unlock-label">解锁</span>' : ''
+
   return `
-    <button class="farm-plot-tile farm-plot-tile--${display}" type="button" data-plot="${index}" aria-label="地块 ${index + 1} ${hint}">
-      <img class="farm-plot-soil" src="${soil}" alt="" draggable="false" />
+    <button class="farm-plot-tile farm-plot-tile--${display}" type="button" data-plot="${index}" aria-label="地块 ${index + 1}${display === 'locked' ? ' 解锁' : ''}">
+      ${soilLayer}
       ${cropLayer}
       <div class="farm-plot-badges">${badges.join('')}</div>
-      <span class="farm-plot-hint">${escapeHtml(hint)}</span>
+      ${unlockLabel}
     </button>
   `
 }
@@ -115,7 +112,13 @@ function renderSeedPicker(seeds: Record<string, number>, selected: CropId): stri
     .join('')
 }
 
-function renderFarm(state: FarmState, selectedCrop: CropId, now: number, toast: string): string {
+function renderFarm(
+  state: FarmState,
+  selectedCrop: CropId,
+  now: number,
+  toast: string,
+  context: FarmPageContext,
+): string {
   const seedNames = cropNameMap()
   const invNames = itemNameMap()
   const todayClaimed = state.lastDailySeedClaimAt === localDateKey(now)
@@ -128,6 +131,8 @@ function renderFarm(state: FarmState, selectedCrop: CropId, now: number, toast: 
   return `
     <div class="farm-scene">
       <div class="farm-hud">
+        <div class="farm-hud-pill">⭐ Lv.${context.playerLevel}</div>
+        <div class="farm-hud-pill">🪙 ${context.walletCoins}</div>
         <div class="farm-hud-pill">${WEATHER_LABEL[state.weather]}</div>
         <div class="farm-hud-pill">🌱 ${escapeHtml(formatRecordSummary(state.seeds, seedNames))}</div>
         <div class="farm-hud-pill">🧺 ${escapeHtml(formatRecordSummary(state.inventory, invNames))}</div>
@@ -136,7 +141,7 @@ function renderFarm(state: FarmState, selectedCrop: CropId, now: number, toast: 
       ${toast ? `<p class="farm-toast" role="status">${escapeHtml(toast)}</p>` : ''}
 
       <div class="farm-stage" style="background-image:url('${FARM_ASSETS.bg}')">
-        ${state.plots.map((plot, i) => renderPlot(plot, i, state, now)).join('')}
+        ${state.plots.map((plot, i) => renderPlot(plot, i, state, now, context)).join('')}
       </div>
 
       <div class="farm-toolbar">
@@ -189,6 +194,7 @@ export function mountFarmPage() {
 
 function setupFarmPage(farmRoot: HTMLElement) {
   let farmState: FarmState | null = null
+  let farmContext: FarmPageContext = DEFAULT_FARM_CONTEXT
   let selectedCrop: CropId = 'wheat'
   let busy = false
   let toast = ''
@@ -216,23 +222,28 @@ function setupFarmPage(farmRoot: HTMLElement) {
     if (!plot) return
 
     const display = getPlotDisplayStatus(plot, farmState.weather, now)
-    const crop = plot.status !== 'empty' ? CROPS[plot.cropId] : null
+    const crop = plot.status !== 'empty' && plot.status !== 'locked' ? CROPS[plot.cropId] : null
     const ready = plot.status === 'ready'
     const progress =
       crop && plot.status !== 'empty'
         ? Math.min(100, Math.round((plot.progressMs / crop.growMs) * 100))
         : 0
     const stage = crop && plot.status !== 'empty' ? cropGrowthStage(progress / 100, ready) : 0
-    const hint = plotHint(plot, farmState, now)
 
     btn.className = `farm-plot-tile farm-plot-tile--${display}`
-    btn.setAttribute('aria-label', `地块 ${plotIndex + 1} ${hint}`)
+    btn.setAttribute('aria-label', `地块 ${plotIndex + 1}${display === 'locked' ? ' 解锁' : ''}`)
 
-    const soil = btn.querySelector<HTMLImageElement>('.farm-plot-soil')
-    if (soil) soil.src = plotSoilSrc(display)
-
-    const hintEl = btn.querySelector<HTMLElement>('.farm-plot-hint')
-    if (hintEl) hintEl.textContent = hint
+    const soilSrc = plotSoilSrc(display)
+    let soil = btn.querySelector<HTMLImageElement>('.farm-plot-soil')
+    if (soilSrc) {
+      if (!soil) {
+        btn.insertAdjacentHTML('afterbegin', `<img class="farm-plot-soil" alt="" draggable="false" />`)
+        soil = btn.querySelector<HTMLImageElement>('.farm-plot-soil')
+      }
+      if (soil) soil.src = soilSrc
+    } else {
+      soil?.remove()
+    }
 
     const badges: string[] = []
     if (display === 'bug') badges.push('<span class="farm-plot-badge farm-plot-badge--bug">虫</span>')
@@ -240,6 +251,16 @@ function setupFarmPage(farmRoot: HTMLElement) {
     if (display === 'dry') badges.push('<span class="farm-plot-badge farm-plot-badge--dry">旱</span>')
     const badgesEl = btn.querySelector<HTMLElement>('.farm-plot-badges')
     if (badgesEl) badgesEl.innerHTML = badges.join('')
+
+    let unlockEl = btn.querySelector<HTMLElement>('.farm-plot-unlock-label')
+    if (display === 'locked') {
+      if (!unlockEl) {
+        btn.insertAdjacentHTML('beforeend', '<span class="farm-plot-unlock-label">解锁</span>')
+        unlockEl = btn.querySelector<HTMLElement>('.farm-plot-unlock-label')
+      }
+    } else {
+      unlockEl?.remove()
+    }
 
     let cropEl = btn.querySelector<HTMLElement>('.farm-crop-sprite')
     if (crop && plot.status !== 'empty') {
@@ -282,9 +303,8 @@ function setupFarmPage(farmRoot: HTMLElement) {
   let plotLayoutResizeStage: HTMLElement | null = null
   let plotLayoutResizeObserver: ResizeObserver | null = null
 
-  function syncPlotLayoutAndHitDebug() {
+  function syncPlotLayout() {
     syncFarmPlotLayout(farmRoot)
-    refreshFarmPlotHitDebugIfEnabled(farmRoot.querySelector<HTMLElement>('.farm-stage'))
   }
 
   function ensurePlotLayoutResizeObserver() {
@@ -292,7 +312,7 @@ function setupFarmPage(farmRoot: HTMLElement) {
     if (!stage || plotLayoutResizeStage === stage) return
     plotLayoutResizeObserver?.disconnect()
     plotLayoutResizeStage = stage
-    plotLayoutResizeObserver = new ResizeObserver(() => syncPlotLayoutAndHitDebug())
+    plotLayoutResizeObserver = new ResizeObserver(() => syncPlotLayout())
     plotLayoutResizeObserver.observe(stage)
   }
 
@@ -301,18 +321,17 @@ function setupFarmPage(farmRoot: HTMLElement) {
       farmRoot.innerHTML = '<p class="sysinfo-loading">加载农场…</p>'
       return
     }
-    farmRoot.innerHTML = renderFarm(farmState, selectedCrop, Date.now(), toast)
+    farmRoot.innerHTML = renderFarm(farmState, selectedCrop, Date.now(), toast, farmContext)
     bindEvents()
-    syncPlotLayoutAndHitDebug()
+    syncPlotLayout()
     ensurePlotLayoutResizeObserver()
-    syncFarmPlotLayoutEditor(farmRoot, showToast)
-    syncFarmPlotHitDebug(farmRoot)
   }
 
   async function refresh() {
     try {
       const result = await window.electronAPI.farmGetState()
       farmState = result.state
+      farmContext = result.context ?? DEFAULT_FARM_CONTEXT
       if (!result.ok) showToast(result.error ?? '读取失败')
       selectedCrop = defaultSelectedCrop(farmState.seeds)
       paint()
@@ -323,7 +342,7 @@ function setupFarmPage(farmRoot: HTMLElement) {
   }
 
   async function runAction(
-    fn: () => Promise<{ ok: boolean; error?: string; state: FarmState }>,
+    fn: () => Promise<{ ok: boolean; error?: string; state: FarmState; context?: FarmPageContext }>,
     successMsg?: string,
   ) {
     if (busy) return
@@ -331,6 +350,7 @@ function setupFarmPage(farmRoot: HTMLElement) {
     try {
       const result = await fn()
       farmState = result.state
+      if (result.context) farmContext = result.context
       if (!result.ok) {
         showToast(result.error ?? '操作失败')
       } else if (successMsg) {
@@ -349,6 +369,24 @@ function setupFarmPage(farmRoot: HTMLElement) {
     if (!farmState) return
     const plot = farmState.plots[plotIndex]
     const display = getPlotDisplayStatus(plot, farmState.weather, Date.now())
+
+    if (display === 'locked') {
+      const req = plotUnlockRequirement(plotIndex)
+      if (!req) return
+      if (farmContext.playerLevel < req.level) {
+        showToast(`需要等级 ${req.level} 才能解锁（${req.coins} 金币）`)
+        return
+      }
+      if (farmContext.walletCoins < req.coins) {
+        showToast(`金币不足，解锁需要 ${req.coins} 金币`)
+        return
+      }
+      void runAction(
+        () => window.electronAPI.farmUnlockPlot({ plotIndex }),
+        `已花费 ${req.coins} 金币解锁地块`,
+      )
+      return
+    }
 
     if (plot.status === 'empty') {
       const count = farmState.seeds[selectedCrop] ?? 0
@@ -385,13 +423,8 @@ function setupFarmPage(farmRoot: HTMLElement) {
   function bindEvents() {
     const stage = farmRoot.querySelector<HTMLElement>('.farm-stage')
     stage?.addEventListener('click', (event) => {
-      if (!stage || isFarmLayoutEditEnabled()) return
-      const plotIndex = findPlotIndexAtClientPoint(
-        stage,
-        event.clientX,
-        event.clientY,
-        loadPlotLayoutDraft(),
-      )
+      if (!stage) return
+      const plotIndex = findPlotIndexAtClientPoint(stage, event.clientX, event.clientY)
       if (plotIndex === null) return
       handlePlotClick(plotIndex)
     })

@@ -3,16 +3,19 @@ import {
   CROPS,
   DAILY_SEEDS,
   DEFAULT_SEEDS,
+  INITIAL_UNLOCKED_PLOTS,
   PLOT_COUNT,
   RAIN_CHANCE,
   WEATHER_COOLDOWN_MS,
   getCrop,
+  isPlotLocked,
+  plotUnlockRequirement,
 } from './farmCatalog'
 import type { CropId, FarmState, PlotPlanted, PlotState, Weather } from './farmTypes'
 
 export type FarmActionResult =
-  | { ok: true; state: FarmState }
-  | { ok: false; error: string; state: FarmState }
+  | { ok: true; state: FarmState; context?: import('./farmTypes').FarmPageContext }
+  | { ok: false; error: string; state: FarmState; context?: import('./farmTypes').FarmPageContext }
 
 type FarmStateWithEvents = FarmState & { lastWeatherRollAt?: number }
 
@@ -90,11 +93,35 @@ function success(state: FarmState): FarmActionResult {
   return { ok: true, state }
 }
 
+export function createDefaultPlots(): PlotState[] {
+  return Array.from({ length: PLOT_COUNT }, (_, index) =>
+    index < INITIAL_UNLOCKED_PLOTS ? { status: 'empty' } : { status: 'locked' },
+  )
+}
+
+/** 旧存档（全部为空地）：前 4 格可用，其余锁定。已有 locked 状态的存档保留玩家解锁结果。 */
+export function migratePlotLocks(plots: PlotState[]): PlotState[] {
+  const hasLockState = plots.some((plot) => plot.status === 'locked')
+  if (hasLockState) {
+    return plots.map((plot, index) =>
+      index < INITIAL_UNLOCKED_PLOTS && plot.status === 'locked' ? { status: 'empty' } : plot,
+    )
+  }
+
+  return plots.map((plot, index) => {
+    if (index < INITIAL_UNLOCKED_PLOTS) {
+      return plot.status === 'locked' ? { status: 'empty' } : plot
+    }
+    if (plot.status === 'growing' || plot.status === 'ready') return plot
+    return { status: 'locked' }
+  })
+}
+
 export function createDefaultFarm(now: number): FarmState {
   return {
     version: 1,
     plotCount: PLOT_COUNT,
-    plots: Array.from({ length: PLOT_COUNT }, () => ({ status: 'empty' })),
+    plots: createDefaultPlots(),
     inventory: {},
     seeds: cloneRecord(DEFAULT_SEEDS),
     weather: 'clear',
@@ -125,6 +152,9 @@ export function plant(state: FarmState, plotIndex: number, cropId: CropId, now: 
   }
 
   const plot = state.plots[plotIndex]
+  if (isPlotLocked(plot)) {
+    return failure(state, '这块地还没解锁')
+  }
   if (plot.status !== 'empty') {
     return failure(state, '这块地已经有作物了')
   }
@@ -161,6 +191,9 @@ export function water(state: FarmState, plotIndex: number, now: number): FarmAct
   }
 
   const plot = state.plots[plotIndex]
+  if (isPlotLocked(plot)) {
+    return failure(state, '这块地还没解锁')
+  }
   if (plot.status !== 'growing' && plot.status !== 'ready') {
     return failure(state, '这块地现在不用浇水')
   }
@@ -210,6 +243,9 @@ export function squashBug(state: FarmState, plotIndex: number): FarmActionResult
   }
 
   const plot = state.plots[plotIndex]
+  if (isPlotLocked(plot)) {
+    return failure(state, '这块地还没解锁')
+  }
   if (plot.status === 'empty' || !plot.hasBug) {
     return failure(state, '这里没有虫子')
   }
@@ -230,6 +266,9 @@ export function harvest(
   }
 
   const plot = state.plots[plotIndex]
+  if (isPlotLocked(plot)) {
+    return failure(state, '这块地还没解锁')
+  }
   if (plot.status !== 'ready') {
     return failure(state, '还没成熟，不能收割')
   }
@@ -254,6 +293,23 @@ export function harvest(
   )
 }
 
+export function unlockPlot(state: FarmState, plotIndex: number): FarmActionResult {
+  if (!validPlot(state, plotIndex)) {
+    return failure(state, '地块无效')
+  }
+
+  const plot = state.plots[plotIndex]
+  if (!isPlotLocked(plot)) {
+    return failure(state, '这块地已经解锁了')
+  }
+
+  if (!plotUnlockRequirement(plotIndex)) {
+    return failure(state, '这块地无需解锁')
+  }
+
+  return success(replacePlot(state, plotIndex, { status: 'empty' }))
+}
+
 export function claimDailySeeds(state: FarmState, now: number): FarmActionResult {
   const today = localDateKey(now)
   if (state.lastDailySeedClaimAt === today) {
@@ -276,7 +332,7 @@ export function rollOpenEvents(state: FarmState, now: number, rng: () => number 
   const withBugs: FarmState = {
     ...state,
     plots: state.plots.map((plot) => {
-      if (plot.status !== 'growing' || plot.hasBug) {
+      if (plot.status !== 'growing' || plot.hasBug || isPlotLocked(plot)) {
         return plot
       }
 
