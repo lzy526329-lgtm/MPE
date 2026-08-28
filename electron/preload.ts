@@ -272,8 +272,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('farm:debug', request),
   farmHarvest: (request: { plotIndex: number }): Promise<FarmActionResult> =>
     ipcRenderer.invoke('farm:harvest', request),
-  farmClearWithered: (request: { plotIndex: number }): Promise<FarmActionResult> =>
-    ipcRenderer.invoke('farm:clear-withered', request),
   farmClaimDailySeeds: (): Promise<FarmActionResult> =>
     ipcRenderer.invoke('farm:claim-daily-seeds'),
   farmWaterAll: (): Promise<FarmActionResult> => ipcRenderer.invoke('farm:water-all'),

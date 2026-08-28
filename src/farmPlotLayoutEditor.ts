@@ -1,10 +1,10 @@
 import { refreshFarmPlotHitDebugIfEnabled } from './farmPlotHitDebug'
 import {
+  applyPlotPositions,
   clearPlotLayoutDraft,
   DEFAULT_PLOT_LAYOUT_CONFIG,
   formatPlotLayoutConfigForCode,
   loadPlotLayoutDraft,
-  plotTileStyle,
   savePlotLayoutDraft,
   type PlotLayoutConfig,
 } from './farmAssets'
@@ -33,11 +33,9 @@ function setFarmLayoutEditEnabled(enabled: boolean) {
 }
 
 function applyPlotLayoutToDom(root: ParentNode, config: PlotLayoutConfig) {
-  root.querySelectorAll<HTMLElement>('.farm-plot-tile').forEach((tile) => {
-    const index = Number(tile.dataset.plot)
-    if (!Number.isInteger(index)) return
-    tile.setAttribute('style', plotTileStyle(index, config))
-  })
+  const stage = root.querySelector<HTMLElement>('.farm-stage')
+  if (!stage) return
+  applyPlotPositions(root, stage, config)
 }
 
 function roundInput(value: number, digits = 2): number {

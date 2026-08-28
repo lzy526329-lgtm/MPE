@@ -170,7 +170,6 @@ declare global {
       farmWater: (request: { plotIndex: number }) => Promise<FarmActionResult>
       farmDebug: (request: { plotIndex: number }) => Promise<FarmActionResult>
       farmHarvest: (request: { plotIndex: number }) => Promise<FarmActionResult>
-      farmClearWithered: (request: { plotIndex: number }) => Promise<FarmActionResult>
       farmClaimDailySeeds: () => Promise<FarmActionResult>
       farmWaterAll: () => Promise<FarmActionResult>
       farmHarvestAll: () => Promise<FarmActionResult>

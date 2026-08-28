@@ -11,7 +11,6 @@ import { readGameState, withGame, type GameStoreFileOps } from '../game/gameStor
 import type { FarmGameMutationResult, GameViewState } from '../game/gameTypes'
 import {
   claimDailySeeds,
-  clearWithered,
   harvest,
   harvestAll,
   plant,
@@ -35,7 +34,6 @@ export type FarmHandlers = {
   water: (request: PlotRequest) => Promise<FarmActionResult>
   debug: (request: PlotRequest) => Promise<FarmActionResult>
   harvest: (request: PlotRequest) => Promise<FarmActionResult>
-  clearWithered: (request: PlotRequest) => Promise<FarmActionResult>
   claimDailySeeds: () => Promise<FarmActionResult>
   waterAll: () => Promise<FarmActionResult>
   harvestAll: () => Promise<FarmActionResult>
@@ -111,7 +109,6 @@ export function createFarmHandlers(options: FarmHandlerOptions): FarmHandlers {
     water: (request) => run((farm, now) => water(farm, request.plotIndex, now)),
     debug: (request) => run((farm) => squashBug(farm, request.plotIndex)),
     harvest: (request) => run((farm, now) => harvest(farm, request.plotIndex, now)),
-    clearWithered: (request) => run((farm) => clearWithered(farm, request.plotIndex)),
     claimDailySeeds: () => run((farm, now) => claimDailySeeds(farm, now)),
     waterAll: () => run((farm, now) => waterAll(farm, now)),
     harvestAll: () => run((farm, now) => harvestAll(farm, now)),
@@ -131,9 +128,6 @@ export function registerFarmIpc(getMain: () => BrowserWindow | null): void {
   ipcMain.handle('farm:water', (_event, request: PlotRequest) => handlers.water(request))
   ipcMain.handle('farm:debug', (_event, request: PlotRequest) => handlers.debug(request))
   ipcMain.handle('farm:harvest', (_event, request: PlotRequest) => handlers.harvest(request))
-  ipcMain.handle('farm:clear-withered', (_event, request: PlotRequest) =>
-    handlers.clearWithered(request),
-  )
   ipcMain.handle('farm:claim-daily-seeds', () => handlers.claimDailySeeds())
   ipcMain.handle('farm:water-all', () => handlers.waterAll())
   ipcMain.handle('farm:harvest-all', () => handlers.harvestAll())

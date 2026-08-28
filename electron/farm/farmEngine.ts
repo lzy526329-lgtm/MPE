@@ -28,7 +28,6 @@ function localDateKey(now: number): string {
   return `${year}-${month}-${day}`
 }
 
-const WITHER_MULTIPLIER = 3
 
 function waterIntervalForWeather(cropId: CropId, weather: Weather): number {
   const interval = getCrop(cropId).waterIntervalMs
@@ -52,28 +51,6 @@ function advancePlot(plot: PlotState, from: number, now: number, weather: Weathe
   const waterIntervalMs = waterIntervalForWeather(plot.cropId, weather)
   const growthStart = Math.max(from, plot.plantedAt)
   const droughtAt = isRainAutoWater(weather) ? Number.POSITIVE_INFINITY : plot.lastWateredAt + waterIntervalMs
-  const witherAt = isRainAutoWater(weather)
-    ? Number.POSITIVE_INFINITY
-    : plot.lastWateredAt + WITHER_MULTIPLIER * waterIntervalMs
-
-  if (!isRainAutoWater(weather) && now > witherAt) {
-    const growthUntilDrought = Math.max(0, droughtAt - growthStart)
-    const growthDelta = plot.hasBug ? growthUntilDrought * 0.5 : growthUntilDrought
-    const progressMs = Math.min(crop.growMs, plot.progressMs + growthDelta)
-    if (progressMs >= crop.growMs) {
-      return {
-        ...plot,
-        status: 'ready',
-        progressMs: crop.growMs,
-      }
-    }
-
-    return {
-      ...plot,
-      status: 'withered',
-      progressMs,
-    }
-  }
 
   const growthWindowEnd = Math.min(now, droughtAt)
   const growthMs = Math.max(0, growthWindowEnd - growthStart)
@@ -275,18 +252,6 @@ export function harvest(
       { status: 'empty' },
     ),
   )
-}
-
-export function clearWithered(state: FarmState, plotIndex: number): FarmActionResult {
-  if (!validPlot(state, plotIndex)) {
-    return failure(state, '地块无效')
-  }
-
-  if (state.plots[plotIndex].status !== 'withered') {
-    return failure(state, '这块地没有枯萎的作物')
-  }
-
-  return success(replacePlot(state, plotIndex, { status: 'empty' }))
 }
 
 export function claimDailySeeds(state: FarmState, now: number): FarmActionResult {

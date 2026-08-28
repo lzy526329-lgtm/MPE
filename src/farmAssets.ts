@@ -42,14 +42,17 @@ export type PlotLayoutConfig = {
   offsetPx: { left: number; top: number }
 }
 
+/** farm-bg.png 设计稿宽度；地块按此统一缩放，保证与背景等比 */
+export const LAYOUT_REF_WIDTH = 2516
+
 /** 当前写入代码的默认布局；页面「调布局」工具会基于此微调 */
 export const DEFAULT_PLOT_LAYOUT_CONFIG: PlotLayoutConfig = {
   width: 14,
   cols: 4,
   rows: 6,
   origin: { left: 49, top: 30 },
-  rowStep: { left: -7, top: 6.125 },
-  colStep: { left: 7, top: 6.125 },
+  rowStep: { left: -7, top: 5.3 },
+  colStep: { left: 7, top: 5.3 },
   offsetPx: { left: 13, top: -48 },
 }
 
@@ -72,6 +75,71 @@ export function layoutTopToCqw(topPercent: number): number {
   return topPercent / FARM_BG_ASPECT
 }
 
+export type PlotPositionPx = {
+  left: number
+  top: number
+  width: number
+}
+
+export type StageMetrics = {
+  clientWidth: number
+  clientHeight: number
+}
+
+/** 按 farm-stage 实际宽高换算（背景 background-size:100% 100% 与 left/top/height 百分比一致） */
+export function plotPositionPx(
+  index: number,
+  stage: number | StageMetrics,
+  config: PlotLayoutConfig = DEFAULT_PLOT_LAYOUT_CONFIG,
+): PlotPositionPx | null {
+  const layout = buildPlotLayout(config)[index]
+  if (!layout) return null
+
+  const stageWidth = typeof stage === 'number' ? stage : stage.clientWidth
+  const refHeight = LAYOUT_REF_WIDTH / FARM_BG_ASPECT
+  const stageHeight = typeof stage === 'number' ? refHeight * (stage / LAYOUT_REF_WIDTH) : stage.clientHeight
+  if (stageWidth <= 0 || stageHeight <= 0) return null
+
+  const scaleX = stageWidth / LAYOUT_REF_WIDTH
+  const scaleY = stageHeight / refHeight
+  const { offsetPx } = config
+  return {
+    left: (layout.left / 100) * stageWidth + offsetPx.left * scaleX,
+    top: (layout.top / 100) * stageHeight + offsetPx.top * scaleY,
+    width: (layout.width / 100) * stageWidth,
+  }
+}
+
+
+/** 将布局应用到 DOM（px 缩放，与背景图同一比例尺） */
+export function applyPlotPositions(
+  container: ParentNode,
+  stage: HTMLElement,
+  config: PlotLayoutConfig = DEFAULT_PLOT_LAYOUT_CONFIG,
+): void {
+  const stageWidth = stage.clientWidth
+  if (stageWidth <= 0 || stage.clientHeight <= 0) return
+
+  container.querySelectorAll<HTMLElement>('.farm-plot-tile').forEach((tile) => {
+    const index = Number(tile.dataset.plot)
+    if (!Number.isInteger(index)) return
+    const pos = plotPositionPx(index, stage, config)
+    if (!pos) return
+    tile.style.left = `${pos.left}px`
+    tile.style.top = `${pos.top}px`
+    tile.style.width = `${pos.width}px`
+    tile.style.height = `${pos.width}px`
+    tile.style.setProperty('--plot-face-y', String(PLOT_HIT_FACE_Y))
+    tile.style.zIndex = String(plotRenderDepth(index, config) + 2)
+  })
+}
+
+export function syncFarmPlotLayout(container: ParentNode, config?: PlotLayoutConfig): void {
+  const stage = container.querySelector<HTMLElement>('.farm-stage')
+  if (!stage) return
+  applyPlotPositions(container, stage, config ?? loadPlotLayoutDraft())
+}
+
 export const PLOT_LAYOUT = buildPlotLayout()
 
 /** 等距深度：越大越靠近镜头，应叠在上层 */
@@ -88,59 +156,66 @@ export type PlotHitMetrics = {
   halfH: number
 }
 
-/** 菱形命中中心，相对地块锚框高度的比例（对齐土块顶面） */
-export function plotHitCyFactor(index: number, config: PlotLayoutConfig = DEFAULT_PLOT_LAYOUT_CONFIG): number {
-  const row = index % config.rows
-  const rowT = config.rows <= 1 ? 0 : row / (config.rows - 1)
-  return 0.48 + rowT * 0.05
-}
+/** 土块顶面中心，来自 dikuai1.png 透明区质心 */
+export const PLOT_HIT_FACE_Y = 0.501
+
+/** 相对地块锚框（0–1）的菱形，与 dikuai1.png 透明区顶点一致 */
+export const PLOT_HIT_POLYGON_UNIT = '0.488,0.221 0.939,0.501 0.499,0.781 0.058,0.501'
+
+/** 土块可见菱形半宽/半高（占地块边长比例，由 dikuai1.png 量取） */
+export const PLOT_HIT_HALF_W = 0.441
+export const PLOT_HIT_HALF_H = 0.28
 
 export function plotHitHalfSizes(size: number): { halfW: number; halfH: number } {
-  return { halfW: size * 0.42, halfH: size * 0.24 }
+  return { halfW: size * PLOT_HIT_HALF_W, halfH: size * PLOT_HIT_HALF_H }
 }
 
-/** 地块在 farm-stage 内的像素盒（与 CSS left/top 一致，供调试 overlay 使用） */
-export function getTileBoxInStage(tile: HTMLElement): { left: number; top: number; width: number; height: number } {
-  return {
-    left: tile.offsetLeft,
-    top: tile.offsetTop,
-    width: tile.offsetWidth,
-    height: tile.offsetHeight,
-  }
-}
-
-/** 基于 DOM 渲染后的地块按钮计算命中区（与屏幕像素一致） */
-export function getPlotHitMetricsFromTile(
-  tile: HTMLElement,
+/** 基于布局公式计算命中区 */
+export function getPlotHitMetricsFromLayout(
   index: number,
+  stage: HTMLElement,
   config: PlotLayoutConfig = DEFAULT_PLOT_LAYOUT_CONFIG,
-): PlotHitMetrics {
-  const { left, top, width } = getTileBoxInStage(tile)
-  const size = width
-  const { halfW, halfH } = plotHitHalfSizes(size)
+): PlotHitMetrics | null {
+  const pos = plotPositionPx(index, stage, config)
+  if (!pos) return null
+  const { halfW, halfH } = plotHitHalfSizes(pos.width)
   return {
-    cx: left + size / 2,
-    cy: top + size * plotHitCyFactor(index, config),
+    cx: pos.left + pos.width * 0.5,
+    cy: pos.top + pos.width * PLOT_HIT_FACE_Y,
     halfW,
     halfH,
   }
 }
 
-export function plotHitDistanceFromClientPoint(
-  clientX: number,
-  clientY: number,
+/** 基于地块布局盒（offsetWidth，不受 stage SVG / 裁剪影响） */
+export function getPlotHitMetricsFromTile(tile: HTMLElement): PlotHitMetrics | null {
+  const width = tile.offsetWidth
+  const height = tile.offsetHeight
+  if (width <= 0 || height <= 0) return null
+  const { halfW, halfH } = plotHitHalfSizes(width)
+  return {
+    cx: tile.offsetLeft + width / 2,
+    cy: tile.offsetTop + height * PLOT_HIT_FACE_Y,
+    halfW,
+    halfH,
+  }
+}
+
+export function plotHitDistanceInStageFromTile(
+  stageX: number,
+  stageY: number,
   tile: HTMLElement,
-  index: number,
-  config: PlotLayoutConfig = DEFAULT_PLOT_LAYOUT_CONFIG,
 ): number {
-  const rect = tile.getBoundingClientRect()
-  if (rect.width <= 0 || rect.height <= 0) return Infinity
-  const cx = rect.left + rect.width / 2
-  const cy = rect.top + rect.height * plotHitCyFactor(index, config)
-  const { halfW, halfH } = plotHitHalfSizes(rect.width)
-  const dx = (clientX - cx) / halfW
-  const dy = (clientY - cy) / halfH
+  const metrics = getPlotHitMetricsFromTile(tile)
+  if (!metrics) return Infinity
+  const dx = (stageX - metrics.cx) / metrics.halfW
+  const dy = (stageY - metrics.cy) / metrics.halfH
   return dx * dx + dy * dy
+}
+
+/** @deprecated 旧版按行微调中心；点击范围与命中检测已改用固定 PLOT_HIT_FACE_Y */
+export function plotHitCyFactor(_index: number, _config: PlotLayoutConfig = DEFAULT_PLOT_LAYOUT_CONFIG): number {
+  return PLOT_HIT_FACE_Y
 }
 
 export function plotHitPolygonPointsFromMetrics(metrics: PlotHitMetrics): string {
@@ -156,19 +231,19 @@ export function plotHitPolygonPointsFromMetrics(metrics: PlotHitMetrics): string
 /** @deprecated 仅测试保留；运行时应使用 DOM 版 getPlotHitMetricsFromTile */
 export function getPlotHitMetrics(
   index: number,
-  layout: PlotLayout,
+  _layout: PlotLayout,
   config: PlotLayoutConfig,
   stageW: number,
-  stageH: number,
+  _stageH: number,
 ): PlotHitMetrics {
-  const { offsetPx } = config
-  const left = (layout.left / 100) * stageW + offsetPx.left
-  const top = (layoutTopToCqw(layout.top) / 100) * stageW + offsetPx.top
-  const size = (layout.width / 100) * stageW
-  const { halfW, halfH } = plotHitHalfSizes(size)
+  const pos = plotPositionPx(index, { clientWidth: stageW, clientHeight: _stageH }, config)
+  if (!pos) {
+    return { cx: 0, cy: 0, halfW: 0, halfH: 0 }
+  }
+  const { halfW, halfH } = plotHitHalfSizes(pos.width)
   return {
-    cx: left + size * 0.5,
-    cy: top + size * plotHitCyFactor(index, config),
+    cx: pos.left + pos.width * 0.5,
+    cy: pos.top + pos.width * PLOT_HIT_FACE_Y,
     halfW,
     halfH,
   }
@@ -199,21 +274,23 @@ export function plotHitPolygonPoints(
   return plotHitPolygonPointsFromMetrics(getPlotHitMetrics(index, layout, config, stageW, stageH))
 }
 
-/** 从屏幕坐标反查地块；基于 DOM 位置，多块重叠时取离点击点最近的那块 */
+/** 从屏幕坐标反查地块；基于土块 img 实际渲染位置，重叠时取最近 */
 export function findPlotIndexAtClientPoint(
   stage: HTMLElement,
   clientX: number,
   clientY: number,
-  config: PlotLayoutConfig = DEFAULT_PLOT_LAYOUT_CONFIG,
+  _config: PlotLayoutConfig = DEFAULT_PLOT_LAYOUT_CONFIG,
 ): number | null {
-  const tiles = stage.querySelectorAll<HTMLElement>('.farm-plot-tile')
+  const stageRect = stage.getBoundingClientRect()
+  const stageX = clientX - stageRect.left + stage.scrollLeft
+  const stageY = clientY - stageRect.top + stage.scrollTop
   let bestIndex: number | null = null
   let bestDistance = Infinity
 
-  for (const tile of tiles) {
+  for (const tile of stage.querySelectorAll<HTMLElement>('.farm-plot-tile')) {
     const index = Number(tile.dataset.plot)
     if (!Number.isInteger(index)) continue
-    const distance = plotHitDistanceFromClientPoint(clientX, clientY, tile, index, config)
+    const distance = plotHitDistanceInStageFromTile(stageX, stageY, tile)
     if (distance <= 1 && distance < bestDistance) {
       bestDistance = distance
       bestIndex = index
@@ -223,14 +300,8 @@ export function findPlotIndexAtClientPoint(
   return bestIndex
 }
 
-export function plotTileStyle(index: number, config: PlotLayoutConfig = DEFAULT_PLOT_LAYOUT_CONFIG): string {
-  const layout = buildPlotLayout(config)[index]
-  if (!layout) return ''
-  const { offsetPx } = config
-  const depth = plotRenderDepth(index, config)
-  const faceY = plotHitCyFactor(index, config)
-  const topCqw = layoutTopToCqw(layout.top)
-  return `left:calc(${layout.left}cqw + ${offsetPx.left}px);top:calc(${topCqw}cqw + ${offsetPx.top}px);width:${layout.width}cqw;--plot-face-y:${faceY};z-index:${depth + 2};`
+export function plotTileStyle(_index: number, _config: PlotLayoutConfig = DEFAULT_PLOT_LAYOUT_CONFIG): string {
+  return ''
 }
 
 export function loadPlotLayoutDraft(): PlotLayoutConfig {
@@ -262,7 +333,7 @@ export function formatPlotLayoutConfigForCode(config: PlotLayoutConfig): string 
   ].join('\n')
 }
 
-export type PlotSoilDisplay = 'empty' | 'growing' | 'dry' | 'bug' | 'ready' | 'withered'
+export type PlotSoilDisplay = 'empty' | 'growing' | 'dry' | 'bug' | 'ready'
 
 export function plotSoilSrc(display: PlotSoilDisplay): string {
   if (display === 'empty') return FARM_ASSETS.plotIsoEmpty

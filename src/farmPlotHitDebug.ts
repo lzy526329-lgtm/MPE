@@ -1,13 +1,4 @@
-import {
-  getPlotHitMetricsFromTile,
-  loadPlotLayoutDraft,
-  plotHitPolygonPointsFromMetrics,
-  plotRenderDepth,
-} from './farmAssets'
-
 const HIT_DEBUG_SESSION_KEY = 'farm-hit-debug'
-
-let resizeObserver: ResizeObserver | null = null
 
 export function isFarmHitDebugEnabled(): boolean {
   return sessionStorage.getItem(HIT_DEBUG_SESSION_KEY) === '1'
@@ -18,41 +9,9 @@ function setFarmHitDebugEnabled(enabled: boolean) {
   else sessionStorage.removeItem(HIT_DEBUG_SESSION_KEY)
 }
 
-function renderHitOverlay(stage: HTMLElement) {
-  const config = loadPlotLayoutDraft()
-  const stageW = stage.clientWidth
-  const stageH = stage.clientHeight
-  if (stageW <= 0 || stageH <= 0) return
-
-  const polygons = Array.from(stage.querySelectorAll<HTMLElement>('.farm-plot-tile'))
-    .map((tile) => {
-      const index = Number(tile.dataset.plot)
-      if (!Number.isInteger(index)) return ''
-      const metrics = getPlotHitMetricsFromTile(tile, index, config)
-      const points = plotHitPolygonPointsFromMetrics(metrics)
-      const depth = plotRenderDepth(index, config)
-      return `<polygon data-plot="${index}" points="${points}" />`
-    })
-    .join('')
-
-  let overlay = stage.querySelector<SVGElement>('.farm-hit-debug')
-  if (!overlay) {
-    overlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-    overlay.setAttribute('class', 'farm-hit-debug')
-    overlay.setAttribute('aria-hidden', 'true')
-    stage.append(overlay)
-  }
-  overlay.setAttribute('viewBox', `0 0 ${stageW} ${stageH}`)
-  overlay.setAttribute('preserveAspectRatio', 'none')
-  overlay.innerHTML = polygons
-}
-
-function bindResizeObserver(stage: HTMLElement) {
-  resizeObserver?.disconnect()
-  resizeObserver = new ResizeObserver(() => {
-    if (isFarmHitDebugEnabled()) renderHitOverlay(stage)
-  })
-  resizeObserver.observe(stage)
+function clearLegacyHitOverlay(stage: HTMLElement) {
+  stage.querySelectorAll('.farm-plot-hit-debug').forEach((el) => el.remove())
+  stage.querySelector('.farm-hit-debug')?.remove()
 }
 
 export function syncFarmPlotHitDebug(farmRoot: HTMLElement): void {
@@ -75,17 +34,14 @@ export function syncFarmPlotHitDebug(farmRoot: HTMLElement): void {
   }
 
   const showOverlay = () => {
+    clearLegacyHitOverlay(stage)
     stage.classList.add('farm-stage--hit-debug')
-    requestAnimationFrame(() => renderHitOverlay(stage))
-    bindResizeObserver(stage)
     updateToggleLabel()
   }
 
   const hideOverlay = () => {
     stage.classList.remove('farm-stage--hit-debug')
-    stage.querySelector('.farm-hit-debug')?.remove()
-    resizeObserver?.disconnect()
-    resizeObserver = null
+    clearLegacyHitOverlay(stage)
     updateToggleLabel()
   }
 
@@ -105,5 +61,6 @@ export function syncFarmPlotHitDebug(farmRoot: HTMLElement): void {
 
 export function refreshFarmPlotHitDebugIfEnabled(stage: HTMLElement | null) {
   if (!stage || !isFarmHitDebugEnabled()) return
-  requestAnimationFrame(() => renderHitOverlay(stage))
+  clearLegacyHitOverlay(stage)
+  stage.classList.add('farm-stage--hit-debug')
 }

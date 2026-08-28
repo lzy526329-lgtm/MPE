@@ -43,13 +43,6 @@ function seededGame(): GameState {
     lastWateredAt: 1_000,
     progressMs: 20 * 60_000,
   }
-  game.farm.plots[3] = {
-    status: 'withered',
-    cropId: 'wheat',
-    plantedAt: 0,
-    lastWateredAt: 0,
-    progressMs: 10,
-  }
   return game
 }
 
@@ -135,13 +128,6 @@ const successCases: SuccessCase[] = [
     },
   },
   {
-    name: 'clearWithered',
-    invoke: (handlers) => handlers.clearWithered({ plotIndex: 3 }),
-    expect: (result) => {
-      expect(result.state.plots[3]).toEqual({ status: 'empty' })
-    },
-  },
-  {
     name: 'claimDailySeeds',
     invoke: (handlers) => handlers.claimDailySeeds(),
     expect: (result, stored) => {
@@ -168,13 +154,12 @@ const successCases: SuccessCase[] = [
 ]
 
 describe('createFarmHandlers wiring', () => {
-  it('exposes exactly the nine farm channels', () => {
+  it('exposes exactly the eight farm channels', () => {
     const { handlers } = harness()
 
     expect(Object.keys(handlers).sort()).toEqual(
       [
         'claimDailySeeds',
-        'clearWithered',
         'debug',
         'getState',
         'harvest',
@@ -223,7 +208,6 @@ describe('createFarmHandlers failures', () => {
     { name: 'water', invoke: (handlers) => handlers.water({ plotIndex: 99 }) },
     { name: 'debug', invoke: (handlers) => handlers.debug({ plotIndex: 99 }) },
     { name: 'harvest', invoke: (handlers) => handlers.harvest({ plotIndex: 99 }) },
-    { name: 'clearWithered', invoke: (handlers) => handlers.clearWithered({ plotIndex: 99 }) },
   ]
 
   it.each(failureCases)(
@@ -300,7 +284,6 @@ describe('registerFarmIpc', () => {
     'farm:water',
     'farm:debug',
     'farm:harvest',
-    'farm:clear-withered',
     'farm:claim-daily-seeds',
     'farm:water-all',
     'farm:harvest-all',
@@ -343,12 +326,6 @@ describe('registerFarmIpc', () => {
     expect(planted.state.plots[2]).toMatchObject({ status: 'growing', cropId: 'wheat' })
     expect(planted.state.seeds.wheat).toBe(4)
     expect(send).toHaveBeenCalledWith('game:state-changed', expect.anything())
-
-    const cleared = (await registered.get('farm:clear-withered')?.(null, {
-      plotIndex: 3,
-    })) as FarmActionResult
-    expect(cleared.ok).toBe(true)
-    expect(cleared.state.plots[3]).toEqual({ status: 'empty' })
 
     const claimed = (await registered.get('farm:claim-daily-seeds')?.(null)) as FarmActionResult
     expect(claimed.ok).toBe(true)

@@ -13,7 +13,7 @@ export type CropDef = {
 export type PlotEmpty = { status: 'empty' }
 
 export type PlotPlanted = {
-  status: 'growing' | 'ready' | 'withered'
+  status: 'growing' | 'ready'
   cropId: CropId
   plantedAt: number
   lastWateredAt: number
