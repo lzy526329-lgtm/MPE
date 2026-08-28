@@ -74,8 +74,8 @@ describe('farm plot layout', () => {
       cols: 4,
       rows: 6,
       origin: { left: 49, top: 30 },
-      rowStep: { left: -7, top: 5.3 },
-      colStep: { left: 7, top: 5.3 },
+      rowStep: { left: -7, top: 6.125 },
+      colStep: { left: 7, top: 6.125 },
       offsetPx: { left: 13, top: -48 },
     }
     const layouts = buildPlotLayout(config)

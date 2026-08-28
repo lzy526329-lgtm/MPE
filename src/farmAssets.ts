@@ -51,9 +51,40 @@ export const DEFAULT_PLOT_LAYOUT_CONFIG: PlotLayoutConfig = {
   cols: 4,
   rows: 6,
   origin: { left: 49, top: 30 },
-  rowStep: { left: -7, top: 5.3 },
-  colStep: { left: 7, top: 5.3 },
+  rowStep: { left: -7, top: 6.125 },
+  colStep: { left: 7, top: 6.125 },
   offsetPx: { left: 13, top: -48 },
+}
+
+const LAYOUT_STORAGE_KEY = 'farm-plot-layout-draft'
+
+function mergePlotLayoutConfig(base: PlotLayoutConfig, patch: Partial<PlotLayoutConfig>): PlotLayoutConfig {
+  return {
+    ...base,
+    ...patch,
+    origin: { ...base.origin, ...(patch.origin ?? {}) },
+    rowStep: { ...base.rowStep, ...(patch.rowStep ?? {}) },
+    colStep: { ...base.colStep, ...(patch.colStep ?? {}) },
+    offsetPx: { ...base.offsetPx, ...(patch.offsetPx ?? {}) },
+  }
+}
+
+/** 读取已保存的布局微调（移除调布局 UI 后仍兼容 localStorage 草稿） */
+export function loadPlotLayoutDraft(): PlotLayoutConfig {
+  try {
+    const raw = localStorage.getItem(LAYOUT_STORAGE_KEY)
+    if (!raw) return structuredClone(DEFAULT_PLOT_LAYOUT_CONFIG)
+    const parsed = JSON.parse(raw) as Partial<PlotLayoutConfig>
+    if (parsed.cols !== undefined && parsed.cols !== DEFAULT_PLOT_LAYOUT_CONFIG.cols) {
+      return structuredClone(DEFAULT_PLOT_LAYOUT_CONFIG)
+    }
+    if (parsed.rows !== undefined && parsed.rows !== DEFAULT_PLOT_LAYOUT_CONFIG.rows) {
+      return structuredClone(DEFAULT_PLOT_LAYOUT_CONFIG)
+    }
+    return mergePlotLayoutConfig(DEFAULT_PLOT_LAYOUT_CONFIG, parsed)
+  } catch {
+    return structuredClone(DEFAULT_PLOT_LAYOUT_CONFIG)
+  }
 }
 
 export function buildPlotLayout(config: PlotLayoutConfig = DEFAULT_PLOT_LAYOUT_CONFIG): PlotLayout[] {
@@ -137,7 +168,7 @@ export function applyPlotPositions(
 export function syncFarmPlotLayout(container: ParentNode, config?: PlotLayoutConfig): void {
   const stage = container.querySelector<HTMLElement>('.farm-stage')
   if (!stage) return
-  applyPlotPositions(container, stage, config ?? DEFAULT_PLOT_LAYOUT_CONFIG)
+  applyPlotPositions(container, stage, config ?? loadPlotLayoutDraft())
 }
 
 /** 等距深度：越大越靠近镜头，应叠在上层 */

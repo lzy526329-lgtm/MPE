@@ -2948,11 +2948,6 @@ input[type="range"] {
   filter: saturate(0.75) brightness(1.08) sepia(0.25) drop-shadow(0 3px 6px rgba(0, 0, 0, 0.15));
 }
 
-/* 未解锁：仅显示绿色草地块，不叠加额外标记 */
-.farm-plot-tile--locked .farm-plot-soil {
-  opacity: 0.92;
-}
-
 .farm-plot-unlock-label {
   position: absolute;
   top: calc(var(--plot-face-y, 0.5) * 100% - 16px);

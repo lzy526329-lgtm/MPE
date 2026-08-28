@@ -305,6 +305,8 @@ function setupFarmPage(farmRoot: HTMLElement) {
 
   function syncPlotLayout() {
     syncFarmPlotLayout(farmRoot)
+    // 首次 paint 时 stage 可能尚未完成布局，补一帧确保 24 块坐标一致
+    requestAnimationFrame(() => syncFarmPlotLayout(farmRoot))
   }
 
   function ensurePlotLayoutResizeObserver() {
