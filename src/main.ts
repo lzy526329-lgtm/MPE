@@ -11,6 +11,8 @@ import { mountPetSettingsPage } from './petSettingsPage'
 import { mountPetChatPage } from './petChatPage'
 import { mountPetHomePage } from './petHomePage'
 import { mountFarmPage } from './farmPage'
+import { mountShopPage } from './shopPage'
+import { mountBackpackPage } from './backpackPage'
 import { setupAppNavigation, navigateToPage } from './appNavigation'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
@@ -40,6 +42,8 @@ app.innerHTML = `
       <button class="nav-item pet-chat-sidebar-btn" id="open-pet-chat" type="button">与我对话</button>
       <button class="nav-item pet-chat-sidebar-btn" id="open-pet-home" type="button" hidden>参观家园</button>
       <button class="nav-item pet-chat-sidebar-btn" id="open-farm" type="button">农场</button>
+      <button class="nav-item pet-chat-sidebar-btn" id="open-shop" type="button">商店</button>
+      <button class="nav-item pet-chat-sidebar-btn" id="open-backpack" type="button">背包</button>
       <p class="local-tip">所有工具均在本地完成，不上传文件。</p>
     </aside>
 
@@ -824,6 +828,28 @@ app.innerHTML = `
         <div class="panel" id="farm-root"></div>
       </section>
 
+      <section class="tool-page" id="shop-page" hidden>
+        <header>
+          <div>
+            <p class="eyebrow">桌宠玩法</p>
+            <h1>商店</h1>
+            <p class="subtitle">用金币购买种子，供农场种植使用。</p>
+          </div>
+        </header>
+        <div class="panel" id="shop-root"></div>
+      </section>
+
+      <section class="tool-page" id="backpack-page" hidden>
+        <header>
+          <div>
+            <p class="eyebrow">桌宠玩法</p>
+            <h1>背包</h1>
+            <p class="subtitle">查看当前金币与库存。</p>
+          </div>
+        </header>
+        <div class="panel" id="backpack-root"></div>
+      </section>
+
       <section class="tool-page" id="pet-settings-page">
         <header>
           <div>
@@ -1303,6 +1329,8 @@ mountPetSettingsPage()
 mountPetChatPage()
 mountPetHomePage()
 mountFarmPage()
+mountShopPage()
+mountBackpackPage()
 setupAppNavigation()
 
 document.querySelector<HTMLButtonElement>('#open-pet-chat')?.addEventListener('click', () => {
@@ -1313,4 +1341,10 @@ document.querySelector<HTMLButtonElement>('#open-pet-home')?.addEventListener('c
 })
 document.querySelector<HTMLButtonElement>('#open-farm')?.addEventListener('click', () => {
   navigateToPage('farm-page')
+})
+document.querySelector<HTMLButtonElement>('#open-shop')?.addEventListener('click', () => {
+  navigateToPage('shop-page')
+})
+document.querySelector<HTMLButtonElement>('#open-backpack')?.addEventListener('click', () => {
+  navigateToPage('backpack-page')
 })

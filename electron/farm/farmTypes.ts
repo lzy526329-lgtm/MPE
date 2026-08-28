@@ -1,4 +1,4 @@
-export type CropId = 'lettuce' | 'tomato' | 'pumpkin'
+export type CropId = 'wheat'
 
 export type CropDef = {
   id: CropId

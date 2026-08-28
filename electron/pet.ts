@@ -27,6 +27,7 @@ import {
 } from './petSkin'
 import { rememberCareEvent, rememberRename } from './petMemory'
 import { pickCareLine, type CareKind } from './petCareLines'
+import { peekWalletCoins } from './game/gameStore'
 import {
   advanceWorkSession,
   decideProactiveChat,
@@ -506,10 +507,35 @@ export function getPetSize() {
   return clampSize(readSettings().size ?? PET_SIZE_DEFAULT)
 }
 
+const WALLET_ERROR_LOG_INTERVAL_MS = 5 * 60_000
+let lastKnownWalletCoins: number | null = null
+let lastWalletErrorLogAt = 0
+
+/**
+ * The status poll runs every second, so an unreadable `game.json` must never
+ * throw or flood the log. The last known balance, then the legacy
+ * `profile.coins`, keep the pet renderable until the wallet recovers.
+ */
+function readWalletCoins(legacyCoins: number): number {
+  try {
+    const coins = peekWalletCoins(app.getPath('userData'), Date.now())
+    lastKnownWalletCoins = coins
+    return coins
+  } catch (error) {
+    const now = Date.now()
+    if (now - lastWalletErrorLogAt >= WALLET_ERROR_LOG_INTERVAL_MS) {
+      lastWalletErrorLogAt = now
+      console.error('[pet] failed to read the game wallet', error)
+    }
+    return lastKnownWalletCoins ?? legacyCoins
+  }
+}
+
 export function getPetStatus(): PetStatus {
   const settings = ensurePetData()
   const stats = getPetStats(settings)
-  const profile = getPetProfile(settings)
+  const legacyProfile = getPetProfile(settings)
+  const profile = { ...legacyProfile, coins: readWalletCoins(legacyProfile.coins) }
   return {
     enabled: Boolean(settings.enabled),
     autoWalk: settings.autoWalk !== false,
@@ -528,6 +554,10 @@ function notifyStatusChanged(status = getPetStatus()) {
   if (petWin && !petWin.isDestroyed()) {
     petWin.webContents.send('pet:status-changed', status)
   }
+}
+
+export function notifyPetStatusChanged() {
+  notifyStatusChanged()
 }
 
 function notifyRemindersUpdated(reminders = getReminderItems()) {

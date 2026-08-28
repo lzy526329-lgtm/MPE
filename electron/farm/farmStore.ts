@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { CROPS, PLOT_COUNT } from './farmCatalog'
+import { CROPS, mergeLegacyProduce, mergeLegacySeeds, normalizeLegacyCropId, PLOT_COUNT } from './farmCatalog'
 import { createDefaultFarm, settle, type FarmActionResult } from './farmEngine'
 import type { CropId, FarmState, PlotState } from './farmTypes'
 
@@ -28,7 +28,66 @@ function isNumberRecord(value: unknown): value is Record<string, number> {
 }
 
 function isCropId(value: unknown): value is CropId {
-  return typeof value === 'string' && value in CROPS
+  return value === 'wheat' || normalizeLegacyCropId(value) === 'wheat'
+}
+
+function normalizePlot(value: unknown): PlotState {
+  if (!isRecord(value) || value.status === 'empty') return { status: 'empty' }
+  if (value.status !== 'growing' && value.status !== 'ready' && value.status !== 'withered') {
+    return { status: 'empty' }
+  }
+  const cropId = normalizeLegacyCropId(value.cropId)
+  if (
+    !cropId ||
+    typeof value.plantedAt !== 'number' ||
+    !Number.isFinite(value.plantedAt) ||
+    typeof value.lastWateredAt !== 'number' ||
+    !Number.isFinite(value.lastWateredAt) ||
+    typeof value.progressMs !== 'number' ||
+    !Number.isFinite(value.progressMs) ||
+    (value.hasBug !== undefined && typeof value.hasBug !== 'boolean')
+  ) {
+    return { status: 'empty' }
+  }
+  return {
+    status: value.status,
+    cropId,
+    plantedAt: value.plantedAt,
+    lastWateredAt: value.lastWateredAt,
+    progressMs: value.progressMs,
+    ...(value.hasBug ? { hasBug: true } : {}),
+  }
+}
+
+function normalizeFarmPayload(value: unknown, plotCount: number): FarmState | null {
+  if (!isRecord(value) || value.version !== 1 || value.plotCount !== plotCount) return null
+  if (!Array.isArray(value.plots) || value.plots.length !== plotCount) return null
+  if (value.weather !== 'clear' && value.weather !== 'rain') return null
+  if (typeof value.lastSettledAt !== 'number' || !Number.isFinite(value.lastSettledAt)) return null
+  if (value.lastDailySeedClaimAt !== undefined && typeof value.lastDailySeedClaimAt !== 'string') {
+    return null
+  }
+  if (value.lastWeatherRollAt !== undefined) {
+    if (typeof value.lastWeatherRollAt !== 'number' || !Number.isFinite(value.lastWeatherRollAt)) {
+      return null
+    }
+  }
+
+  const seeds = mergeLegacySeeds(isNumberRecord(value.seeds) ? value.seeds : {})
+  const inventory = mergeLegacyProduce(isNumberRecord(value.inventory) ? value.inventory : {})
+  const plots = value.plots.map(normalizePlot)
+
+  return {
+    version: 1,
+    plotCount,
+    plots,
+    inventory,
+    seeds,
+    weather: value.weather,
+    lastSettledAt: value.lastSettledAt,
+    ...(value.lastDailySeedClaimAt ? { lastDailySeedClaimAt: value.lastDailySeedClaimAt } : {}),
+    ...(value.lastWeatherRollAt !== undefined ? { lastWeatherRollAt: value.lastWeatherRollAt } : {}),
+  }
 }
 
 function isPlotState(value: unknown): value is PlotState {
@@ -65,10 +124,11 @@ function isFarmState(value: unknown): value is FarmState {
 export function parseFarmPayload(raw: string, now: number): ParseFarmResult {
   try {
     const parsed = JSON.parse(raw) as unknown
-    if (!isFarmState(parsed)) {
+    const state = normalizeFarmPayload(parsed, PLOT_COUNT)
+    if (!state) {
       return { state: createDefaultFarm(now), didReset: true }
     }
-    return { state: parsed, didReset: false }
+    return { state, didReset: false }
   } catch {
     return { state: createDefaultFarm(now), didReset: true }
   }

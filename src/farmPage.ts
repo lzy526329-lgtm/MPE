@@ -5,11 +5,15 @@ import {
   cropSpriteStyle,
   FARM_ASSETS,
   FARM_BG_ASPECT,
+  findPlotIndexAtClientPoint,
+  loadPlotLayoutDraft,
   plotSoilSrc,
   plotTileStyle,
   toolbarIconStyle,
 } from './farmAssets'
 import { onPageChange } from './appNavigation'
+import { syncFarmPlotLayoutEditor, isFarmLayoutEditEnabled } from './farmPlotLayoutEditor'
+import { syncFarmPlotHitDebug } from './farmPlotHitDebug'
 
 type PlotDisplayStatus = 'empty' | 'growing' | 'dry' | 'bug' | 'ready' | 'withered'
 
@@ -90,7 +94,7 @@ function renderPlot(plot: PlotState, index: number, state: FarmState, now: numbe
   if (display === 'dry') badges.push('<span class="farm-plot-badge farm-plot-badge--dry">旱</span>')
 
   return `
-    <button class="farm-plot-tile farm-plot-tile--${display}" type="button" data-plot="${index}" aria-label="地块 ${index + 1} ${hint}" style="${plotTileStyle(index)}">
+    <button class="farm-plot-tile farm-plot-tile--${display}" type="button" data-plot="${index}" aria-label="地块 ${index + 1} ${hint}" style="${plotTileStyle(index, loadPlotLayoutDraft())}">
       <img class="farm-plot-soil" src="${soil}" alt="" draggable="false" />
       ${cropLayer}
       <div class="farm-plot-badges">${badges.join('')}</div>
@@ -177,7 +181,7 @@ function defaultSelectedCrop(seeds: Record<string, number>): CropId {
   for (const id of Object.keys(CROPS) as CropId[]) {
     if ((seeds[id] ?? 0) > 0) return id
   }
-  return 'lettuce'
+  return 'wheat'
 }
 
 export function mountFarmPage() {
@@ -188,7 +192,7 @@ export function mountFarmPage() {
 
 function setupFarmPage(farmRoot: HTMLElement) {
   let farmState: FarmState | null = null
-  let selectedCrop: CropId = 'lettuce'
+  let selectedCrop: CropId = 'wheat'
   let busy = false
   let toast = ''
   let toastTimer: ReturnType<typeof setTimeout> | undefined
@@ -285,6 +289,8 @@ function setupFarmPage(farmRoot: HTMLElement) {
     }
     farmRoot.innerHTML = renderFarm(farmState, selectedCrop, Date.now(), toast)
     bindEvents()
+    syncFarmPlotLayoutEditor(farmRoot, showToast)
+    syncFarmPlotHitDebug(farmRoot)
   }
 
   async function refresh() {
@@ -365,12 +371,17 @@ function setupFarmPage(farmRoot: HTMLElement) {
   }
 
   function bindEvents() {
-    farmRoot.querySelectorAll<HTMLButtonElement>('.farm-plot-tile').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const plotIndex = Number(btn.dataset.plot)
-        if (!Number.isInteger(plotIndex)) return
-        handlePlotClick(plotIndex)
-      })
+    const stage = farmRoot.querySelector<HTMLElement>('.farm-stage')
+    stage?.addEventListener('click', (event) => {
+      if (!stage || isFarmLayoutEditEnabled()) return
+      const plotIndex = findPlotIndexAtClientPoint(
+        stage,
+        event.clientX,
+        event.clientY,
+        loadPlotLayoutDraft(),
+      )
+      if (plotIndex === null) return
+      handlePlotClick(plotIndex)
     })
 
     farmRoot.querySelectorAll<HTMLButtonElement>('.farm-seed-chip').forEach((btn) => {

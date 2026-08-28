@@ -3,6 +3,8 @@ export type AppPageId =
   | 'pet-chat-page'
   | 'pet-home-page'
   | 'farm-page'
+  | 'shop-page'
+  | 'backpack-page'
   | 'image-page'
   | 'cutout-page'
   | 'watermark-page'
@@ -20,6 +22,8 @@ export const APP_PAGE_TITLES: Record<AppPageId, string> = {
   'pet-chat-page': '与宠物对话',
   'pet-home-page': '宠物家园',
   'farm-page': '农场',
+  'shop-page': '商店',
+  'backpack-page': '背包',
   'image-page': '图片压缩',
   'cutout-page': '图片抠图',
   'watermark-page': '视频去水印',

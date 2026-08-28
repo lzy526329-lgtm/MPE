@@ -242,8 +242,6 @@ export function squashBug(state: FarmState, plotIndex: number): FarmActionResult
   return success(replacePlot(state, plotIndex, nextPlot))
 }
 
-export const debugPlot = squashBug
-
 export function harvest(
   state: FarmState,
   plotIndex: number,

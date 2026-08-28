@@ -27,6 +27,7 @@ import { getSystemInfo } from './systemInfo'
 import { registerUpdaterIpc } from './updater'
 import { registerAppPrefsIpc, syncOpenAtLoginFromPrefs } from './appPrefs'
 import { registerFarmIpc } from './farm/farmIpc'
+import { registerGameIpc } from './game/gameIpc'
 import { createAppTray, destroyAppTray, isAppQuitting, markAppQuitting, requestAppQuit } from './tray'
 import {
   addPdfWatermark,
@@ -301,7 +302,8 @@ if (!gotSingleInstanceLock) {
     syncOpenAtLoginFromPrefs()
     registerAppPrefsIpc(() => win, () => trayApi?.refresh())
     registerPetIpc(() => win, ensureMainWindow)
-    registerFarmIpc()
+    registerFarmIpc(() => win)
+    registerGameIpc(() => win)
     registerUpdaterIpc(() => win)
     createWindow(false)
     restorePetIfNeeded()

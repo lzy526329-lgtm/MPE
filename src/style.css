@@ -2910,12 +2910,165 @@ input[type="range"] {
   border-radius: 12px;
   overflow: hidden;
   background: #6a9e4a center / 100% 100% no-repeat;
+  cursor: pointer;
+  container-type: inline-size;
 }
 
 .farm-hud {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: center;
+}
+
+.farm-layout-edit-toggle {
+  margin-left: auto;
+  padding: 6px 10px;
+  border: 1px dashed rgba(58, 90, 40, 0.35);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  color: #3a5a28;
+  cursor: pointer;
+}
+
+.farm-layout-edit-toggle:hover {
+  background: #f4fbee;
+}
+
+.farm-hit-debug-toggle {
+  padding: 6px 10px;
+  border: 1px dashed rgba(200, 60, 60, 0.35);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  color: #a33;
+  cursor: pointer;
+}
+
+.farm-hit-debug-toggle:hover {
+  background: #fff5f5;
+}
+
+.farm-stage--hit-debug {
+  cursor: crosshair;
+}
+
+.farm-hit-debug {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.farm-hit-debug polygon {
+  fill: rgba(255, 40, 40, 0.22);
+  stroke: rgba(220, 30, 30, 0.85);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.farm-stage--layout-edit {
+  cursor: grab;
+  outline: 2px dashed rgba(106, 158, 74, 0.55);
+  outline-offset: -2px;
+}
+
+.farm-stage--layout-edit:active {
+  cursor: grabbing;
+}
+
+.farm-layout-panel {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 20;
+  width: min(280px, calc(100% - 24px));
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  font-size: 12px;
+  color: #2f4a22;
+}
+
+.farm-layout-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.farm-layout-panel__close {
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  color: #5a7348;
+}
+
+.farm-layout-panel__hint {
+  margin: 0 0 10px;
+  line-height: 1.5;
+  color: #5a7348;
+}
+
+.farm-layout-field {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.farm-layout-field input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  font: inherit;
+}
+
+.farm-layout-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.farm-layout-panel__actions button {
+  flex: 1 1 calc(50% - 6px);
+  padding: 6px 8px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  background: #f7faf4;
+  cursor: pointer;
+  font: inherit;
+}
+
+.farm-layout-panel__actions--primary .farm-layout-panel__confirm {
+  flex: 1 1 100%;
+  background: #6a9e4a;
+  border-color: #6a9e4a;
+  color: #fff;
+  font-weight: 700;
+}
+
+.farm-layout-panel__code {
+  margin: 0 0 8px;
+  padding: 8px;
+  border-radius: 8px;
+  background: #1e2a18;
+  color: #d7f0c2;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 120px;
+  overflow: auto;
 }
 
 .farm-hud-pill {
@@ -2930,12 +3083,11 @@ input[type="range"] {
 
 .farm-plot-tile {
   position: absolute;
-  z-index: 2;
   aspect-ratio: 1;
   border: none;
   padding: 0;
-  cursor: pointer;
   background: transparent;
+  pointer-events: none;
 }
 
 .farm-plot-tile--dry .farm-plot-soil {
@@ -2950,6 +3102,7 @@ input[type="range"] {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  object-position: center 50%;
   display: block;
   pointer-events: none;
   filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.15));
@@ -2958,7 +3111,7 @@ input[type="range"] {
 .farm-crop-sprite {
   position: absolute;
   left: 50%;
-  top: 38%;
+  top: calc(var(--plot-face-y, 0.5) * 100% - 6%);
   width: 42%;
   height: 42%;
   transform: translate(-50%, -50%);
@@ -2969,10 +3122,14 @@ input[type="range"] {
 
 .farm-plot-badges {
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: calc(var(--plot-face-y, 0.5) * 100% - 14px);
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
   display: flex;
   gap: 4px;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .farm-plot-badge {
@@ -2997,15 +3154,20 @@ input[type="range"] {
 
 .farm-plot-hint {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 2px;
+  top: calc(var(--plot-face-y, 0.5) * 100% + 8px);
+  left: 50%;
+  right: auto;
+  bottom: auto;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 95%;
   text-align: center;
   font-size: 10px;
   font-weight: 600;
   color: #fff;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.65);
   pointer-events: none;
+  white-space: nowrap;
 }
 
 .farm-toolbar {
@@ -3154,5 +3316,240 @@ input[type="range"] {
 
   .home-stage {
     min-height: 300px;
+  }
+}
+
+.game-page-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.game-page-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.game-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.game-tab {
+  min-width: 88px;
+  padding: 9px 18px;
+  border-radius: 9px;
+  color: var(--muted);
+  background: transparent;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.game-tab:hover {
+  color: var(--accent-dark);
+  background: #f7f5ff;
+}
+
+.game-tab.active {
+  color: #fff;
+  background: var(--accent);
+  box-shadow: 0 5px 14px rgba(100, 87, 231, 0.22);
+}
+
+.game-pane.hidden {
+  display: none;
+}
+
+.game-wallet {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid #f0dfaa;
+  border-radius: 12px;
+  color: #825f08;
+  background: #fff9e8;
+  font-size: 13px;
+}
+
+.game-wallet > span {
+  color: #e4ab19;
+}
+
+.game-inline-error {
+  margin: 0;
+  padding: 10px 13px;
+  border: 1px solid #f2c5c5;
+  border-radius: 10px;
+  color: #a53d3d;
+  background: #fff5f5;
+  font-size: 13px;
+}
+
+.shop-offer-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.shop-offer-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 8px 28px rgba(32, 40, 58, 0.05);
+}
+
+.shop-offer-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.shop-offer-icon {
+  width: 46px;
+  height: 46px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  background: #eef7e8;
+  font-size: 24px;
+}
+
+.shop-offer-heading h2 {
+  margin: 0 0 5px;
+  font-size: 16px;
+}
+
+.shop-offer-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.shop-offer-action {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.shop-offer-action > strong {
+  color: #825f08;
+  font-size: 14px;
+}
+
+.shop-offer-warning {
+  grid-column: 1;
+  color: #b24a4a;
+  font-size: 11px;
+}
+
+.shop-buy-button {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  min-width: 78px;
+  margin: 0;
+}
+
+.shop-buy-button:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+.backpack-item-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.backpack-item-card {
+  min-width: 0;
+  min-height: 132px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 8px 28px rgba(32, 40, 58, 0.05);
+}
+
+.backpack-item-icon {
+  width: 46px;
+  height: 46px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  background: #eef7e8;
+  font-size: 24px;
+}
+
+.backpack-item-card h2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.backpack-item-card strong {
+  color: var(--accent-dark);
+  font-size: 15px;
+}
+
+.game-empty {
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 32px;
+  border: 1px dashed #d8dce5;
+  border-radius: 16px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.68);
+  text-align: center;
+}
+
+.game-empty > span {
+  font-size: 34px;
+}
+
+.game-empty > strong {
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.game-empty > p {
+  margin: 0;
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .shop-offer-grid,
+  .backpack-item-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .game-page-topbar {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .game-wallet {
+    align-self: flex-end;
   }
 }

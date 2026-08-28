@@ -3,6 +3,8 @@ export type AppPageId =
   | 'pet-chat-page'
   | 'pet-home-page'
   | 'farm-page'
+  | 'shop-page'
+  | 'backpack-page'
   | 'image-page'
   | 'cutout-page'
   | 'watermark-page'
