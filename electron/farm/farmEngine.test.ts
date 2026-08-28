@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_SEEDS, DAILY_SEEDS } from './farmCatalog'
 import {
   claimDailySeeds,
-  clearWithered,
   createDefaultFarm,
   harvest,
   harvestAll,
@@ -27,12 +26,6 @@ function growingPlot(state: FarmState, index = 0): PlotPlanted {
 function readyPlot(state: FarmState, index = 0): PlotPlanted {
   const plot = state.plots[index]
   expect(plot.status).toBe('ready')
-  return plot as PlotPlanted
-}
-
-function witheredPlot(state: FarmState, index = 0): PlotPlanted {
-  const plot = state.plots[index]
-  expect(plot.status).toBe('withered')
   return plot as PlotPlanted
 }
 
@@ -92,23 +85,23 @@ describe('farmEngine settle', () => {
     expect(growingPlot(settled).progressMs).toBe(20_000)
   })
 
-  it('withers wheat when drought lasts past three water intervals', () => {
+  it('keeps growing when drought lasts past three water intervals', () => {
     const state = plantWheat()
 
     const settled = settle(state, T0 + 16 * 60_000)
 
-    expect(witheredPlot(settled).progressMs).toBe(5 * 60_000)
+    expect(growingPlot(settled).progressMs).toBe(5 * 60_000)
   })
 
-  it('only grows until the drought point when segmented settle later withers', () => {
+  it('does not advance progress after drought when settle runs again', () => {
     const state = settle(plantWheat(), T0 + 7 * 60_000)
 
     const settled = settle(state, T0 + 16 * 60_000)
 
-    expect(witheredPlot(settled).progressMs).toBe(5 * 60_000)
+    expect(growingPlot(settled).progressMs).toBe(5 * 60_000)
   })
 
-  it('keeps a crop ready when it matured before later drought would wither it', () => {
+  it('keeps a crop ready when it matured before extended drought', () => {
     const planted = plantWheat()
     const state: FarmState = {
       ...planted,
@@ -257,17 +250,6 @@ describe('farmEngine actions', () => {
     if (!harvested.ok) return
     expect(harvested.state.inventory.wheat).toBe(2)
     expect(harvested.state.plots[0]).toEqual({ status: 'empty' })
-  })
-
-  it('clears withered plots without refunding seeds', () => {
-    const state = settle(plantWheat(), T0 + 16 * 60_000)
-
-    const cleared = clearWithered(state, 0)
-
-    expect(cleared.ok).toBe(true)
-    if (!cleared.ok) return
-    expect(cleared.state.plots[0]).toEqual({ status: 'empty' })
-    expect(cleared.state.seeds.wheat).toBe(DEFAULT_SEEDS.wheat - 1)
   })
 
   it('grants daily seeds once per local day', () => {

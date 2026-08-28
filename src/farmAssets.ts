@@ -333,7 +333,7 @@ export function formatPlotLayoutConfigForCode(config: PlotLayoutConfig): string 
   ].join('\n')
 }
 
-export type PlotSoilDisplay = 'empty' | 'growing' | 'dry' | 'bug' | 'ready' | 'withered'
+export type PlotSoilDisplay = 'empty' | 'growing' | 'dry' | 'bug' | 'ready'
 
 export function plotSoilSrc(display: PlotSoilDisplay): string {
   if (display === 'empty') return FARM_ASSETS.plotIsoEmpty

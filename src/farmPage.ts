@@ -14,7 +14,7 @@ import { onPageChange } from './appNavigation'
 import { syncFarmPlotLayoutEditor, isFarmLayoutEditEnabled } from './farmPlotLayoutEditor'
 import { refreshFarmPlotHitDebugIfEnabled, syncFarmPlotHitDebug } from './farmPlotHitDebug'
 
-type PlotDisplayStatus = 'empty' | 'growing' | 'dry' | 'bug' | 'ready' | 'withered'
+type PlotDisplayStatus = 'empty' | 'growing' | 'dry' | 'bug' | 'ready'
 
 const WEATHER_LABEL: Record<Weather, string> = {
   clear: '☀️ 晴天',
@@ -34,7 +34,6 @@ function waterIntervalMs(cropId: CropId, weather: Weather): number {
 
 function getPlotDisplayStatus(plot: PlotState, weather: Weather, now: number): PlotDisplayStatus {
   if (plot.status === 'empty') return 'empty'
-  if (plot.status === 'withered') return 'withered'
   if (plot.status === 'ready') return 'ready'
   if (weather === 'rain') return plot.hasBug ? 'bug' : 'growing'
   if (plot.hasBug) return 'bug'
@@ -61,7 +60,6 @@ function plotHint(plot: PlotState, state: FarmState, now: number): string {
   if (display === 'dry') return '缺水 · 点击浇水'
   if (display === 'bug') return '生虫 · 点击除虫'
   if (display === 'ready') return '成熟 · 点击收割'
-  if (display === 'withered') return '枯萎 · 点击清理'
   if (display === 'growing' && plot.status !== 'empty') {
     const crop = CROPS[plot.cropId]
     const progress = Math.min(100, Math.round((plot.progressMs / crop.growMs) * 100))
@@ -83,7 +81,7 @@ function renderPlot(plot: PlotState, index: number, state: FarmState, now: numbe
   const hint = plotHint(plot, state, now)
 
   const cropLayer =
-    crop && plot.status !== 'empty' && display !== 'withered'
+    crop && plot.status !== 'empty'
       ? `<div class="farm-crop-sprite" style="${cropSpriteStyle(plot.cropId, stage)}" title="${escapeHtml(crop.name)}"></div>`
       : ''
 
@@ -244,7 +242,7 @@ function setupFarmPage(farmRoot: HTMLElement) {
     if (badgesEl) badgesEl.innerHTML = badges.join('')
 
     let cropEl = btn.querySelector<HTMLElement>('.farm-crop-sprite')
-    if (crop && plot.status !== 'empty' && display !== 'withered') {
+    if (crop && plot.status !== 'empty') {
       if (!cropEl) {
         btn.querySelector('.farm-plot-badges')?.insertAdjacentHTML(
           'beforebegin',
@@ -381,10 +379,6 @@ function setupFarmPage(farmRoot: HTMLElement) {
     }
     if (display === 'bug') {
       void runAction(() => window.electronAPI.farmDebug({ plotIndex }), '除虫完成')
-      return
-    }
-    if (plot.status === 'withered') {
-      void runAction(() => window.electronAPI.farmClearWithered({ plotIndex }), '已清理')
     }
   }
 

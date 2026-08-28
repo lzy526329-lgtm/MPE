@@ -39,7 +39,6 @@ describe('farm plot layout', () => {
     expect(plotSoilSrc('dry')).toBe(FARM_ASSETS.plotIsoSoil)
     expect(plotSoilSrc('ready')).toBe(FARM_ASSETS.plotIsoSoil)
     expect(plotSoilSrc('bug')).toBe(FARM_ASSETS.plotIsoSoil)
-    expect(plotSoilSrc('withered')).toBe(FARM_ASSETS.plotIsoSoil)
     expect(FARM_ASSETS.plotIsoEmpty).toContain('dikuai2')
     expect(FARM_ASSETS.plotIsoSoil).toContain('dikuai1')
   })

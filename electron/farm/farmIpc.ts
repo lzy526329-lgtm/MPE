@@ -2,7 +2,6 @@ import { app, ipcMain } from 'electron'
 
 import {
   claimDailySeeds,
-  clearWithered,
   harvest,
   harvestAll,
   plant,
@@ -43,11 +42,6 @@ export function registerFarmIpc() {
   ipcMain.handle('farm:harvest', (_event, request: { plotIndex: number }) => {
     const now = Date.now()
     return withFarm(root(), now, (s) => harvest(s, request.plotIndex, now))
-  })
-
-  ipcMain.handle('farm:clear-withered', (_event, request: { plotIndex: number }) => {
-    const now = Date.now()
-    return withFarm(root(), now, (s) => clearWithered(s, request.plotIndex))
   })
 
   ipcMain.handle('farm:claim-daily-seeds', () => {

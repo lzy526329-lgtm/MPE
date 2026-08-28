@@ -33,7 +33,8 @@ function isCropId(value: unknown): value is CropId {
 
 function normalizePlot(value: unknown): PlotState {
   if (!isRecord(value) || value.status === 'empty') return { status: 'empty' }
-  if (value.status !== 'growing' && value.status !== 'ready' && value.status !== 'withered') {
+  const rawStatus = value.status === 'withered' ? 'growing' : value.status
+  if (rawStatus !== 'growing' && rawStatus !== 'ready') {
     return { status: 'empty' }
   }
   const cropId = normalizeLegacyCropId(value.cropId)
@@ -50,7 +51,7 @@ function normalizePlot(value: unknown): PlotState {
     return { status: 'empty' }
   }
   return {
-    status: value.status,
+    status: rawStatus,
     cropId,
     plantedAt: value.plantedAt,
     lastWateredAt: value.lastWateredAt,
@@ -93,7 +94,7 @@ function normalizeFarmPayload(value: unknown, plotCount: number): FarmState | nu
 function isPlotState(value: unknown): value is PlotState {
   if (!isRecord(value)) return false
   if (value.status === 'empty') return true
-  if (value.status !== 'growing' && value.status !== 'ready' && value.status !== 'withered') return false
+  if (value.status !== 'growing' && value.status !== 'ready') return false
   return (
     isCropId(value.cropId) &&
     typeof value.plantedAt === 'number' &&
