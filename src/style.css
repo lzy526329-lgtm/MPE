@@ -2893,41 +2893,39 @@ input[type="range"] {
 }
 
 .farm-scene {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   position: relative;
   border-radius: 16px;
   overflow: hidden;
-  background: #6a9e4a;
+  background: #eef5e6;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+  padding: 12px;
 }
 
 .farm-stage {
   position: relative;
   width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
   background: #6a9e4a center / 100% 100% no-repeat;
 }
 
 .farm-hud {
-  position: absolute;
-  z-index: 5;
-  top: 0;
-  left: 0;
-  right: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 12px 14px 0;
-  pointer-events: none;
 }
 
 .farm-hud-pill {
   padding: 6px 12px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.88);
+  background: #fff;
   font-size: 12px;
   font-weight: 600;
   color: #3a5a28;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  pointer-events: auto;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
 .farm-plot-tile {
@@ -2938,17 +2936,6 @@ input[type="range"] {
   padding: 0;
   cursor: pointer;
   background: transparent;
-  transition: transform 0.15s ease, filter 0.15s ease;
-}
-
-.farm-plot-tile:hover {
-  transform: translateY(-2px) scale(1.04);
-  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.22));
-  z-index: 3;
-}
-
-.farm-plot-tile:active {
-  transform: scale(0.98);
 }
 
 .farm-plot-tile--dry .farm-plot-soil {
@@ -3022,16 +3009,10 @@ input[type="range"] {
 }
 
 .farm-toolbar {
-  position: absolute;
-  z-index: 5;
-  left: 0;
-  right: 0;
-  bottom: 52px;
   display: flex;
   justify-content: center;
   gap: 10px;
   flex-wrap: wrap;
-  padding: 8px 12px 4px;
 }
 
 .farm-tool {
@@ -3043,12 +3024,12 @@ input[type="range"] {
   padding: 8px 10px 6px;
   border: none;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.92);
+  background: #fff;
   cursor: pointer;
   font-size: 11px;
   font-weight: 600;
   color: #3a5a28;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
 .farm-tool:hover:not(:disabled) {
@@ -3069,29 +3050,23 @@ input[type="range"] {
 }
 
 .farm-seed-bar {
-  position: absolute;
-  z-index: 5;
-  left: 0;
-  right: 0;
-  bottom: 0;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 10px 14px 14px;
   justify-content: center;
+  padding: 4px 0 2px;
 }
 
 .farm-seed-label {
   font-size: 12px;
   font-weight: 700;
-  color: #fff;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  color: #3a5a28;
 }
 
 .farm-seed-chip {
-  border: 2px solid rgba(255, 255, 255, 0.7);
-  background: rgba(255, 255, 255, 0.85);
+  border: 2px solid #c5dcb0;
+  background: #fff;
   border-radius: 999px;
   padding: 4px 12px;
   font-size: 12px;
@@ -3118,9 +3093,10 @@ input[type="range"] {
 
 .farm-toast {
   position: absolute;
+  z-index: 10;
   left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  top: 52px;
+  transform: translateX(-50%);
   margin: 0;
   padding: 10px 18px;
   border-radius: 999px;
@@ -3129,49 +3105,19 @@ input[type="range"] {
   font-size: 14px;
   font-weight: 600;
   pointer-events: none;
+  white-space: nowrap;
   animation: farm-toast-in 0.2s ease;
 }
 
 @keyframes farm-toast-in {
   from {
     opacity: 0;
-    transform: translate(-50%, -40%);
+    transform: translateX(-50%) translateY(-6px);
   }
   to {
     opacity: 1;
-    transform: translate(-50%, -50%);
+    transform: translateX(-50%) translateY(0);
   }
-}
-
-.farm-error:empty {
-  display: none;
-}
-
-.farm-no-seeds {
-  position: absolute;
-  z-index: 6;
-  left: 14px;
-  right: 14px;
-  top: 56px;
-  margin: 0;
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: rgba(255, 248, 220, 0.95);
-  color: #8a5a10;
-  font-size: 13px;
-  font-weight: 600;
-  text-align: center;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-}
-
-.farm-error {
-  position: absolute;
-  z-index: 6;
-  left: 14px;
-  right: 14px;
-  top: 56px;
-  margin: 0;
-  text-align: center;
 }
 
 @media (max-width: 900px) {

@@ -8,8 +8,8 @@ import {
 } from './farmAssets'
 
 describe('farm plot layout', () => {
-  it('defines 6 absolute plot placements covering the meadow', () => {
-    expect(PLOT_LAYOUT).toHaveLength(6)
+  it('defines 24 absolute plot placements covering the meadow', () => {
+    expect(PLOT_LAYOUT).toHaveLength(24)
     for (const plot of PLOT_LAYOUT) {
       expect(plot.left).toBeGreaterThanOrEqual(0)
       expect(plot.top).toBeGreaterThanOrEqual(0)
@@ -37,6 +37,6 @@ describe('farm plot layout', () => {
   it('renders absolute percent styles for each plot index', () => {
     expect(plotTileStyle(0)).toContain('left:')
     expect(plotTileStyle(0)).toContain('%')
-    expect(plotTileStyle(5)).toContain(`width:${PLOT_LAYOUT[5].width}%`)
+    expect(plotTileStyle(23)).toContain(`width:${PLOT_LAYOUT[23].width}%`)
   })
 })

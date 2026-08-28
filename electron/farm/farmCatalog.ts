@@ -1,6 +1,6 @@
 import type { CropDef, CropId } from './farmTypes'
 
-export const PLOT_COUNT = 6
+export const PLOT_COUNT = 24
 
 export const CROPS: Record<CropId, CropDef> = {
   lettuce: {

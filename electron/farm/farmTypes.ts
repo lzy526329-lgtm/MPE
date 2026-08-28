@@ -27,7 +27,7 @@ export type Weather = 'clear' | 'rain'
 
 export type FarmState = {
   version: 1
-  plotCount: 6
+  plotCount: 24
   plots: PlotState[]
   inventory: Record<string, number>
   seeds: Record<string, number>

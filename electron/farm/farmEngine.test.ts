@@ -56,18 +56,18 @@ function growReadyLettuce(): FarmState {
 }
 
 describe('farmEngine default state', () => {
-  it('creates six empty plots with starter seeds and clear weather', () => {
+  it('creates twenty-four empty plots with starter seeds and clear weather', () => {
     const state = createDefaultFarm(T0)
 
     expect(state).toMatchObject({
       version: 1,
-      plotCount: 6,
+      plotCount: 24,
       weather: 'clear',
       lastSettledAt: T0,
       seeds: DEFAULT_SEEDS,
       inventory: {},
     })
-    expect(state.plots).toHaveLength(6)
+    expect(state.plots).toHaveLength(24)
     expect(state.plots.every((plot) => plot.status === 'empty')).toBe(true)
   })
 })

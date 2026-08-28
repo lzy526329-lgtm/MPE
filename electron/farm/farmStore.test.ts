@@ -36,7 +36,7 @@ describe('parseFarmPayload', () => {
 
     expect(didReset).toBe(true)
     expect(state.version).toBe(1)
-    expect(state.plots).toHaveLength(6)
+    expect(state.plots).toHaveLength(24)
     expect(state.lastSettledAt).toBe(1234)
   })
 
@@ -89,7 +89,7 @@ describe('farmStore', () => {
       lastSettledAt: T0,
     })
     expect(files.some((file) => /^farm\.json\.corrupt\.\d+$/.test(file))).toBe(true)
-    expect(readStoredFarm(userDataPath).plots).toHaveLength(6)
+    expect(readStoredFarm(userDataPath).plots).toHaveLength(24)
   })
 
   it('serializes withFarm mutations so later calls see earlier writes', async () => {

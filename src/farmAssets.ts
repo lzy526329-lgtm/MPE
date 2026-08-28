@@ -23,17 +23,25 @@ export type PlotLayout = {
 }
 
 /**
- * 6 块地在中央草地的大致位置（等距两排）。
- * 改数字即可微调；单位均为相对背景图的百分比。
+ * 24 块地：等距四列 × 每列 6，单格约 10%。
+ * 同列步进 (-5, +4.375)，邻列步进 (+5, +4.375)；单位均为相对背景图的百分比。
  */
-export const PLOT_LAYOUT: PlotLayout[] = [
-  { left: 48, top: 28, width: 16 },
-  { left: 38, top: 30, width: 16 },
-  { left: 48, top: 48, width: 16 },
-  { left: 29, top: 44, width: 16 },
-  { left: 40, top: 47, width: 16 },
-  { left: 51, top: 44, width: 16 },
-]
+const PLOT_WIDTH = 10
+const PLOT_COLS = 4
+const PLOT_ROWS = 6
+const PLOT_ORIGIN = { left: 54, top: 33 }
+const PLOT_ROW_STEP = { left: -5, top: 4.375 }
+const PLOT_COL_STEP = { left: 5, top: 4.375 }
+
+export const PLOT_LAYOUT: PlotLayout[] = Array.from({ length: PLOT_COLS * PLOT_ROWS }, (_, index) => {
+  const col = Math.floor(index / PLOT_ROWS)
+  const row = index % PLOT_ROWS
+  return {
+    left: PLOT_ORIGIN.left + col * PLOT_COL_STEP.left + row * PLOT_ROW_STEP.left,
+    top: PLOT_ORIGIN.top + col * PLOT_COL_STEP.top + row * PLOT_ROW_STEP.top,
+    width: PLOT_WIDTH,
+  }
+})
 
 export type PlotSoilDisplay = 'empty' | 'growing' | 'dry' | 'bug' | 'ready' | 'withered'
 
