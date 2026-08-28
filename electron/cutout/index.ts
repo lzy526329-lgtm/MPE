@@ -39,6 +39,8 @@ function isSubject(r: number, g: number, b: number): boolean {
   const sat = mx > 0 ? (mx - mn) / mx : 0
   if (g > r + 10 && g > b + 6 && g > 45) return true
   if (r > 45 && g > 25 && b < 125 && r >= g - 12 && r > b + 12 && sat > 0.12 && lum < 200) return true
+  // 描边 / 深色轮廓（AI 导出 PNG 常见）
+  if (lum < 95 && sat < 0.35) return true
   return false
 }
 
@@ -98,6 +100,68 @@ function erodeAlpha(alpha: Uint8Array, w: number, h: number, radius: number): vo
   }
 }
 
+function removeSmallInteriorBackgroundIslands(
+  data: Uint8Array,
+  alpha: Uint8Array,
+  w: number,
+  h: number,
+  mode: CutoutMode,
+  tolerance: number,
+): void {
+  const visited = new Uint8Array(w * h)
+
+  const isBgLike = (i: number) => {
+    const o = i * 4
+    return alpha[i] > 0 && isBackgroundColor(data[o], data[o + 1], data[o + 2], mode, tolerance)
+  }
+
+  const isProtectedNeighbor = (i: number) => {
+    const o = i * 4
+    return alpha[i] > 0 && !isBackgroundColor(data[o], data[o + 1], data[o + 2], mode, tolerance)
+  }
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const start = y * w + x
+      if (visited[start] || !isBgLike(start)) continue
+
+      const queue = [start]
+      const component: number[] = []
+      visited[start] = 1
+      let touchesSubject = false
+
+      while (queue.length > 0) {
+        const i = queue.pop()!
+        component.push(i)
+        const px = i % w
+        const py = (i / w) | 0
+        for (const [dx, dy] of [
+          [-1, 0],
+          [1, 0],
+          [0, -1],
+          [0, 1],
+        ] as const) {
+          const nx = px + dx
+          const ny = py + dy
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue
+          const ni = ny * w + nx
+          if (isProtectedNeighbor(ni)) {
+            touchesSubject = true
+          }
+          if (visited[ni] || !isBgLike(ni)) continue
+          visited[ni] = 1
+          queue.push(ni)
+        }
+      }
+
+      // 贴边泛洪后仍留下的浅灰区域：若与描边/主体相邻则保留（如镰刀刀刃）
+      if (!touchesSubject) {
+        for (const i of component) alpha[i] = 0
+      }
+    }
+  }
+}
+
 function removeBackgroundFromRgba(
   data: Uint8Array,
   w: number,
@@ -143,17 +207,8 @@ function removeBackgroundFromRgba(
     if (y > 0) push(x, y - 1)
   }
 
-  // Remove isolated bg islands not connected to border
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const i = y * w + x
-      if (alpha[i] === 0) continue
-      const o = i * 4
-      if (isBackgroundColor(data[o], data[o + 1], data[o + 2], mode, tolerance)) {
-        alpha[i] = 0
-      }
-    }
-  }
+  // 仅移除与主体不相邻的小块背景色孤岛，避免误删浅灰刀刃
+  removeSmallInteriorBackgroundIslands(data, alpha, w, h, mode, tolerance)
 
   erodeAlpha(alpha, w, h, choke)
 

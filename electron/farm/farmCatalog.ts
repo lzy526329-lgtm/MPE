@@ -2,46 +2,26 @@ import type { CropDef, CropId } from './farmTypes'
 
 export const PLOT_COUNT = 24
 
+export const LEGACY_CROP_IDS = ['lettuce', 'tomato', 'pumpkin'] as const
+
 export const CROPS: Record<CropId, CropDef> = {
-  lettuce: {
-    id: 'lettuce',
-    name: '生菜',
-    growMs: 2 * 60_000,
+  wheat: {
+    id: 'wheat',
+    name: '小麦',
+    growMs: 20 * 60_000,
     waterIntervalMs: 5 * 60_000,
-    yieldItemId: 'lettuce',
+    yieldItemId: 'wheat',
     yieldMin: 1,
     yieldMax: 2,
-  },
-  tomato: {
-    id: 'tomato',
-    name: '番茄',
-    growMs: 20 * 60_000,
-    waterIntervalMs: 15 * 60_000,
-    yieldItemId: 'tomato',
-    yieldMin: 1,
-    yieldMax: 3,
-  },
-  pumpkin: {
-    id: 'pumpkin',
-    name: '南瓜',
-    growMs: 45 * 60_000,
-    waterIntervalMs: 30 * 60_000,
-    yieldItemId: 'pumpkin',
-    yieldMin: 2,
-    yieldMax: 4,
   },
 }
 
 export const DEFAULT_SEEDS: Record<string, number> = {
-  lettuce: 5,
-  tomato: 3,
-  pumpkin: 1,
+  wheat: 5,
 }
 
 export const DAILY_SEEDS: Record<string, number> = {
-  lettuce: 3,
-  tomato: 2,
-  pumpkin: 1,
+  wheat: 3,
 }
 
 export const BUG_CHANCE = 0.1
@@ -50,4 +30,42 @@ export const WEATHER_COOLDOWN_MS = 30 * 60_000
 
 export function getCrop(id: CropId): CropDef {
   return CROPS[id]
+}
+
+function floorCount(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return 0
+  return Math.floor(value)
+}
+
+/** Merge legacy crop seeds into the single wheat inventory key. */
+export function mergeLegacySeeds(seeds: Record<string, number>): Record<string, number> {
+  let wheat = floorCount(seeds.wheat)
+  for (const id of LEGACY_CROP_IDS) {
+    wheat += floorCount(seeds[id])
+  }
+  return { wheat }
+}
+
+/** Merge legacy harvest items into wheat produce. */
+export function mergeLegacyProduce(inventory: Record<string, number>): Record<string, number> {
+  const next: Record<string, number> = {}
+  let wheat = floorCount(inventory.wheat)
+  for (const id of LEGACY_CROP_IDS) {
+    wheat += floorCount(inventory[id])
+  }
+  if (wheat > 0) next.wheat = wheat
+  for (const [key, count] of Object.entries(inventory)) {
+    if (key === 'wheat' || (LEGACY_CROP_IDS as readonly string[]).includes(key)) continue
+    const normalized = floorCount(count)
+    if (normalized > 0) next[key] = normalized
+  }
+  return next
+}
+
+export function normalizeLegacyCropId(value: unknown): CropId | null {
+  if (value === 'wheat') return 'wheat'
+  if (typeof value === 'string' && (LEGACY_CROP_IDS as readonly string[]).includes(value)) {
+    return 'wheat'
+  }
+  return null
 }

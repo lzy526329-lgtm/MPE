@@ -65,7 +65,7 @@ describe('farmStore', () => {
 
   it('loads, settles, and writes back an existing farm', () => {
     const userDataPath = createTempUserData()
-    const planted = plant(createDefaultFarm(T0), 0, 'lettuce', T0)
+    const planted = plant(createDefaultFarm(T0), 0, 'wheat', T0)
     expect(planted.ok).toBe(true)
     if (!planted.ok) return
     saveFarm(userDataPath, planted.state)
@@ -99,16 +99,16 @@ describe('farmStore', () => {
     const [first, second] = await Promise.all([
       withFarm(userDataPath, T0, (state) => ({
         ok: true,
-        state: { ...state, inventory: { ...state.inventory, lettuce: 1 } },
+        state: { ...state, inventory: { ...state.inventory, wheat: 1 } },
       })),
       withFarm(userDataPath, T0, (state) => ({
         ok: true,
-        state: { ...state, inventory: { ...state.inventory, tomato: 2 } },
+        state: { ...state, inventory: { ...state.inventory, wheat: 2 } },
       })),
     ])
 
     expect(first.ok).toBe(true)
     expect(second.ok).toBe(true)
-    expect(readStoredFarm(userDataPath).inventory).toEqual({ lettuce: 1, tomato: 2 })
+    expect(readStoredFarm(userDataPath).inventory).toEqual({ wheat: 2 })
   })
 })
