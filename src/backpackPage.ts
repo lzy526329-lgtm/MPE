@@ -3,10 +3,36 @@ import { getCurrentPage, onPageChange } from './appNavigation'
 import {
   DEFAULT_GAME_TAB,
   escapeHtml,
-  isGameTab,
-  switchGameTab,
+  gameErrorMessage,
   type GameTab,
 } from './gamePageShared'
+
+export type BackpackTab = GameTab | 'produce'
+
+export type BackpackRenderOptions = {
+  activeTab: BackpackTab
+  busyProduceId: string | null
+  error: string | null
+}
+
+export function isBackpackTab(value: string | undefined): value is BackpackTab {
+  return value === 'food' || value === 'seeds' || value === 'produce'
+}
+
+export function canSellProduce(owned: number): boolean {
+  return owned >= 1
+}
+
+function switchBackpackTab(root: HTMLElement, tab: BackpackTab): void {
+  root.querySelectorAll<HTMLElement>('.game-tab').forEach((button) => {
+    const active = button.dataset.gameTab === tab
+    button.classList.toggle('active', active)
+    button.setAttribute('aria-selected', String(active))
+  })
+  root.querySelectorAll<HTMLElement>('.game-pane').forEach((pane) => {
+    pane.classList.toggle('hidden', pane.dataset.gamePane !== tab)
+  })
+}
 
 export function hasInventoryItems(record: Record<string, number>): boolean {
   return Object.values(record).some((count) => count > 0)
@@ -44,13 +70,49 @@ function renderFoodItems(food: Record<string, number>): string {
     .join('')
 }
 
+function renderProduceOffer(
+  state: GameViewState,
+  offer: GameViewState['produceOffers'][number],
+  busyProduceId: string | null,
+): string {
+  const owned = state.inventory.produce[offer.produceId] ?? 0
+  if (owned < 1) return ''
+  const selling = busyProduceId === offer.produceId
+  const disabled = busyProduceId !== null || !canSellProduce(owned)
+
+  return `
+    <article class="backpack-item-card backpack-item-card--sellable">
+      <span class="backpack-item-icon" aria-hidden="true">🌾</span>
+      <div class="backpack-item-body">
+        <h2>${escapeHtml(offer.name)}</h2>
+        <strong>× ${owned}</strong>
+      </div>
+      <div class="backpack-item-action">
+        <span class="backpack-item-price">${offer.price} 金币</span>
+        <button
+          class="primary-button backpack-sell-button"
+          type="button"
+          data-sell-produce="${escapeHtml(offer.produceId)}"${disabled ? ' disabled' : ''}
+        >${selling ? '出售中…' : '出售 1 个'}</button>
+      </div>
+    </article>
+  `
+}
+
+function renderProduceItems(state: GameViewState, busyProduceId: string | null): string {
+  return state.produceOffers
+    .map((offer) => renderProduceOffer(state, offer, busyProduceId))
+    .join('')
+}
+
 export function renderBackpackPage(
   state: GameViewState,
-  activeTab: GameTab,
-  error: string | null,
+  options: BackpackRenderOptions,
 ): string {
+  const { activeTab, busyProduceId, error } = options
   const hasFood = hasInventoryItems(state.inventory.food)
   const hasSeeds = hasInventoryItems(state.inventory.seeds)
+  const hasProduce = hasInventoryItems(state.inventory.produce)
 
   return `
     <div class="game-page-shell">
@@ -58,6 +120,8 @@ export function renderBackpackPage(
         <div class="game-tabs" role="tablist" aria-label="背包分类">
           <button class="game-tab${activeTab === 'seeds' ? ' active' : ''}" type="button"
             role="tab" aria-selected="${activeTab === 'seeds'}" data-game-tab="seeds">种子</button>
+          <button class="game-tab${activeTab === 'produce' ? ' active' : ''}" type="button"
+            role="tab" aria-selected="${activeTab === 'produce'}" data-game-tab="produce">农产品</button>
           <button class="game-tab${activeTab === 'food' ? ' active' : ''}" type="button"
             role="tab" aria-selected="${activeTab === 'food'}" data-game-tab="food">食物</button>
         </div>
@@ -74,6 +138,16 @@ export function renderBackpackPage(
             <div class="game-empty">
               <span aria-hidden="true">🌱</span>
               <strong>暂无种子</strong>
+            </div>
+          `}
+      </section>
+      <section class="game-pane${activeTab === 'produce' ? '' : ' hidden'}" data-game-pane="produce">
+        ${hasProduce
+          ? `<div class="backpack-item-grid">${renderProduceItems(state, busyProduceId)}</div>`
+          : `
+            <div class="game-empty">
+              <span aria-hidden="true">🌾</span>
+              <strong>暂无农产品</strong>
             </div>
           `}
       </section>
@@ -100,7 +174,8 @@ export function mountBackpackPage(): void {
   mounted = true
 
   let state: GameViewState | null = null
-  let activeTab = DEFAULT_GAME_TAB
+  let activeTab: BackpackTab = DEFAULT_GAME_TAB
+  let busyProduceId: string | null = null
   let error: string | null = null
   let loading = false
   let stateGeneration = 0
@@ -123,7 +198,7 @@ export function mountBackpackPage(): void {
         : '<div class="game-empty" data-backpack-idle></div>'
       return
     }
-    root.innerHTML = renderBackpackPage(state, activeTab, error)
+    root.innerHTML = renderBackpackPage(state, { activeTab, busyProduceId, error })
   }
 
   const refresh = async () => {
@@ -151,18 +226,50 @@ export function mountBackpackPage(): void {
     }
   }
 
+  const sellProduce = async (produceId: string) => {
+    if (!state || busyProduceId !== null) return
+    const offer = state.produceOffers.find((item) => item.produceId === produceId)
+    const owned = state.inventory.produce[produceId] ?? 0
+    if (!offer || !canSellProduce(owned)) return
+
+    busyProduceId = produceId
+    error = null
+    render()
+    try {
+      const result = await window.electronAPI.gameSellProduce(produceId)
+      state = result.state
+      if (!result.ok) error = gameErrorMessage(result.code)
+    } catch {
+      error = '出售失败，请重试。'
+    } finally {
+      stateGeneration += 1
+      loading = false
+      busyProduceId = null
+      render()
+    }
+  }
+
   root.addEventListener('click', (event) => {
     const target = event.target
     if (!(target instanceof Element)) return
 
     const tabButton = target.closest<HTMLElement>('[data-game-tab]')
-    if (tabButton && isGameTab(tabButton.dataset.gameTab)) {
+    if (tabButton && isBackpackTab(tabButton.dataset.gameTab)) {
       activeTab = tabButton.dataset.gameTab
-      switchGameTab(root, activeTab)
+      switchBackpackTab(root, activeTab)
       return
     }
 
-    if (target.closest('[data-backpack-retry]')) void refresh()
+    if (target.closest('[data-backpack-retry]')) {
+      void refresh()
+      return
+    }
+
+    const sellButton = target.closest<HTMLButtonElement>('[data-sell-produce]')
+    if (!sellButton || sellButton.disabled) return
+    const produceId = sellButton.dataset.sellProduce
+    if (!produceId || !state?.produceOffers.some((offer) => offer.produceId === produceId)) return
+    void sellProduce(produceId)
   })
 
   onPageChange((pageId) => {

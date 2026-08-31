@@ -1,6 +1,19 @@
+import type { GameErrorCode } from '../electron/game/gameTypes'
+
 export type GameTab = 'food' | 'seeds'
 
 export const DEFAULT_GAME_TAB: GameTab = 'seeds'
+
+export function gameErrorMessage(code: GameErrorCode): string {
+  const messages: Record<GameErrorCode, string> = {
+    UNKNOWN_ITEM: '商品不存在，请刷新后重试。',
+    INSUFFICIENT_COINS: '金币不足，无法购买。',
+    INSUFFICIENT_STOCK: '库存不足，无法出售。',
+    INVALID_STATE: '游戏数据异常，请重试。',
+    PERSISTENCE_FAILED: '保存失败，请重试。',
+  }
+  return messages[code]
+}
 
 export function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (character) => {

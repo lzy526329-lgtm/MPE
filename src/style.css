@@ -3378,6 +3378,42 @@ input[type="range"] {
   font-size: 15px;
 }
 
+.backpack-item-card--sellable {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.backpack-item-card--sellable > .backpack-item-icon {
+  align-self: flex-start;
+}
+
+.backpack-item-body {
+  flex: 1;
+}
+
+.backpack-item-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.backpack-item-price {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-dark);
+}
+
+.backpack-sell-button {
+  min-width: 96px;
+}
+
+.backpack-sell-button:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
 .game-empty {
   min-height: 220px;
   display: flex;

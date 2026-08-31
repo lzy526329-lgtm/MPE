@@ -281,6 +281,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   gameGetState: (): Promise<GameViewState> => ipcRenderer.invoke('game:get-state'),
   gameBuySeed: (cropId: CropId): Promise<GameActionResult> =>
     ipcRenderer.invoke('game:buy-seed', cropId),
+  gameSellProduce: (produceId: string): Promise<GameActionResult> =>
+    ipcRenderer.invoke('game:sell-produce', produceId),
   onGameStateChanged: (callback: (state: GameViewState) => void) => {
     const listener = (_event: unknown, state: GameViewState) => callback(state)
     ipcRenderer.on('game:state-changed', listener)

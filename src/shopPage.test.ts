@@ -23,6 +23,7 @@ const state: GameViewState = {
     produce: {},
   },
   seedOffers: [{ cropId: 'wheat', name: '小麦种子', price: 5 }],
+  produceOffers: [{ produceId: 'wheat', name: '小麦', price: 3 }],
 }
 
 const defaultOptions = {
@@ -94,6 +95,7 @@ describe('shop error messages', () => {
   it.each<[GameErrorCode, string]>([
     ['UNKNOWN_ITEM', '商品不存在，请刷新后重试。'],
     ['INSUFFICIENT_COINS', '金币不足，无法购买。'],
+    ['INSUFFICIENT_STOCK', '库存不足，无法出售。'],
     ['INVALID_STATE', '游戏数据异常，请重试。'],
     ['PERSISTENCE_FAILED', '保存失败，请重试。'],
   ])('maps %s to a safe Chinese message', (code, expected) => {

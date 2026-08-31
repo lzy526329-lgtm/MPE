@@ -176,6 +176,7 @@ declare global {
       farmHarvestAll: () => Promise<FarmActionResult>
       gameGetState: () => Promise<GameViewState>
       gameBuySeed: (cropId: CropId) => Promise<GameActionResult>
+      gameSellProduce: (produceId: string) => Promise<GameActionResult>
       onGameStateChanged: (callback: (state: GameViewState) => void) => () => void
     }
   }

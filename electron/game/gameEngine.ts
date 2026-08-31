@@ -1,7 +1,7 @@
 import { createDefaultFarm, settle, unlockPlot, type FarmActionResult } from '../farm/farmEngine'
 import type { CropId, FarmState } from '../farm/farmTypes'
 import { mergeLegacyProduce, mergeLegacySeeds, plotUnlockRequirement } from '../farm/farmCatalog'
-import { INITIAL_COINS, SEED_OFFERS, normalizeItemCount, seedCounts } from './gameCatalog'
+import { INITIAL_COINS, PRODUCE_OFFERS, SEED_OFFERS, normalizeItemCount, seedCounts } from './gameCatalog'
 import type {
   FarmCoreState,
   FarmGameMutationResult,
@@ -113,6 +113,7 @@ export function toGameViewState(state: GameState): GameViewState {
     wallet: { ...state.wallet },
     inventory: cloneInventory(state.inventory),
     seedOffers: SEED_OFFERS.map((offer) => ({ ...offer })),
+    produceOffers: PRODUCE_OFFERS.map((offer) => ({ ...offer })),
   }
 }
 
@@ -125,6 +126,7 @@ export function emptyGameViewState(): GameViewState {
     wallet: { coins: 0 },
     inventory: { food: {}, seeds: seedCounts(), produce: {} },
     seedOffers: SEED_OFFERS.map((offer) => ({ ...offer })),
+    produceOffers: PRODUCE_OFFERS.map((offer) => ({ ...offer })),
   }
 }
 
@@ -247,6 +249,52 @@ export function buySeed(state: GameState, cropId: string): GameMutationResult {
         ...state.inventory.seeds,
         [offer.cropId]: state.inventory.seeds[offer.cropId] + 1,
       },
+    },
+  }
+
+  return {
+    ok: true,
+    game,
+    state: toGameViewState(game),
+  }
+}
+
+export function sellProduce(state: GameState, produceId: string): GameMutationResult {
+  const offer = PRODUCE_OFFERS.find((item) => item.produceId === produceId)
+  const view = toGameViewState(state)
+
+  if (!offer) {
+    return {
+      ok: false,
+      code: 'UNKNOWN_ITEM',
+      message: '未知商品',
+      game: cloneGameState(state),
+      state: view,
+    }
+  }
+
+  const owned = state.inventory.produce[produceId] ?? 0
+  if (owned < 1) {
+    return {
+      ok: false,
+      code: 'INSUFFICIENT_STOCK',
+      message: '库存不足',
+      game: cloneGameState(state),
+      state: view,
+    }
+  }
+
+  const produce = cloneRecord(state.inventory.produce)
+  const remaining = owned - 1
+  if (remaining > 0) produce[produceId] = remaining
+  else delete produce[produceId]
+
+  const game: GameState = {
+    ...cloneGameState(state),
+    wallet: { coins: state.wallet.coins + offer.price },
+    inventory: {
+      ...cloneInventory(state.inventory),
+      produce,
     },
   }
 

@@ -8,6 +8,7 @@ import {
   createDefaultGameState,
   migrateLegacyGameState,
   runFarmAction,
+  sellProduce,
   toCompatFarmState,
   toGameActionResult,
   unlockPlotWithPayment,
@@ -119,6 +120,39 @@ describe('buySeed', () => {
   })
 })
 
+describe('sellProduce', () => {
+  it('sells one wheat produce and credits coins without mutating the input', () => {
+    const before = createDefaultGameState(1_000)
+    before.inventory.produce = { wheat: 2 }
+    const result = sellProduce(before, 'wheat')
+    expect(result.ok).toBe(true)
+    expect(result.state.wallet.coins).toBe(103)
+    expect(result.state.inventory.produce.wheat).toBe(1)
+    expect(before.wallet.coins).toBe(100)
+    expect(before.inventory.produce.wheat).toBe(2)
+  })
+
+  it('removes the produce key when the last unit is sold', () => {
+    const before = createDefaultGameState(1_000)
+    before.inventory.produce = { wheat: 1 }
+    const result = sellProduce(before, 'wheat')
+    expect(result.ok).toBe(true)
+    expect(result.state.inventory.produce.wheat).toBeUndefined()
+  })
+
+  it('does not change state when stock is insufficient', () => {
+    const result = sellProduce(createDefaultGameState(1_000), 'wheat')
+    expect(result).toMatchObject({ ok: false, code: 'INSUFFICIENT_STOCK' })
+  })
+
+  it('rejects an unknown item', () => {
+    expect(sellProduce(createDefaultGameState(1_000), 'rice')).toMatchObject({
+      ok: false,
+      code: 'UNKNOWN_ITEM',
+    })
+  })
+})
+
 describe('farm compat mapping', () => {
   it('maps unified inventory to compat farm view', () => {
     const game = createDefaultGameState(1_000)
@@ -203,6 +237,7 @@ describe('toGameActionResult', () => {
         wallet: { coins },
         inventory: before.inventory,
         seedOffers: [{ cropId: 'wheat', name: '小麦种子', price: 5 }],
+        produceOffers: [{ produceId: 'wheat', name: '小麦', price: 3 }],
       },
     })
     expect('game' in action).toBe(false)

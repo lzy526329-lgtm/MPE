@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GameViewState } from '../electron/game/gameTypes'
-import { hasInventoryItems, renderBackpackPage } from './backpackPage'
+import {
+  canSellProduce,
+  hasInventoryItems,
+  renderBackpackPage,
+} from './backpackPage'
 
 const navigation = vi.hoisted(() => ({
   pageListener: null as ((pageId: string) => void) | null,
@@ -14,6 +18,12 @@ vi.mock('./appNavigation', () => ({
   },
 }))
 
+const defaultOptions = {
+  activeTab: 'seeds' as const,
+  busyProduceId: null,
+  error: null,
+}
+
 const state: GameViewState = {
   wallet: { coins: 100 },
   inventory: {
@@ -22,11 +32,12 @@ const state: GameViewState = {
     produce: {},
   },
   seedOffers: [{ cropId: 'wheat', name: '小麦种子', price: 5 }],
+  produceOffers: [{ produceId: 'wheat', name: '小麦', price: 3 }],
 }
 
 describe('backpack page rendering', () => {
   it('renders only seeds with a positive count', () => {
-    const html = renderBackpackPage(state, 'seeds', null)
+    const html = renderBackpackPage(state, defaultOptions)
 
     expect(html).toContain('100 金币')
     expect(html).toContain('小麦种子')
@@ -42,7 +53,7 @@ describe('backpack page rendering', () => {
       inventory: { ...state.inventory, seeds: { wheat: 0 } },
     }
 
-    const html = renderBackpackPage(emptySeeds, 'seeds', null)
+    const html = renderBackpackPage(emptySeeds, defaultOptions)
 
     expect(html).toContain('<strong>暂无种子</strong>')
     expect(html).not.toContain('小麦种子')
@@ -50,9 +61,48 @@ describe('backpack page rendering', () => {
   })
 
   it('renders the exact empty food state', () => {
-    const html = renderBackpackPage(state, 'food', null)
+    const html = renderBackpackPage(state, { ...defaultOptions, activeTab: 'food' })
 
     expect(html).toContain('<strong>暂无食物</strong>')
+  })
+
+  it('renders harvested produce with a sell action in the produce tab', () => {
+    const withProduce: GameViewState = {
+      ...state,
+      inventory: { ...state.inventory, produce: { wheat: 3 } },
+    }
+
+    const html = renderBackpackPage(withProduce, { ...defaultOptions, activeTab: 'produce' })
+
+    expect(html).toContain('农产品')
+    expect(html).toContain('小麦')
+    expect(html).toContain('× 3')
+    expect(html).toContain('3 金币')
+    expect(html).toContain('data-sell-produce="wheat"')
+    expect(html).toContain('出售 1 个')
+  })
+
+  it('disables the sell button while a sale is in progress', () => {
+    const withProduce: GameViewState = {
+      ...state,
+      inventory: { ...state.inventory, produce: { wheat: 3 } },
+    }
+
+    const html = renderBackpackPage(withProduce, {
+      activeTab: 'produce',
+      busyProduceId: 'wheat',
+      error: null,
+    })
+
+    expect(html).toContain('data-sell-produce="wheat" disabled')
+    expect(html).toContain('出售中…')
+  })
+
+  it('renders the empty produce state when there is no harvest', () => {
+    const html = renderBackpackPage(state, { ...defaultOptions, activeTab: 'produce' })
+
+    expect(html).toContain('<strong>暂无农产品</strong>')
+    expect(html).not.toContain('× 3')
   })
 
   it('escapes seed names before inserting them into markup', () => {
@@ -63,7 +113,7 @@ describe('backpack page rendering', () => {
       ],
     }
 
-    const html = renderBackpackPage(unsafeState, 'seeds', null)
+    const html = renderBackpackPage(unsafeState, defaultOptions)
     expect(html).not.toContain('<img')
     expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;')
   })
@@ -76,6 +126,11 @@ describe('backpack inventory rules', () => {
 
   it('detects a positive inventory entry', () => {
     expect(hasInventoryItems({ apple: 0, biscuit: 1 })).toBe(true)
+  })
+
+  it('allows selling when at least one item is owned', () => {
+    expect(canSellProduce(1)).toBe(true)
+    expect(canSellProduce(0)).toBe(false)
   })
 })
 

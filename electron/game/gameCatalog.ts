@@ -1,10 +1,15 @@
 import type { CropId } from '../farm/farmTypes'
-import type { SeedOffer } from './gameTypes'
+import type { ProduceOffer, SeedOffer } from './gameTypes'
 import { mergeLegacySeeds } from '../farm/farmCatalog'
 
 export const INITIAL_COINS = 100
 export const SEED_OFFERS: readonly SeedOffer[] = [
   { cropId: 'wheat', name: '小麦种子', price: 5 },
+]
+
+/** 农产品回收价（单次出售 1 个） */
+export const PRODUCE_OFFERS: readonly ProduceOffer[] = [
+  { produceId: 'wheat', name: '小麦', price: 3 },
 ]
 
 /**

@@ -1,12 +1,10 @@
-import type {
-  GameErrorCode,
-  GameViewState,
-} from '../electron/game/gameTypes'
+import type { GameViewState } from '../electron/game/gameTypes'
 import type { CropId } from '../electron/farm/farmTypes'
 import { getCurrentPage, onPageChange } from './appNavigation'
 import {
   DEFAULT_GAME_TAB,
   escapeHtml,
+  gameErrorMessage,
   isGameTab,
   switchGameTab,
   type GameTab,
@@ -18,18 +16,10 @@ export type ShopRenderOptions = {
   error: string | null
 }
 
+export { gameErrorMessage }
+
 export function canBuySeed(coins: number, price: number): boolean {
   return coins >= price
-}
-
-export function gameErrorMessage(code: GameErrorCode): string {
-  const messages: Record<GameErrorCode, string> = {
-    UNKNOWN_ITEM: '商品不存在，请刷新后重试。',
-    INSUFFICIENT_COINS: '金币不足，无法购买。',
-    INVALID_STATE: '游戏数据异常，请重试。',
-    PERSISTENCE_FAILED: '保存失败，请重试。',
-  }
-  return messages[code]
 }
 
 function renderOffer(

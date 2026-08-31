@@ -5,6 +5,7 @@ import type { CropId } from '../farm/farmTypes'
 import {
   buySeed,
   emptyGameViewState,
+  sellProduce,
   toGameActionResult,
   toGameViewState,
 } from './gameEngine'
@@ -14,6 +15,7 @@ import type { GameActionResult, GameViewState } from './gameTypes'
 export type GameHandlers = {
   getState: () => Promise<GameViewState>
   buySeed: (cropId: CropId) => Promise<GameActionResult>
+  sellProduce: (produceId: string) => Promise<GameActionResult>
 }
 
 export type GameHandlerOptions = {
@@ -82,6 +84,34 @@ export function createGameHandlers(options: GameHandlerOptions): GameHandlers {
       }
       return result
     },
+    sellProduce: async (produceId) => {
+      let result: GameActionResult
+      try {
+        result = toGameActionResult(
+          await withGame(
+            options.userDataPath,
+            options.now(),
+            (game) => sellProduce(game, produceId),
+            fileOps,
+          ),
+        )
+      } catch (error) {
+        console.error('[game] failed to persist a produce sale', error)
+        return {
+          ok: false,
+          code: 'PERSISTENCE_FAILED',
+          message: '保存失败',
+          state: renderableState(),
+        }
+      }
+
+      remember(result.state)
+      if (result.ok) {
+        options.publish(result.state)
+        options.publishPetStatus()
+      }
+      return result
+    },
   }
 }
 
@@ -95,4 +125,5 @@ export function registerGameIpc(getMain: () => BrowserWindow | null): void {
 
   ipcMain.handle('game:get-state', () => handlers.getState())
   ipcMain.handle('game:buy-seed', (_event, cropId: CropId) => handlers.buySeed(cropId))
+  ipcMain.handle('game:sell-produce', (_event, produceId: string) => handlers.sellProduce(produceId))
 }

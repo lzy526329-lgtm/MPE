@@ -23,14 +23,17 @@ export type GameState = {
   migrations: GameMigrationState
 }
 export type SeedOffer = { cropId: CropId; name: string; price: number }
+export type ProduceOffer = { produceId: string; name: string; price: number }
 export type GameViewState = {
   wallet: WalletState
   inventory: InventoryState
   seedOffers: SeedOffer[]
+  produceOffers: ProduceOffer[]
 }
 export type GameErrorCode =
   | 'UNKNOWN_ITEM'
   | 'INSUFFICIENT_COINS'
+  | 'INSUFFICIENT_STOCK'
   | 'INVALID_STATE'
   | 'PERSISTENCE_FAILED'
 export type GameActionResult =

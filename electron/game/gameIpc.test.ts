@@ -33,6 +33,48 @@ describe('createGameHandlers', () => {
 
     expect(state.wallet.coins).toBe(100)
     expect(state.seedOffers).toEqual([{ cropId: 'wheat', name: '小麦种子', price: 5 }])
+    expect(state.produceOffers).toEqual([{ produceId: 'wheat', name: '小麦', price: 3 }])
+  })
+
+  it('publishes the updated game and pet status after a successful sale', async () => {
+    const publish = vi.fn()
+    const publishPetStatus = vi.fn()
+    const dir = makeDir()
+    const handlers = createGameHandlers({
+      userDataPath: dir,
+      now: () => 1_000,
+      publish,
+      publishPetStatus,
+    })
+    const initial = createDefaultGameState(1_000)
+    initial.inventory.produce = { wheat: 2 }
+    saveGameAtomic(dir, initial)
+
+    const result = await handlers.sellProduce('wheat')
+
+    expect(result.ok).toBe(true)
+    expect(result.state.wallet.coins).toBe(103)
+    expect(result.state.inventory.produce.wheat).toBe(1)
+    expect(publish).toHaveBeenCalledOnce()
+    expect(publishPetStatus).toHaveBeenCalledOnce()
+  })
+
+  it('does not publish after a failed sale', async () => {
+    const publish = vi.fn()
+    const publishPetStatus = vi.fn()
+    const handlers = createGameHandlers({
+      userDataPath: makeDir(),
+      now: () => 1_000,
+      publish,
+      publishPetStatus,
+    })
+
+    const result = await handlers.sellProduce('wheat')
+
+    expect(result.ok).toBe(false)
+    expect(result.code).toBe('INSUFFICIENT_STOCK')
+    expect(publish).not.toHaveBeenCalled()
+    expect(publishPetStatus).not.toHaveBeenCalled()
   })
 
   it('publishes the updated game and pet status after a successful purchase', async () => {
