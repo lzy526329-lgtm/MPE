@@ -1,22 +1,31 @@
 import type { CropId } from '../electron/farm/farmTypes'
 
+/** Electron 打包后走 file://，必须用相对路径（与 pet 的 ./pet/... 一致） */
+const FARM_PUBLIC = './farm'
+
+function farmAsset(relativePath: string, query?: string): string {
+  const encoded = relativePath.split('/').map(encodeURIComponent).join('/')
+  const url = `${FARM_PUBLIC}/${encoded}`
+  return query ? `${url}?${query}` : url
+}
+
 export const FARM_ASSETS = {
-  bg: '/farm/farm-bg.png',
+  bg: farmAsset('farm-bg.png'),
   /** 未解锁：等距草地块 */
-  plotIsoEmpty: '/farm/dikuai2.png?v=4',
+  plotIsoEmpty: farmAsset('dikuai2.png', 'v=4'),
   /** 已解锁空地 / 种植：等距土块 dikuai1 */
-  plotIsoSoil: '/farm/dikuai1.png?v=4',
+  plotIsoSoil: farmAsset('dikuai1.png', 'v=4'),
   wheatStages: [
-    '/farm/小麦/1-cutout.png',
-    '/farm/小麦/1-cutout.png',
-    '/farm/小麦/2-cutout.png',
-    '/farm/小麦/3-cutout.png',
+    farmAsset('小麦/1-cutout.png'),
+    farmAsset('小麦/1-cutout.png'),
+    farmAsset('小麦/2-cutout.png'),
+    farmAsset('小麦/3-cutout.png'),
   ],
   toolbar: [
-    '/farm/水壶-cutout.png',
-    '/farm/镰刀-cutout.png',
-    '/farm/种子袋-cutout.png',
-    '/farm/杀虫剂-cutout.png',
+    farmAsset('水壶-cutout.png'),
+    farmAsset('镰刀-cutout.png'),
+    farmAsset('种子袋-cutout.png'),
+    farmAsset('杀虫剂-cutout.png'),
   ],
 } as const
 

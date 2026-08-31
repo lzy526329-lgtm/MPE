@@ -126,7 +126,7 @@ describe('sellProduce', () => {
     before.inventory.produce = { wheat: 2 }
     const result = sellProduce(before, 'wheat')
     expect(result.ok).toBe(true)
-    expect(result.state.wallet.coins).toBe(103)
+    expect(result.state.wallet.coins).toBe(104)
     expect(result.state.inventory.produce.wheat).toBe(1)
     expect(before.wallet.coins).toBe(100)
     expect(before.inventory.produce.wheat).toBe(2)
@@ -208,7 +208,7 @@ describe('runFarmAction', () => {
 
     const result = runFarmAction(game, (farm) => harvest(farm, 0, 1_000, () => 0))
 
-    expect(result.game.inventory.produce.wheat).toBe(1)
+    expect(result.game.inventory.produce.wheat).toBe(2)
   })
 })
 
@@ -237,7 +237,7 @@ describe('toGameActionResult', () => {
         wallet: { coins },
         inventory: before.inventory,
         seedOffers: [{ cropId: 'wheat', name: '小麦种子', price: 5 }],
-        produceOffers: [{ produceId: 'wheat', name: '小麦', price: 3 }],
+        produceOffers: [{ produceId: 'wheat', name: '小麦', price: 4 }],
       },
     })
     expect('game' in action).toBe(false)

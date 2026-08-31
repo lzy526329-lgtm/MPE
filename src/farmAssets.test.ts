@@ -92,20 +92,22 @@ describe('farm plot layout', () => {
 })
 
 describe('farm crop assets', () => {
-  it('uses wheat cutout stages instead of the old crop sheet', () => {
-    expect(cropSpriteStyle('wheat', 0)).toContain('/farm/小麦/1-cutout.png')
-    expect(cropSpriteStyle('wheat', 2)).toContain('/farm/小麦/2-cutout.png')
-    expect(cropSpriteStyle('wheat', 3)).toContain('/farm/小麦/3-cutout.png')
+  it('uses relative wheat cutout paths for Electron file:// loading', () => {
+    expect(cropSpriteStyle('wheat', 0)).toContain('./farm/%E5%B0%8F%E9%BA%A6/1-cutout.png')
+    expect(cropSpriteStyle('wheat', 2)).toContain('./farm/%E5%B0%8F%E9%BA%A6/2-cutout.png')
+    expect(cropSpriteStyle('wheat', 3)).toContain('./farm/%E5%B0%8F%E9%BA%A6/3-cutout.png')
+  })
+
+  it('uses relative soil paths instead of root-absolute /farm URLs', () => {
+    expect(FARM_ASSETS.plotIsoSoil).toMatch(/^\.\/farm\/dikuai1\.png\?v=4$/)
+    expect(FARM_ASSETS.plotIsoEmpty).toMatch(/^\.\/farm\/dikuai2\.png\?v=4$/)
   })
 })
 
 describe('farm toolbar assets', () => {
-  it.each([
-    [0, '/farm/水壶-cutout.png'],
-    [1, '/farm/镰刀-cutout.png'],
-    [2, '/farm/种子袋-cutout.png'],
-    [3, '/farm/杀虫剂-cutout.png'],
-  ] as const)('uses the standalone tool image for icon %s', (index, assetPath) => {
-    expect(toolbarIconStyle(index)).toContain(`background-image:url('${assetPath}')`)
+  it.each([0, 1, 2, 3] as const)('uses relative tool image paths for icon %s', (index) => {
+    const style = toolbarIconStyle(index)
+    expect(style).toContain(`background-image:url('${FARM_ASSETS.toolbar[index]}')`)
+    expect(FARM_ASSETS.toolbar[index]).toMatch(/^\.\/farm\//)
   })
 })

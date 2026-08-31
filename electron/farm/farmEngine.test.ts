@@ -255,7 +255,7 @@ describe('farmEngine actions', () => {
 
     expect(harvested.ok).toBe(true)
     if (!harvested.ok) return
-    expect(harvested.state.inventory.wheat).toBe(2)
+    expect(harvested.state.inventory.wheat).toBe(3)
     expect(harvested.state.plots[0]).toEqual({ status: 'empty' })
   })
 

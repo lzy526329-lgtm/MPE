@@ -9,7 +9,7 @@ export const SEED_OFFERS: readonly SeedOffer[] = [
 
 /** 农产品回收价（单次出售 1 个） */
 export const PRODUCE_OFFERS: readonly ProduceOffer[] = [
-  { produceId: 'wheat', name: '小麦', price: 3 },
+  { produceId: 'wheat', name: '小麦', price: 4 },
 ]
 
 /**

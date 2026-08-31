@@ -23,7 +23,7 @@ const state: GameViewState = {
     produce: {},
   },
   seedOffers: [{ cropId: 'wheat', name: '小麦种子', price: 5 }],
-  produceOffers: [{ produceId: 'wheat', name: '小麦', price: 3 }],
+  produceOffers: [{ produceId: 'wheat', name: '小麦', price: 4 }],
 }
 
 const defaultOptions = {

@@ -32,7 +32,7 @@ const state: GameViewState = {
     produce: {},
   },
   seedOffers: [{ cropId: 'wheat', name: '小麦种子', price: 5 }],
-  produceOffers: [{ produceId: 'wheat', name: '小麦', price: 3 }],
+  produceOffers: [{ produceId: 'wheat', name: '小麦', price: 4 }],
 }
 
 describe('backpack page rendering', () => {
@@ -77,7 +77,7 @@ describe('backpack page rendering', () => {
     expect(html).toContain('农产品')
     expect(html).toContain('小麦')
     expect(html).toContain('× 3')
-    expect(html).toContain('3 金币')
+    expect(html).toContain('4 金币')
     expect(html).toContain('data-sell-produce="wheat"')
     expect(html).toContain('出售 1 个')
   })

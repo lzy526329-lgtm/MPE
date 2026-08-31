@@ -31,8 +31,8 @@ export const CROPS: Record<CropId, CropDef> = {
     growMs: 20 * 60_000,
     waterIntervalMs: 5 * 60_000,
     yieldItemId: 'wheat',
-    yieldMin: 1,
-    yieldMax: 2,
+    yieldMin: 2,
+    yieldMax: 3,
   },
 }
 
