@@ -63,18 +63,19 @@ function renderPlot(
   context: FarmPageContext,
 ): string {
   const display = getPlotDisplayStatus(plot, state.weather, now)
-  const crop = plot.status !== 'empty' && plot.status !== 'locked' ? CROPS[plot.cropId] : null
+  const planted = plot.status === 'growing' || plot.status === 'ready' ? plot : null
+  const crop = planted ? CROPS[planted.cropId] : null
   const ready = plot.status === 'ready'
   const progress =
-    crop && plot.status !== 'empty'
-      ? Math.min(100, Math.round((plot.progressMs / crop.growMs) * 100))
+    planted && crop
+      ? Math.min(100, Math.round((planted.progressMs / crop.growMs) * 100))
       : 0
-  const stage = crop && plot.status !== 'empty' ? cropGrowthStage(progress / 100, ready) : 0
+  const stage = planted && crop ? cropGrowthStage(progress / 100, ready) : 0
   const soil = plotSoilSrc(display)
 
   const cropLayer =
-    crop && plot.status !== 'empty'
-      ? `<div class="farm-crop-sprite" style="${cropSpriteStyle(plot.cropId, stage)}" title="${escapeHtml(crop.name)}"></div>`
+    planted && crop
+      ? `<div class="farm-crop-sprite" style="${cropSpriteStyle(planted.cropId, stage)}" title="${escapeHtml(crop.name)}"></div>`
       : ''
 
   const badges: string[] = []
@@ -222,13 +223,14 @@ function setupFarmPage(farmRoot: HTMLElement) {
     if (!plot) return
 
     const display = getPlotDisplayStatus(plot, farmState.weather, now)
-    const crop = plot.status !== 'empty' && plot.status !== 'locked' ? CROPS[plot.cropId] : null
+    const planted = plot.status === 'growing' || plot.status === 'ready' ? plot : null
+    const crop = planted ? CROPS[planted.cropId] : null
     const ready = plot.status === 'ready'
     const progress =
-      crop && plot.status !== 'empty'
-        ? Math.min(100, Math.round((plot.progressMs / crop.growMs) * 100))
+      planted && crop
+        ? Math.min(100, Math.round((planted.progressMs / crop.growMs) * 100))
         : 0
-    const stage = crop && plot.status !== 'empty' ? cropGrowthStage(progress / 100, ready) : 0
+    const stage = planted && crop ? cropGrowthStage(progress / 100, ready) : 0
 
     btn.className = `farm-plot-tile farm-plot-tile--${display}`
     btn.setAttribute('aria-label', `地块 ${plotIndex + 1}${display === 'locked' ? ' 解锁' : ''}`)
@@ -263,7 +265,7 @@ function setupFarmPage(farmRoot: HTMLElement) {
     }
 
     let cropEl = btn.querySelector<HTMLElement>('.farm-crop-sprite')
-    if (crop && plot.status !== 'empty') {
+    if (planted && crop) {
       if (!cropEl) {
         btn.querySelector('.farm-plot-badges')?.insertAdjacentHTML(
           'beforebegin',
@@ -273,7 +275,7 @@ function setupFarmPage(farmRoot: HTMLElement) {
       }
       if (cropEl) {
         cropEl.setAttribute('title', crop.name)
-        cropEl.setAttribute('style', cropSpriteStyle(plot.cropId, stage))
+        cropEl.setAttribute('style', cropSpriteStyle(planted.cropId, stage))
       }
     } else {
       cropEl?.remove()

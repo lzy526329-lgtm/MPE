@@ -243,7 +243,7 @@ export function squashBug(state: FarmState, plotIndex: number): FarmActionResult
   }
 
   const plot = state.plots[plotIndex]
-  if (isPlotLocked(plot)) {
+  if (plot.status === 'locked') {
     return failure(state, '这块地还没解锁')
   }
   if (plot.status === 'empty' || !plot.hasBug) {

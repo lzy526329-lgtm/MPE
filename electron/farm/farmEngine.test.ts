@@ -263,7 +263,7 @@ describe('farmEngine actions', () => {
     const state = createDefaultFarm(T0)
     const planted = plant(state, 4, 'wheat', T0)
     expect(planted.ok).toBe(false)
-    expect(planted.error).toContain('解锁')
+    if (!planted.ok) expect(planted.error).toContain('解锁')
   })
 
   it('unlocks a locked plot into empty land', () => {

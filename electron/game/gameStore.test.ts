@@ -81,7 +81,7 @@ function legacyFarm(): FarmState {
       index === 0
         ? {
             status: 'growing',
-            cropId: 'lettuce',
+            cropId: 'wheat',
             plantedAt: 100,
             lastWateredAt: 400,
             progressMs: 300,

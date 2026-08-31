@@ -72,7 +72,7 @@ describe('createGameHandlers', () => {
     const result = await handlers.sellProduce('wheat')
 
     expect(result.ok).toBe(false)
-    expect(result.code).toBe('INSUFFICIENT_STOCK')
+    if (!result.ok) expect(result.code).toBe('INSUFFICIENT_STOCK')
     expect(publish).not.toHaveBeenCalled()
     expect(publishPetStatus).not.toHaveBeenCalled()
   })

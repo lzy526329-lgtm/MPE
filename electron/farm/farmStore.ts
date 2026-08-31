@@ -81,7 +81,7 @@ function normalizeFarmPayload(value: unknown, plotCount: number): FarmState | nu
 
   return {
     version: 1,
-    plotCount,
+    plotCount: PLOT_COUNT,
     plots,
     inventory,
     seeds,

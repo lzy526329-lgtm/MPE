@@ -316,7 +316,7 @@ export function findPlotIndexAtClientPoint(
   let bestIndex: number | null = null
   let bestDistance = Infinity
 
-  for (const tile of stage.querySelectorAll<HTMLElement>('.farm-plot-tile')) {
+  for (const tile of Array.from(stage.querySelectorAll<HTMLElement>('.farm-plot-tile'))) {
     const index = Number(tile.dataset.plot)
     if (!Number.isInteger(index)) continue
     const distance = plotHitDistanceInStageFromTile(stageX, stageY, tile)
