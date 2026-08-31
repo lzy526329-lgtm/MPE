@@ -1,5 +1,8 @@
 import type { GameViewState } from '../electron/game/gameTypes'
+import type { CropId } from '../electron/farm/farmTypes'
+import { getCropShopImgPath } from '../electron/farm/cropCatalog'
 import { getCurrentPage, onPageChange } from './appNavigation'
+import { farmCatalogIconHtml } from './farmAssets'
 import {
   DEFAULT_GAME_TAB,
   escapeHtml,
@@ -44,7 +47,7 @@ function renderSeedItems(state: GameViewState): string {
     .map(
       (offer) => `
       <article class="backpack-item-card">
-        <span class="backpack-item-icon" aria-hidden="true">🌱</span>
+        ${farmCatalogIconHtml(getCropShopImgPath(offer.cropId), 'backpack-item-icon')}
         <div>
           <h2>${escapeHtml(offer.name)}</h2>
           <strong>× ${state.inventory.seeds[offer.cropId] ?? 0}</strong>
@@ -82,7 +85,7 @@ function renderProduceOffer(
 
   return `
     <article class="backpack-item-card backpack-item-card--sellable">
-      <span class="backpack-item-icon" aria-hidden="true">🌾</span>
+      ${farmCatalogIconHtml(getCropShopImgPath(offer.produceId as CropId), 'backpack-item-icon')}
       <div class="backpack-item-body">
         <h2>${escapeHtml(offer.name)}</h2>
         <strong>× ${owned}</strong>

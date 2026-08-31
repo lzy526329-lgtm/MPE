@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { claimDailySeeds, harvest, plant } from '../farm/farmEngine'
+import { withSeedCounts } from '../farm/cropCatalog'
 import type { FarmState } from '../farm/farmTypes'
 import {
   applyCompatFarmState,
@@ -28,7 +29,7 @@ describe('createDefaultGameState', () => {
   it('creates a new game with 100 coins and default wheat seeds', () => {
     const state = createDefaultGameState(1_000)
     expect(state.wallet.coins).toBe(100)
-    expect(state.inventory.seeds).toEqual({ wheat: 5 })
+    expect(state.inventory.seeds).toEqual(withSeedCounts({ wheat: 5 }))
     expect(state.migrations.starterCoinsGranted).toBe(true)
   })
 })
@@ -37,7 +38,7 @@ describe('migrateLegacyGameState', () => {
   it('keeps positive legacy coins and merges farm inventory into wheat', () => {
     const state = migrateLegacyGameState({ now: 1_000, petCoins: 37, farm: legacyFarm })
     expect(state.wallet.coins).toBe(37)
-    expect(state.inventory.seeds).toEqual({ wheat: 3 })
+    expect(state.inventory.seeds).toEqual(withSeedCounts({ wheat: 3 }))
     expect(state.inventory.produce).toEqual({ wheat: 4 })
   })
 
@@ -193,7 +194,7 @@ describe('runFarmAction', () => {
     const game = createDefaultGameState(1_000)
     const result = runFarmAction(game, (farm) => claimDailySeeds(farm, 1_000))
 
-    expect(result.game.inventory.seeds).toEqual({ wheat: 8 })
+    expect(result.game.inventory.seeds).toEqual(withSeedCounts({ wheat: 8 }))
   })
 
   it('moves harvest yield into unified produce inventory', () => {
@@ -229,17 +230,17 @@ describe('toGameActionResult', () => {
 
     const action = toGameActionResult(buySeed(before, cropId))
 
-    expect(action).toEqual({
+    expect(action).toMatchObject({
       ok: false,
       code,
       message,
       state: {
         wallet: { coins },
         inventory: before.inventory,
-        seedOffers: [{ cropId: 'wheat', name: '小麦种子', price: 5 }],
-        produceOffers: [{ produceId: 'wheat', name: '小麦', price: 4 }],
       },
     })
+    expect(action.state.seedOffers).toHaveLength(5)
+    expect(action.state.produceOffers).toHaveLength(5)
     expect('game' in action).toBe(false)
   })
 })

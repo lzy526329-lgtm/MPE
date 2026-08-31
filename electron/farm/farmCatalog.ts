@@ -1,4 +1,11 @@
 import type { CropDef, CropId } from './farmTypes'
+import {
+  buildCrops,
+  buildDailySeeds,
+  buildDefaultSeeds,
+  buildEmptySeedCounts,
+  getCropIds,
+} from './cropCatalog'
 
 export const PLOT_COUNT = 24
 export const INITIAL_UNLOCKED_PLOTS = 4
@@ -24,25 +31,11 @@ export function isPlotLocked(plot: { status: string }): boolean {
 
 export const LEGACY_CROP_IDS = ['lettuce', 'tomato', 'pumpkin'] as const
 
-export const CROPS: Record<CropId, CropDef> = {
-  wheat: {
-    id: 'wheat',
-    name: '小麦',
-    growMs: 20 * 60_000,
-    waterIntervalMs: 5 * 60_000,
-    yieldItemId: 'wheat',
-    yieldMin: 2,
-    yieldMax: 3,
-  },
-}
+export const CROPS: Record<CropId, CropDef> = buildCrops()
 
-export const DEFAULT_SEEDS: Record<string, number> = {
-  wheat: 5,
-}
+export const DEFAULT_SEEDS: Record<string, number> = buildDefaultSeeds()
 
-export const DAILY_SEEDS: Record<string, number> = {
-  wheat: 3,
-}
+export const DAILY_SEEDS: Record<string, number> = buildDailySeeds()
 
 export const BUG_CHANCE = 0.1
 export const RAIN_CHANCE = 0.35
@@ -57,13 +50,16 @@ function floorCount(value: unknown): number {
   return Math.floor(value)
 }
 
-/** Merge legacy crop seeds into the single wheat inventory key. */
+/** 归一化种子库存：保留各作物数量，旧版 lettuce/tomato/pumpkin 并入 wheat */
 export function mergeLegacySeeds(seeds: Record<string, number>): Record<string, number> {
-  let wheat = floorCount(seeds.wheat)
-  for (const id of LEGACY_CROP_IDS) {
-    wheat += floorCount(seeds[id])
+  const next = buildEmptySeedCounts()
+  for (const id of getCropIds()) {
+    next[id] = floorCount(seeds[id])
   }
-  return { wheat }
+  for (const id of LEGACY_CROP_IDS) {
+    next.wheat += floorCount(seeds[id])
+  }
+  return next
 }
 
 /** Merge legacy harvest items into wheat produce. */
@@ -83,7 +79,9 @@ export function mergeLegacyProduce(inventory: Record<string, number>): Record<st
 }
 
 export function normalizeLegacyCropId(value: unknown): CropId | null {
-  if (value === 'wheat') return 'wheat'
+  if (typeof value === 'string' && (getCropIds() as string[]).includes(value)) {
+    return value as CropId
+  }
   if (typeof value === 'string' && (LEGACY_CROP_IDS as readonly string[]).includes(value)) {
     return 'wheat'
   }

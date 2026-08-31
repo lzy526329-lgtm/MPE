@@ -1,5 +1,7 @@
 import type { GameViewState } from '../electron/game/gameTypes'
 import type { CropId } from '../electron/farm/farmTypes'
+import { formatCropGrowLabel, getCropCatalogEntry, getCropShopImgPath } from '../electron/farm/cropCatalog'
+import { farmCatalogIconHtml } from './farmAssets'
 import { getCurrentPage, onPageChange } from './appNavigation'
 import {
   DEFAULT_GAME_TAB,
@@ -18,6 +20,25 @@ export type ShopRenderOptions = {
 
 export { gameErrorMessage }
 
+/** @deprecated 使用 cropCatalog.json 中的 growMinutes */
+export function formatGrowDuration(growMs: number): string {
+  const totalMinutes = Math.max(1, Math.round(growMs / 60_000))
+  if (totalMinutes < 60) return `成熟约 ${totalMinutes} 分钟`
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  if (minutes === 0) return `成熟约 ${hours} 小时`
+  return `成熟约 ${hours} 小时 ${minutes} 分钟`
+}
+
+function seedGrowLabel(cropId: CropId): string | null {
+  try {
+    getCropCatalogEntry(cropId)
+    return formatCropGrowLabel(cropId)
+  } catch {
+    return null
+  }
+}
+
 export function canBuySeed(coins: number, price: number): boolean {
   return coins >= price
 }
@@ -31,13 +52,16 @@ function renderOffer(
   const affordable = canBuySeed(state.wallet.coins, offer.price)
   const disabled = busyCropId !== null || !affordable
   const owned = state.inventory.seeds[offer.cropId] ?? 0
+  const growLabel = seedGrowLabel(offer.cropId)
+  const shopIcon = farmCatalogIconHtml(getCropShopImgPath(offer.cropId), 'shop-offer-icon')
 
   return `
     <article class="shop-offer-card">
       <div class="shop-offer-heading">
-        <span class="shop-offer-icon" aria-hidden="true">🌱</span>
+        ${shopIcon}
         <div>
           <h2>${escapeHtml(offer.name)}</h2>
+          ${growLabel ? `<p class="shop-offer-grow">${escapeHtml(growLabel)}</p>` : ''}
           <p>拥有 ${owned}</p>
         </div>
       </div>

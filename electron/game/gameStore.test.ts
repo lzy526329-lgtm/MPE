@@ -12,6 +12,7 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
+import { withSeedCounts } from '../farm/cropCatalog'
 import type { FarmState } from '../farm/farmTypes'
 import { buySeed, createDefaultGameState } from './gameEngine'
 import {
@@ -109,7 +110,7 @@ describe('loadGame migration', () => {
     const state = loadGame(dir, 1_000)
 
     expect(state.wallet.coins).toBe(100)
-    expect(state.inventory.seeds).toEqual({ wheat: 5 })
+    expect(state.inventory.seeds).toEqual(withSeedCounts({ wheat: 5 }))
     expect(existsSync(join(dir, 'game.json'))).toBe(true)
   })
 
@@ -126,7 +127,7 @@ describe('loadGame migration', () => {
     const state = loadGame(dir, 1_000)
 
     expect(state.wallet.coins).toBe(42)
-    expect(state.inventory.seeds).toEqual({ wheat: 3 })
+    expect(state.inventory.seeds).toEqual(withSeedCounts({ wheat: 3 }))
     expect(state.inventory.produce).toEqual({ wheat: 4 })
     expect(state.farm.plots[0]).toMatchObject({ status: 'growing', cropId: 'wheat' })
     expect(state.farm.weather).toBe(farm.weather)
@@ -243,7 +244,7 @@ describe('game payload validation and recovery', () => {
     )
 
     expect(parsed.wallet.coins).toBe(0)
-    expect(parsed.inventory.seeds).toEqual({ wheat: 0 })
+    expect(parsed.inventory.seeds).toEqual(withSeedCounts())
     expect(parsed.inventory.food).toEqual({ apple: 1 })
     expect(parsed.inventory.produce).toEqual({ wheat: 0 })
   })
@@ -288,7 +289,7 @@ describe('subtree recovery without economy loss', () => {
     expect(state.wallet.coins).toBe(0)
     expect(state.migrations.starterCoinsGranted).toBe(true)
     expect(state.farm.plots).toHaveLength(24)
-    expect(state.inventory.seeds).toEqual({ wheat: 5 })
+    expect(state.inventory.seeds).toEqual(withSeedCounts({ wheat: 5 }))
     expect(corruptBackups(dir)).toEqual([])
 
     const counter = countPersistence()
@@ -350,7 +351,7 @@ describe('subtree recovery without economy loss', () => {
     const state = loadGame(dir, 2_000)
 
     expect(state.wallet.coins).toBe(3)
-    expect(state.inventory.seeds).toEqual({ wheat: 0 })
+    expect(state.inventory.seeds).toEqual(withSeedCounts())
     expect(state.inventory.food).toEqual({})
     expect(state.farm.plots).toHaveLength(24)
     expect(state.migrations.starterCoinsGranted).toBe(true)
@@ -369,7 +370,7 @@ describe('subtree recovery without economy loss', () => {
 
     expect(state.wallet.coins).toBe(0)
     expect(state.migrations.starterCoinsGranted).toBe(true)
-    expect(state.inventory.seeds).toEqual({ wheat: 5 })
+    expect(state.inventory.seeds).toEqual(withSeedCounts({ wheat: 5 }))
     expect(corruptBackups(dir)).toEqual([])
   })
 })

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildPlotLayout,
+  cropGrowthStage,
   cropSpriteStyle,
   DEFAULT_PLOT_LAYOUT_CONFIG,
   FARM_ASSETS,
@@ -92,10 +93,17 @@ describe('farm plot layout', () => {
 })
 
 describe('farm crop assets', () => {
+  it('maps growth progress to three sprite stages', () => {
+    expect(cropGrowthStage(0, false)).toBe(0)
+    expect(cropGrowthStage(0.4, false)).toBe(1)
+    expect(cropGrowthStage(0.8, false)).toBe(2)
+    expect(cropGrowthStage(0.2, true)).toBe(2)
+  })
+
   it('uses relative wheat cutout paths for Electron file:// loading', () => {
     expect(cropSpriteStyle('wheat', 0)).toContain('./farm/%E5%B0%8F%E9%BA%A6/1-cutout.png')
-    expect(cropSpriteStyle('wheat', 2)).toContain('./farm/%E5%B0%8F%E9%BA%A6/2-cutout.png')
-    expect(cropSpriteStyle('wheat', 3)).toContain('./farm/%E5%B0%8F%E9%BA%A6/3-cutout.png')
+    expect(cropSpriteStyle('wheat', 1)).toContain('./farm/%E5%B0%8F%E9%BA%A6/2-cutout.png')
+    expect(cropSpriteStyle('wheat', 2)).toContain('./farm/%E5%B0%8F%E9%BA%A6/3-cutout.png')
   })
 
   it('uses relative soil paths instead of root-absolute /farm URLs', () => {

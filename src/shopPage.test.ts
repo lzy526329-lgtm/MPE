@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GameErrorCode, GameViewState } from '../electron/game/gameTypes'
-import { canBuySeed, gameErrorMessage, renderShopPage } from './shopPage'
+import { canBuySeed, formatGrowDuration, gameErrorMessage, renderShopPage } from './shopPage'
 
 const navigation = vi.hoisted(() => ({
   currentPage: 'pet-settings-page',
@@ -40,6 +40,14 @@ describe('shop page rendering', () => {
     expect(html).toContain('小麦种子')
     expect(html).toContain('5 金币')
     expect(html).toContain('拥有 5')
+    expect(html).toContain('成熟约 20 分钟')
+    expect(html).toContain('shopImg-cutout.png')
+  })
+
+  it('formats grow duration for minutes and hours', () => {
+    expect(formatGrowDuration(20 * 60_000)).toBe('成熟约 20 分钟')
+    expect(formatGrowDuration(60 * 60_000)).toBe('成熟约 1 小时')
+    expect(formatGrowDuration(90 * 60_000)).toBe('成熟约 1 小时 30 分钟')
   })
 
   it('renders the confirmed normal purchase label on every offer', () => {

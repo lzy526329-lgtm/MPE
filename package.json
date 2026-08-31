@@ -21,7 +21,8 @@
     "package:win": "npm run build:app && electron-builder --win --publish never",
     "package:linux": "npm run build:app && electron-builder --linux --publish never",
     "preview": "node scripts/run.mjs vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "generate:crop-catalog": "node scripts/generate-crop-catalog.mjs"
   },
   "build": {
     "appId": "com.mpt.app",

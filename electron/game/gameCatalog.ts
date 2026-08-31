@@ -1,16 +1,13 @@
 import type { CropId } from '../farm/farmTypes'
 import type { ProduceOffer, SeedOffer } from './gameTypes'
 import { mergeLegacySeeds } from '../farm/farmCatalog'
+import { buildProduceOffers, buildSeedOffers } from '../farm/cropCatalog'
 
 export const INITIAL_COINS = 100
-export const SEED_OFFERS: readonly SeedOffer[] = [
-  { cropId: 'wheat', name: '小麦种子', price: 5 },
-]
+export const SEED_OFFERS: readonly SeedOffer[] = buildSeedOffers()
 
 /** 农产品回收价（单次出售 1 个） */
-export const PRODUCE_OFFERS: readonly ProduceOffer[] = [
-  { produceId: 'wheat', name: '小麦', price: 4 },
-]
+export const PRODUCE_OFFERS: readonly ProduceOffer[] = buildProduceOffers()
 
 /**
  * Coins and inventory counts are non-negative safe integers. A finite fractional

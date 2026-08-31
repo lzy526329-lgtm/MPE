@@ -1,14 +1,6 @@
-export type CropId = 'wheat'
+import type { CropId } from './cropCatalog'
 
-export type CropDef = {
-  id: CropId
-  name: string
-  growMs: number
-  waterIntervalMs: number
-  yieldItemId: string
-  yieldMin: number
-  yieldMax: number
-}
+export type { CropId, CropDef } from './cropCatalog'
 
 export type PlotEmpty = { status: 'empty' }
 export type PlotLocked = { status: 'locked' }

@@ -4,6 +4,7 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { withSeedCounts } from '../farm/cropCatalog'
 import { createDefaultGameState } from './gameEngine'
 import { createGameHandlers } from './gameIpc'
 import { saveGameAtomic } from './gameStore'
@@ -32,8 +33,15 @@ describe('createGameHandlers', () => {
     const state = await handlers.getState()
 
     expect(state.wallet.coins).toBe(100)
-    expect(state.seedOffers).toEqual([{ cropId: 'wheat', name: '小麦种子', price: 5 }])
-    expect(state.produceOffers).toEqual([{ produceId: 'wheat', name: '小麦', price: 4 }])
+    expect(state.seedOffers).toEqual(expect.arrayContaining([
+      { cropId: 'wheat', name: '小麦种子', price: 5 },
+      { cropId: 'durian', name: '榴莲种子', price: 20 },
+    ]))
+    expect(state.seedOffers).toHaveLength(5)
+    expect(state.produceOffers).toEqual(
+      expect.arrayContaining([{ produceId: 'wheat', name: '小麦', price: 4 }]),
+    )
+    expect(state.produceOffers).toHaveLength(5)
   })
 
   it('publishes the updated game and pet status after a successful sale', async () => {
@@ -137,7 +145,7 @@ describe('createGameHandlers', () => {
     expect(result).toMatchObject({ ok: false, code: 'PERSISTENCE_FAILED' })
     expect(result.state.wallet.coins).toBe(100)
     expect(result.state.inventory.seeds.wheat).toBe(5)
-    expect(result.state.seedOffers).toHaveLength(1)
+    expect(result.state.seedOffers).toHaveLength(5)
     expect(readFileSync(join(dir, 'game.json'), 'utf8')).toBe(before)
     expect(publish).not.toHaveBeenCalled()
     expect(publishPetStatus).not.toHaveBeenCalled()
@@ -169,7 +177,7 @@ describe('createGameHandlers', () => {
 
     expect(result).toMatchObject({ ok: false, code: 'PERSISTENCE_FAILED' })
     expect(result.state.wallet.coins).toBe(64)
-    expect(result.state.seedOffers).toHaveLength(1)
+    expect(result.state.seedOffers).toHaveLength(5)
   })
 
   it('returns a renderable zero state when nothing can be read at all', async () => {
@@ -190,7 +198,7 @@ describe('createGameHandlers', () => {
 
     expect(result).toMatchObject({ ok: false, code: 'PERSISTENCE_FAILED' })
     expect(result.state.wallet.coins).toBe(0)
-    expect(result.state.inventory.seeds).toEqual({ wheat: 0 })
-    expect(result.state.seedOffers).toHaveLength(1)
+    expect(result.state.inventory.seeds).toEqual(withSeedCounts())
+    expect(result.state.seedOffers).toHaveLength(5)
   })
 })

@@ -1,4 +1,5 @@
 import type { CropId } from '../electron/farm/farmTypes'
+import { getCropSpritePaths } from '../electron/farm/cropCatalog'
 
 /** Electron 打包后走 file://，必须用相对路径（与 pet 的 ./pet/... 一致） */
 const FARM_PUBLIC = './farm'
@@ -9,18 +10,25 @@ function farmAsset(relativePath: string, query?: string): string {
   return query ? `${url}?${query}` : url
 }
 
+/** 将 cropCatalog 相对路径转为可加载的 farm 资源 URL */
+export function resolveFarmAssetUrl(relativePath: string, query?: string): string {
+  return farmAsset(relativePath, query)
+}
+
+export function farmCatalogIconStyle(relativePath: string): string {
+  return `background-image:url('${farmAsset(relativePath)}');background-size:contain;background-position:center;background-repeat:no-repeat;`
+}
+
+export function farmCatalogIconHtml(relativePath: string, className: string): string {
+  return `<span class="${className} farm-catalog-icon" style="${farmCatalogIconStyle(relativePath)}" aria-hidden="true"></span>`
+}
+
 export const FARM_ASSETS = {
   bg: farmAsset('farm-bg.png'),
   /** 未解锁：等距草地块 */
   plotIsoEmpty: farmAsset('dikuai2.png', 'v=4'),
   /** 已解锁空地 / 种植：等距土块 dikuai1 */
   plotIsoSoil: farmAsset('dikuai1.png', 'v=4'),
-  wheatStages: [
-    farmAsset('小麦/1-cutout.png'),
-    farmAsset('小麦/1-cutout.png'),
-    farmAsset('小麦/2-cutout.png'),
-    farmAsset('小麦/3-cutout.png'),
-  ],
   toolbar: [
     farmAsset('水壶-cutout.png'),
     farmAsset('镰刀-cutout.png'),
@@ -346,17 +354,18 @@ export function plotSoilSrc(display: PlotSoilDisplay): string | null {
   return FARM_ASSETS.plotIsoSoil
 }
 
-/** 0=幼苗 … 3=可收割 */
+/** 0=幼苗 … 2=可收割（对应 sprites 三张） */
 export function cropGrowthStage(progressRatio: number, ready: boolean): number {
-  if (ready) return 3
-  if (progressRatio >= 0.72) return 2
-  if (progressRatio >= 0.36) return 1
+  if (ready) return 2
+  if (progressRatio >= 0.66) return 2
+  if (progressRatio >= 0.33) return 1
   return 0
 }
 
-export function cropSpriteStyle(_cropId: CropId, stage: number): string {
-  const index = Math.max(0, Math.min(3, stage))
-  const src = FARM_ASSETS.wheatStages[index]
+export function cropSpriteStyle(cropId: CropId, stage: number): string {
+  const index = Math.max(0, Math.min(2, stage))
+  const stages = getCropSpritePaths(cropId).map((path) => farmAsset(path))
+  const src = stages[index] ?? stages[0] ?? ''
   return `background-image:url('${src}');background-size:contain;background-position:center bottom;background-repeat:no-repeat;`
 }
 

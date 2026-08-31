@@ -4,6 +4,7 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { withSeedCounts } from './cropCatalog'
 import { createDefaultGameState } from '../game/gameEngine'
 import { saveGameAtomic, type GameStoreFileOps } from '../game/gameStore'
 import type { GameState, GameViewState } from '../game/gameTypes'
@@ -89,7 +90,7 @@ const successCases: SuccessCase[] = [
     invoke: (handlers) => handlers.getState(),
     expect: (result) => {
       expect(result.state.plots).toHaveLength(24)
-      expect(result.state.seeds).toEqual({ wheat: 5 })
+      expect(result.state.seeds).toEqual(withSeedCounts({ wheat: 5 }))
       expect(result.context).toMatchObject({ playerLevel: 5, walletCoins: 100 })
     },
   },
@@ -133,8 +134,8 @@ const successCases: SuccessCase[] = [
     name: 'claimDailySeeds',
     invoke: (handlers) => handlers.claimDailySeeds(),
     expect: (result, stored) => {
-      expect(result.state.seeds).toEqual({ wheat: 8 })
-      expect(stored.inventory.seeds).toEqual({ wheat: 8 })
+      expect(result.state.seeds).toEqual(withSeedCounts({ wheat: 8 }))
+      expect(stored.inventory.seeds).toEqual(withSeedCounts({ wheat: 8 }))
     },
   },
   {
@@ -195,7 +196,7 @@ describe('createFarmHandlers wiring', () => {
       expect(publish).toHaveBeenCalledOnce()
       const published = publish.mock.calls[0][0] as GameViewState
       expect(published.wallet.coins).toBe(100)
-      expect(published.seedOffers).toHaveLength(1)
+      expect(published.seedOffers).toHaveLength(5)
       expect(published.inventory.seeds).toEqual(stored.inventory.seeds)
       expect(publishPetStatus).not.toHaveBeenCalled()
     },
@@ -347,6 +348,6 @@ describe('registerFarmIpc', () => {
 
     const claimed = (await registered.get('farm:claim-daily-seeds')?.(null)) as FarmActionResult
     expect(claimed.ok).toBe(true)
-    expect(claimed.state.seeds).toEqual({ wheat: 7 })
+    expect(claimed.state.seeds).toEqual(withSeedCounts({ wheat: 7 }))
   })
 })

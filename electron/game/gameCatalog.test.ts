@@ -4,21 +4,59 @@ import { INITIAL_COINS, SEED_OFFERS, normalizeItemCount, seedCounts } from './ga
 describe('game catalog', () => {
   it('defines the confirmed starter coins and wheat seed price', () => {
     expect(INITIAL_COINS).toBe(100)
-    expect(SEED_OFFERS.map(({ cropId, price }) => [cropId, price])).toEqual([['wheat', 5]])
+    expect(SEED_OFFERS.map(({ cropId, price }) => [cropId, price])).toEqual(
+      expect.arrayContaining([
+        ['wheat', 5],
+        ['banana', 5],
+        ['apple', 8],
+        ['corn', 12],
+        ['durian', 20],
+      ]),
+    )
   })
 
-  it('normalizes missing seed counts to zero wheat', () => {
-    expect(seedCounts()).toEqual({ wheat: 0 })
-    expect(seedCounts({ wheat: 2 })).toEqual({ wheat: 2 })
+  it('normalizes missing seed counts to zero for every crop', () => {
+    expect(seedCounts()).toEqual({
+      wheat: 0,
+      banana: 0,
+      apple: 0,
+      corn: 0,
+      durian: 0,
+    })
+    expect(seedCounts({ wheat: 2 })).toEqual({
+      wheat: 2,
+      banana: 0,
+      apple: 0,
+      corn: 0,
+      durian: 0,
+    })
   })
 
   it('merges legacy crop seeds into wheat', () => {
-    expect(seedCounts({ lettuce: 2, tomato: 1 })).toEqual({ wheat: 3 })
+    expect(seedCounts({ lettuce: 2, tomato: 1 })).toEqual({
+      wheat: 3,
+      banana: 0,
+      apple: 0,
+      corn: 0,
+      durian: 0,
+    })
   })
 
   it('keeps counts as non-negative integers by flooring finite fractions', () => {
-    expect(seedCounts({ wheat: 2.9 })).toEqual({ wheat: 2 })
-    expect(seedCounts({ lettuce: 2.9, tomato: -4, pumpkin: 0.4 })).toEqual({ wheat: 2 })
+    expect(seedCounts({ wheat: 2.9 })).toEqual({
+      wheat: 2,
+      banana: 0,
+      apple: 0,
+      corn: 0,
+      durian: 0,
+    })
+    expect(seedCounts({ lettuce: 2.9, tomato: -4, pumpkin: 0.4 })).toEqual({
+      wheat: 2,
+      banana: 0,
+      apple: 0,
+      corn: 0,
+      durian: 0,
+    })
   })
 
   it.each([

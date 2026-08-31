@@ -3297,6 +3297,11 @@ input[type="range"] {
   font-size: 24px;
 }
 
+.farm-catalog-icon {
+  font-size: 0;
+  background-color: #eef7e8;
+}
+
 .shop-offer-heading h2 {
   margin: 0 0 5px;
   font-size: 16px;
@@ -3306,6 +3311,13 @@ input[type="range"] {
   margin: 0;
   color: var(--muted);
   font-size: 12px;
+}
+
+.shop-offer-grow {
+  margin-bottom: 2px;
+  color: #4a7c59;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .shop-offer-action {

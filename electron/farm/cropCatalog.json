@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "crops": {
+    "wheat": {
+      "name": "小麦",
+      "seedName": "小麦种子",
+      "seedPrice": 5,
+      "produceName": "小麦",
+      "producePrice": 4,
+      "growMinutes": 20,
+      "waterIntervalMinutes": 5,
+      "yieldMin": 2,
+      "yieldMax": 3,
+      "starterSeeds": 5,
+      "dailySeeds": 3,
+      "shopImg": "小麦/shopImg-cutout.png",
+      "sprites": [
+        "小麦/1-cutout.png",
+        "小麦/2-cutout.png",
+        "小麦/3-cutout.png"
+      ]
+    },
+    "banana": {
+      "name": "香蕉",
+      "seedName": "香蕉种子",
+      "seedPrice": 5,
+      "produceName": "香蕉",
+      "producePrice": 4,
+      "growMinutes": 15,
+      "waterIntervalMinutes": 4,
+      "yieldMin": 2,
+      "yieldMax": 3,
+      "starterSeeds": 0,
+      "dailySeeds": 0,
+      "shopImg": "香蕉/shopImg-cutout.png",
+      "sprites": [
+        "香蕉/1-cutout.png",
+        "香蕉/2-cutout.png",
+        "香蕉/3-cutout.png"
+      ]
+    },
+    "apple": {
+      "name": "苹果",
+      "seedName": "苹果种子",
+      "seedPrice": 8,
+      "produceName": "苹果",
+      "producePrice": 6,
+      "growMinutes": 25,
+      "waterIntervalMinutes": 6,
+      "yieldMin": 2,
+      "yieldMax": 3,
+      "starterSeeds": 0,
+      "dailySeeds": 0,
+      "shopImg": "苹果/shopImg-cutout.png",
+      "sprites": [
+        "苹果/1-cutout.png",
+        "苹果/2-cutout.png",
+        "苹果/3-cutout.png"
+      ]
+    },
+    "corn": {
+      "name": "玉米",
+      "seedName": "玉米种子",
+      "seedPrice": 12,
+      "produceName": "玉米",
+      "producePrice": 10,
+      "growMinutes": 40,
+      "waterIntervalMinutes": 8,
+      "yieldMin": 2,
+      "yieldMax": 4,
+      "starterSeeds": 0,
+      "dailySeeds": 0,
+      "shopImg": "玉米/shopImg-cutout.png",
+      "sprites": [
+        "玉米/1-cutout.png",
+        "玉米/2-cutout.png",
+        "玉米/3-cutout.png"
+      ]
+    },
+    "durian": {
+      "name": "榴莲",
+      "seedName": "榴莲种子",
+      "seedPrice": 20,
+      "produceName": "榴莲",
+      "producePrice": 16,
+      "growMinutes": 60,
+      "waterIntervalMinutes": 10,
+      "yieldMin": 2,
+      "yieldMax": 4,
+      "starterSeeds": 0,
+      "dailySeeds": 0,
+      "shopImg": "榴莲/shopImg-cutout.png",
+      "sprites": [
+        "榴莲/1-cutout.png",
+        "榴莲/2-cutout.png",
+        "榴莲/3-cutout.png"
+      ]
+    }
+  }
+}
