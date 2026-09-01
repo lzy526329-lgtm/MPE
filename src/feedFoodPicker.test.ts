@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest'
 import type { GameViewState } from '../electron/game/gameTypes'
 import { ownedFoodOffers, renderFeedFoodPicker } from './feedFoodPicker'
 
+import { withSupplyCounts } from '../electron/game/supplyCatalog'
+
 const state: GameViewState = {
   wallet: { coins: 100 },
   inventory: {
     food: { cookie: 2, chocolate: 0, creamBread: 0, strawberryMilk: 0 },
+    supplies: withSupplyCounts({}),
     seeds: { wheat: 0, banana: 0, apple: 0, corn: 0, durian: 0 },
     produce: {},
   },
@@ -15,6 +18,7 @@ const state: GameViewState = {
     { foodId: 'cookie', name: '饼干', price: 3, satiety: 12 },
     { foodId: 'chocolate', name: '巧克力', price: 5, satiety: 18 },
   ],
+  supplyOffers: [],
 }
 
 describe('feed food picker', () => {

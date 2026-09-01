@@ -8,6 +8,7 @@ import {
   applyCompatFarmState,
   buyFood,
   buySeed,
+  buySupply,
   createDefaultGameState,
   migrateLegacyGameState,
   runFarmAction,
@@ -16,6 +17,7 @@ import {
   toGameActionResult,
   unlockPlotWithPayment,
   useFood,
+  useSupply,
 } from './gameEngine'
 
 const legacyFarm: FarmState = {
@@ -388,5 +390,32 @@ describe('useFood', () => {
     expect(result.ok).toBe(false)
     if (result.ok) return
     expect(result.code).toBe('INSUFFICIENT_STOCK')
+  })
+})
+
+describe('buySupply', () => {
+  it('deducts coins and adds body wash to inventory', () => {
+    const result = buySupply(createDefaultGameState(1_000), 'bodyWash')
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.game.wallet.coins).toBe(95)
+    expect(result.game.inventory.supplies.bodyWash).toBe(1)
+    expect(result.state.supplyOffers).toEqual(
+      expect.arrayContaining([{ supplyId: 'bodyWash', name: '沐浴露', price: 5, hygiene: 40 }]),
+    )
+  })
+})
+
+describe('useSupply', () => {
+  it('consumes one supply item from inventory', () => {
+    const before = createDefaultGameState(1_000)
+    before.inventory.supplies.bodyWash = 2
+
+    const result = useSupply(before, 'bodyWash')
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.game.inventory.supplies.bodyWash).toBe(1)
   })
 })

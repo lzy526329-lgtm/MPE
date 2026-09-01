@@ -88,6 +88,7 @@ export function totalXpForLevel(level: number): number {
 function cloneInventory(inventory: InventoryState): InventoryState {
   return {
     food: { ...inventory.food },
+    supplies: { ...inventory.supplies },
     seeds: { ...inventory.seeds },
     produce: { ...inventory.produce },
   }

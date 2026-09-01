@@ -1197,6 +1197,37 @@ function buildFeedMenuItems(): Electron.MenuItemConstructorOptions[] {
   }
 }
 
+function buildCleanMenuItems(): Electron.MenuItemConstructorOptions[] {
+  try {
+    const view = toGameViewState(readGameState(app.getPath('userData'), Date.now()).state)
+    const owned = view.supplyOffers.filter(
+      (offer) => (view.inventory.supplies[offer.supplyId] ?? 0) > 0,
+    )
+    if (owned.length === 0) {
+      return [{ label: '暂无沐浴露', enabled: false }]
+    }
+
+    const handlers = createGameHandlers({
+      userDataPath: app.getPath('userData'),
+      now: Date.now,
+      publish: (state) => getMainWindow()?.webContents.send('game:state-changed', state),
+      publishPetStatus: notifyPetStatusChanged,
+    })
+
+    return owned.map((offer) => {
+      const count = view.inventory.supplies[offer.supplyId] ?? 0
+      return {
+        label: `${offer.name} ×${count} (+${offer.hygiene})`,
+        click: () => {
+          void handlers.useSupply(offer.supplyId)
+        },
+      }
+    })
+  } catch {
+    return [{ label: '加载失败', enabled: false }]
+  }
+}
+
 export function feedPetWithSatiety(gain: number) {
   const stats = getPetStats()
   const status = applyVitals({ satiety: clampStat(stats.satiety + gain) })
@@ -1207,9 +1238,9 @@ export function feedPetWithSatiety(gain: number) {
   return getPetStatus()
 }
 
-function cleanPetAction() {
+export function cleanPetWithHygiene(gain: number) {
   const stats = getPetStats()
-  applyVitals({ hygiene: clampStat(stats.hygiene + 35) })
+  applyVitals({ hygiene: clampStat(stats.hygiene + gain) })
   const status = getPetStatus()
   rememberCareEvent(status.profile.id, 'clean')
   markPetInteracted({ dirty: false })
@@ -1275,10 +1306,8 @@ function buildPetMenu() {
       submenu: buildFeedMenuItems(),
     },
     {
-      label: '清洁',
-      click: () => {
-        cleanPetAction()
-      },
+      label: '洗澡',
+      submenu: buildCleanMenuItems(),
     },
     {
       label: '休息',
@@ -1556,7 +1585,6 @@ export function registerPetIpc(
   ipcMain.handle('pet:feed', () => {
     throw new Error('请先从食物列表中选择要喂的食物')
   })
-  ipcMain.handle('pet:clean', () => cleanPetAction())
   ipcMain.handle('pet:rest', () => restPetAction())
   ipcMain.handle('pet:get-profile', () => getPetProfile())
   ipcMain.handle('pet:update-profile', (_event, patch: { name?: string }) => {

@@ -8,6 +8,7 @@ import {
 } from '../electron/petProfile'
 import { petGrowthProgress } from '../electron/petLevel'
 import { openFeedFoodPicker } from './feedFoodPicker'
+import { openCleanSupplyPicker } from './cleanSupplyPicker'
 import { listSpineAnimations, mountSpinePreview, type SpinePreviewHandle } from './spinePreview'
 
 const PET_SIZE_MIN = 96
@@ -618,7 +619,7 @@ export function mountPetSettingsPage() {
             </div>
             <div class="pet-config-actions">
               <button class="primary-button" id="pet-feed" type="button">喂食</button>
-              <button class="secondary-button" id="pet-clean" type="button">清洁</button>
+              <button class="secondary-button" id="pet-clean" type="button">洗澡</button>
               <button class="secondary-button" id="pet-rest" type="button">休息</button>
             </div>
           </article>
@@ -930,8 +931,10 @@ export function mountPetSettingsPage() {
   })
 
   root.querySelector<HTMLButtonElement>('#pet-clean')?.addEventListener('click', async () => {
-    if (!window.electronAPI?.cleanPet) return
-    apply(await window.electronAPI.cleanPet())
+    const result = await openCleanSupplyPicker()
+    if (result.ok && window.electronAPI?.getPetStatus) {
+      apply(await window.electronAPI.getPetStatus())
+    }
   })
 
   root.querySelector<HTMLButtonElement>('#pet-rest')?.addEventListener('click', async () => {

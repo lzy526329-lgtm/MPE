@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GameViewState } from '../electron/game/gameTypes'
 import { withFoodCounts } from '../electron/game/foodCatalog'
+import { withSupplyCounts } from '../electron/game/supplyCatalog'
 import { withSeedCounts } from '../electron/farm/cropCatalog'
 import {
   canSellProduce,
@@ -23,6 +24,7 @@ vi.mock('./appNavigation', () => ({
 const defaultOptions = {
   activeTab: 'seeds' as const,
   busyProduceId: null,
+  busySupplyId: null,
   error: null,
 }
 
@@ -30,12 +32,14 @@ const state: GameViewState = {
   wallet: { coins: 100 },
   inventory: {
     food: withFoodCounts({}),
+    supplies: withSupplyCounts({}),
     seeds: withSeedCounts({ wheat: 5 }),
     produce: {},
   },
   seedOffers: [{ cropId: 'wheat', name: '小麦种子', price: 5 }],
   produceOffers: [{ produceId: 'wheat', name: '小麦', price: 4 }],
   foodOffers: [{ foodId: 'cookie', name: '饼干', price: 3, satiety: 12 }],
+  supplyOffers: [{ supplyId: 'bodyWash', name: '沐浴露', price: 5, hygiene: 40 }],
 }
 
 describe('backpack page rendering', () => {
@@ -119,6 +123,7 @@ describe('backpack page rendering', () => {
     const html = renderBackpackPage(withProduce, {
       activeTab: 'produce',
       busyProduceId: 'wheat',
+      busySupplyId: null,
       error: null,
     })
 

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GameErrorCode, GameViewState } from '../electron/game/gameTypes'
 import { withFoodCounts } from '../electron/game/foodCatalog'
+import { withSupplyCounts } from '../electron/game/supplyCatalog'
 import { withSeedCounts } from '../electron/farm/cropCatalog'
 import { canBuySeed, formatGrowDuration, gameErrorMessage, renderShopPage } from './shopPage'
 
@@ -21,18 +22,21 @@ const state: GameViewState = {
   wallet: { coins: 100 },
   inventory: {
     food: withFoodCounts({}),
+    supplies: withSupplyCounts({}),
     seeds: withSeedCounts({ wheat: 5 }),
     produce: {},
   },
   seedOffers: [{ cropId: 'wheat', name: '小麦种子', price: 5 }],
   produceOffers: [{ produceId: 'wheat', name: '小麦', price: 4 }],
   foodOffers: [{ foodId: 'cookie', name: '饼干', price: 3, satiety: 12 }],
+  supplyOffers: [{ supplyId: 'bodyWash', name: '沐浴露', price: 5, hygiene: 40 }],
 }
 
 const defaultOptions = {
   activeTab: 'seeds' as const,
   busyCropId: null,
   busyFoodId: null,
+  busySupplyId: null,
   error: null,
 }
 
@@ -84,6 +88,17 @@ describe('shop page rendering', () => {
     expect(html).toContain('+12 饱食度')
     expect(html).toContain('./foods/%E9%A5%BC%E5%B9%B2.png')
     expect(html).toContain('data-buy-food="cookie"')
+    expect(html).toContain('购买 1 份')
+  })
+
+  it('renders supply offers with price and hygiene in the supplies tab', () => {
+    const html = renderShopPage(state, { ...defaultOptions, activeTab: 'supplies' })
+
+    expect(html).toContain('沐浴露')
+    expect(html).toContain('5 金币')
+    expect(html).toContain('+40 卫生')
+    expect(html).toContain('%E6%B2%90%E6%B5%B4%E9%9C%B2-cutout.png')
+    expect(html).toContain('data-buy-supply="bodyWash"')
     expect(html).toContain('购买 1 份')
   })
 

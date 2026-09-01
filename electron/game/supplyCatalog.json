@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "supplies": {
+    "bodyWash": {
+      "name": "沐浴露",
+      "price": 5,
+      "hygiene": 40,
+      "image": "沐浴露-cutout.png"
+    }
+  }
+}

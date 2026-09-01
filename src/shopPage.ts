@@ -1,9 +1,11 @@
-import type { GameViewState, FoodId } from '../electron/game/gameTypes'
+import type { GameViewState, FoodId, SupplyId } from '../electron/game/gameTypes'
 import type { CropId } from '../electron/farm/farmTypes'
 import { formatCropGrowLabel, getCropCatalogEntry, getCropShopImgPath } from '../electron/farm/cropCatalog'
 import { getFoodImagePath } from '../electron/game/foodCatalog'
+import { getSupplyImagePath } from '../electron/game/supplyCatalog'
 import { farmCatalogIconHtml } from './farmAssets'
 import { foodCatalogIconHtml, formatFoodSatietyLabel } from './foodAssets'
+import { supplyCatalogIconHtml, formatSupplyHygieneLabel } from './supplyAssets'
 import { getCurrentPage, onPageChange } from './appNavigation'
 import {
   DEFAULT_GAME_TAB,
@@ -18,6 +20,7 @@ export type ShopRenderOptions = {
   activeTab: GameTab
   busyCropId: CropId | null
   busyFoodId: string | null
+  busySupplyId: string | null
   error: string | null
 }
 
@@ -44,6 +47,40 @@ function seedGrowLabel(cropId: CropId): string | null {
 
 export function canBuySeed(coins: number, price: number): boolean {
   return coins >= price
+}
+
+function renderSupplyOffer(
+  state: GameViewState,
+  offer: GameViewState['supplyOffers'][number],
+  busySupplyId: string | null,
+): string {
+  const buying = busySupplyId === offer.supplyId
+  const affordable = canBuySeed(state.wallet.coins, offer.price)
+  const disabled = busySupplyId !== null || !affordable
+  const owned = state.inventory.supplies[offer.supplyId] ?? 0
+  const shopIcon = supplyCatalogIconHtml(getSupplyImagePath(offer.supplyId), 'shop-offer-icon')
+
+  return `
+    <article class="shop-offer-card">
+      <div class="shop-offer-heading">
+        ${shopIcon}
+        <div>
+          <h2>${escapeHtml(offer.name)}</h2>
+          <p class="shop-offer-grow">${escapeHtml(formatSupplyHygieneLabel(offer.hygiene))}</p>
+          <p>拥有 ${owned}</p>
+        </div>
+      </div>
+      <div class="shop-offer-action">
+        <strong>${offer.price} 金币</strong>
+        ${!affordable ? '<span class="shop-offer-warning">金币不足</span>' : ''}
+        <button
+          class="primary-button shop-buy-button"
+          type="button"
+          data-buy-supply="${escapeHtml(offer.supplyId)}"${disabled ? ' disabled' : ''}
+        >${buying ? '购买中…' : '购买 1 份'}</button>
+      </div>
+    </article>
+  `
 }
 
 function renderFoodOffer(
@@ -119,12 +156,15 @@ export function renderShopPage(
   state: GameViewState,
   options: ShopRenderOptions,
 ): string {
-  const { activeTab, busyCropId, busyFoodId, error } = options
+  const { activeTab, busyCropId, busyFoodId, busySupplyId, error } = options
   const seedOffers = state.seedOffers
     .map((offer) => renderOffer(state, offer, busyCropId))
     .join('')
   const foodOffers = state.foodOffers
     .map((offer) => renderFoodOffer(state, offer, busyFoodId))
+    .join('')
+  const supplyOffers = state.supplyOffers
+    .map((offer) => renderSupplyOffer(state, offer, busySupplyId))
     .join('')
 
   return `
@@ -135,6 +175,8 @@ export function renderShopPage(
             role="tab" aria-selected="${activeTab === 'seeds'}" data-game-tab="seeds">种子</button>
           <button class="game-tab${activeTab === 'food' ? ' active' : ''}" type="button"
             role="tab" aria-selected="${activeTab === 'food'}" data-game-tab="food">食物</button>
+          <button class="game-tab${activeTab === 'supplies' ? ' active' : ''}" type="button"
+            role="tab" aria-selected="${activeTab === 'supplies'}" data-game-tab="supplies">杂货</button>
         </div>
         <div class="game-wallet" aria-label="当前余额">
           <span aria-hidden="true">●</span>
@@ -155,6 +197,16 @@ export function renderShopPage(
             </div>
           `}
       </section>
+      <section class="game-pane${activeTab === 'supplies' ? '' : ' hidden'}" data-game-pane="supplies">
+        ${supplyOffers.length > 0
+          ? `<div class="shop-offer-grid">${supplyOffers}</div>`
+          : `
+            <div class="game-empty">
+              <span aria-hidden="true">🧴</span>
+              <strong>暂无杂货上架</strong>
+            </div>
+          `}
+      </section>
     </div>
   `
 }
@@ -171,6 +223,7 @@ export function mountShopPage(): void {
   let activeTab = DEFAULT_GAME_TAB
   let busyCropId: CropId | null = null
   let busyFoodId: string | null = null
+  let busySupplyId: string | null = null
   let error: string | null = null
   let loading = false
   let stateGeneration = 0
@@ -193,7 +246,7 @@ export function mountShopPage(): void {
         : '<div class="game-empty" data-shop-idle></div>'
       return
     }
-    root.innerHTML = renderShopPage(state, { activeTab, busyCropId, busyFoodId, error })
+    root.innerHTML = renderShopPage(state, { activeTab, busyCropId, busyFoodId, busySupplyId, error })
   }
 
   const refresh = async () => {
@@ -267,6 +320,28 @@ export function mountShopPage(): void {
     }
   }
 
+  const buySupplyItem = async (supplyId: SupplyId) => {
+    if (!state || busySupplyId !== null) return
+    const offer = state.supplyOffers.find((item) => item.supplyId === supplyId)
+    if (!offer || !canBuySeed(state.wallet.coins, offer.price)) return
+
+    busySupplyId = supplyId
+    error = null
+    render()
+    try {
+      const result = await window.electronAPI.gameBuySupply(supplyId)
+      state = result.state
+      if (!result.ok) error = gameErrorMessage(result.code)
+    } catch {
+      error = '购买失败，请重试。'
+    } finally {
+      stateGeneration += 1
+      loading = false
+      busySupplyId = null
+      render()
+    }
+  }
+
   root.addEventListener('click', (event) => {
     const target = event.target
     if (!(target instanceof Element)) return
@@ -280,6 +355,15 @@ export function mountShopPage(): void {
 
     if (target.closest('[data-shop-retry]')) {
       void refresh()
+      return
+    }
+
+    const buySupplyButton = target.closest<HTMLButtonElement>('[data-buy-supply]')
+    if (buySupplyButton && !buySupplyButton.disabled) {
+      const supplyId = buySupplyButton.dataset.buySupply
+      if (supplyId && state?.supplyOffers.some((offer) => offer.supplyId === supplyId)) {
+        void buySupplyItem(supplyId as SupplyId)
+      }
       return
     }
 

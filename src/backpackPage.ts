@@ -1,10 +1,12 @@
-import type { GameViewState } from '../electron/game/gameTypes'
+import type { GameViewState, SupplyId } from '../electron/game/gameTypes'
 import type { CropId } from '../electron/farm/farmTypes'
 import { getCropShopImgPath } from '../electron/farm/cropCatalog'
 import { getFoodImagePath } from '../electron/game/foodCatalog'
+import { getSupplyImagePath } from '../electron/game/supplyCatalog'
 import { getCurrentPage, onPageChange } from './appNavigation'
 import { farmCatalogIconHtml } from './farmAssets'
 import { foodCatalogIconHtml, formatFoodSatietyLabel } from './foodAssets'
+import { supplyCatalogIconHtml, formatSupplyHygieneLabel } from './supplyAssets'
 import { openFeedFoodPicker } from './feedFoodPicker'
 import {
   DEFAULT_GAME_TAB,
@@ -18,11 +20,12 @@ export type BackpackTab = GameTab | 'produce'
 export type BackpackRenderOptions = {
   activeTab: BackpackTab
   busyProduceId: string | null
+  busySupplyId: string | null
   error: string | null
 }
 
 export function isBackpackTab(value: string | undefined): value is BackpackTab {
-  return value === 'food' || value === 'seeds' || value === 'produce'
+  return value === 'food' || value === 'seeds' || value === 'produce' || value === 'supplies'
 }
 
 export function canSellProduce(owned: number): boolean {
@@ -81,6 +84,35 @@ function renderFoodItems(state: GameViewState): string {
     .join('')
 }
 
+function renderSupplyItems(state: GameViewState, busySupplyId: string | null): string {
+  return state.supplyOffers
+    .filter((offer) => (state.inventory.supplies[offer.supplyId] ?? 0) > 0)
+    .map((offer) => {
+      const owned = state.inventory.supplies[offer.supplyId] ?? 0
+      const using = busySupplyId === offer.supplyId
+      const disabled = busySupplyId !== null
+
+      return `
+      <article class="backpack-item-card backpack-item-card--sellable">
+        ${supplyCatalogIconHtml(getSupplyImagePath(offer.supplyId), 'backpack-item-icon')}
+        <div class="backpack-item-body">
+          <h2>${escapeHtml(offer.name)}</h2>
+          <strong>× ${owned}</strong>
+          <span class="backpack-item-satiety">${escapeHtml(formatSupplyHygieneLabel(offer.hygiene))}</span>
+        </div>
+        <div class="backpack-item-action">
+          <button
+            class="primary-button backpack-sell-button"
+            type="button"
+            data-use-supply="${escapeHtml(offer.supplyId)}"${disabled ? ' disabled' : ''}
+          >${using ? '洗澡中…' : '给宠物洗澡'}</button>
+        </div>
+      </article>
+    `
+    })
+    .join('')
+}
+
 function renderProduceOffer(
   state: GameViewState,
   offer: GameViewState['produceOffers'][number],
@@ -120,10 +152,11 @@ export function renderBackpackPage(
   state: GameViewState,
   options: BackpackRenderOptions,
 ): string {
-  const { activeTab, busyProduceId, error } = options
+  const { activeTab, busyProduceId, busySupplyId, error } = options
   const hasFood = hasInventoryItems(state.inventory.food)
   const hasSeeds = hasInventoryItems(state.inventory.seeds)
   const hasProduce = hasInventoryItems(state.inventory.produce)
+  const hasSupplies = hasInventoryItems(state.inventory.supplies)
 
   return `
     <div class="game-page-shell">
@@ -135,6 +168,8 @@ export function renderBackpackPage(
             role="tab" aria-selected="${activeTab === 'produce'}" data-game-tab="produce">农产品</button>
           <button class="game-tab${activeTab === 'food' ? ' active' : ''}" type="button"
             role="tab" aria-selected="${activeTab === 'food'}" data-game-tab="food">食物</button>
+          <button class="game-tab${activeTab === 'supplies' ? ' active' : ''}" type="button"
+            role="tab" aria-selected="${activeTab === 'supplies'}" data-game-tab="supplies">杂货</button>
         </div>
         <div class="game-wallet" aria-label="当前余额">
           <span aria-hidden="true">●</span>
@@ -180,6 +215,17 @@ export function renderBackpackPage(
             </div>
           `}
       </section>
+      <section class="game-pane${activeTab === 'supplies' ? '' : ' hidden'}" data-game-pane="supplies">
+        ${hasSupplies
+          ? `<div class="backpack-item-grid">${renderSupplyItems(state, busySupplyId)}</div>`
+          : `
+            <div class="game-empty">
+              <span aria-hidden="true">🧴</span>
+              <strong>暂无杂货</strong>
+              <p>请先去商店购买。</p>
+            </div>
+          `}
+      </section>
     </div>
   `
 }
@@ -195,6 +241,7 @@ export function mountBackpackPage(): void {
   let state: GameViewState | null = null
   let activeTab: BackpackTab = DEFAULT_GAME_TAB
   let busyProduceId: string | null = null
+  let busySupplyId: string | null = null
   let error: string | null = null
   let loading = false
   let stateGeneration = 0
@@ -217,7 +264,7 @@ export function mountBackpackPage(): void {
         : '<div class="game-empty" data-backpack-idle></div>'
       return
     }
-    root.innerHTML = renderBackpackPage(state, { activeTab, busyProduceId, error })
+    root.innerHTML = renderBackpackPage(state, { activeTab, busyProduceId, busySupplyId, error })
   }
 
   const refresh = async () => {
@@ -287,6 +334,29 @@ export function mountBackpackPage(): void {
     }
   }
 
+  const useSupplyItem = async (supplyId: SupplyId) => {
+    if (!state || busySupplyId !== null) return
+    const offer = state.supplyOffers.find((item) => item.supplyId === supplyId)
+    const owned = state.inventory.supplies[supplyId] ?? 0
+    if (!offer || owned < 1) return
+
+    busySupplyId = supplyId
+    error = null
+    render()
+    try {
+      const result = await window.electronAPI.gameUseSupply(supplyId)
+      state = result.state
+      if (!result.ok) error = gameErrorMessage(result.code)
+    } catch {
+      error = '使用失败，请重试。'
+    } finally {
+      stateGeneration += 1
+      loading = false
+      busySupplyId = null
+      render()
+    }
+  }
+
   root.addEventListener('click', (event) => {
     const target = event.target
     if (!(target instanceof Element)) return
@@ -305,6 +375,15 @@ export function mountBackpackPage(): void {
 
     if (target.closest<HTMLButtonElement>('[data-open-feed-picker]:not([disabled])')) {
       void openFeedPicker()
+      return
+    }
+
+    const useSupplyButton = target.closest<HTMLButtonElement>('[data-use-supply]')
+    if (useSupplyButton && !useSupplyButton.disabled) {
+      const supplyId = useSupplyButton.dataset.useSupply
+      if (supplyId && state?.supplyOffers.some((offer) => offer.supplyId === supplyId)) {
+        void useSupplyItem(supplyId as SupplyId)
+      }
       return
     }
 

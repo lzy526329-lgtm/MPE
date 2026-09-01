@@ -12,9 +12,10 @@ import { saveGameAtomic } from './gameStore'
 vi.mock('../pet', () => ({
   notifyPetStatusChanged: vi.fn(),
   feedPetWithSatiety: vi.fn(),
+  cleanPetWithHygiene: vi.fn(),
 }))
 
-import { feedPetWithSatiety } from '../pet'
+import { feedPetWithSatiety, cleanPetWithHygiene } from '../pet'
 
 const dirs: string[] = []
 
@@ -171,6 +172,29 @@ describe('createGameHandlers', () => {
     expect(result.ok).toBe(true)
     expect(result.state.inventory.food.cookie).toBe(0)
     expect(feedPetWithSatiety).toHaveBeenCalledWith(12)
+    expect(publish).toHaveBeenCalledOnce()
+    expect(publishPetStatus).toHaveBeenCalledOnce()
+  })
+
+  it('cleans the pet with catalog hygiene after using body wash', async () => {
+    const dir = makeDir()
+    const initial = createDefaultGameState(1_000)
+    initial.inventory.supplies.bodyWash = 1
+    saveGameAtomic(dir, initial)
+    const publish = vi.fn()
+    const publishPetStatus = vi.fn()
+    const handlers = createGameHandlers({
+      userDataPath: dir,
+      now: () => 1_000,
+      publish,
+      publishPetStatus,
+    })
+
+    const result = await handlers.useSupply('bodyWash')
+
+    expect(result.ok).toBe(true)
+    expect(result.state.inventory.supplies.bodyWash).toBe(0)
+    expect(cleanPetWithHygiene).toHaveBeenCalledWith(40)
     expect(publish).toHaveBeenCalledOnce()
     expect(publishPetStatus).toHaveBeenCalledOnce()
   })

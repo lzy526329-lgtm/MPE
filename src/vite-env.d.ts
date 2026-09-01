@@ -41,7 +41,7 @@ import type {
 import type { UpdateState } from '../electron/updater'
 import type { FarmActionResult } from '../electron/farm/farmEngine'
 import type { CropId } from '../electron/farm/farmTypes'
-import type { FoodId, GameActionResult, GameViewState } from '../electron/game/gameTypes'
+import type { FoodId, GameActionResult, GameViewState, SupplyId } from '../electron/game/gameTypes'
 
 declare global {
   interface Window {
@@ -106,7 +106,6 @@ declare global {
       getPetCharacters: () => Promise<PetCharacter[]>
       setPetCharacter: (characterId: string) => Promise<PetStatus>
       feedPet: () => Promise<PetStatus>
-      cleanPet: () => Promise<PetStatus>
       restPet: () => Promise<PetStatus>
       updatePetProfile: (patch: { name?: string }) => Promise<PetStatus>
       getPetReminders: () => Promise<PetReminderItem[]>
@@ -179,6 +178,8 @@ declare global {
       gameSellProduce: (produceId: string) => Promise<GameActionResult>
       gameBuyFood: (foodId: FoodId) => Promise<GameActionResult>
       gameUseFood: (foodId: FoodId) => Promise<GameActionResult>
+      gameBuySupply: (supplyId: SupplyId) => Promise<GameActionResult>
+      gameUseSupply: (supplyId: SupplyId) => Promise<GameActionResult>
       onGameStateChanged: (callback: (state: GameViewState) => void) => () => void
     }
   }

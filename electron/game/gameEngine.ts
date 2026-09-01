@@ -3,8 +3,8 @@ import type { CropId, FarmState } from '../farm/farmTypes'
 import { mergeLegacyProduce, mergeLegacySeeds, plotUnlockRequirement } from '../farm/farmCatalog'
 import { farmLevelFromTotalXp, grantFarmExperience } from '../farm/farmLevel'
 import { UNLOCK_PLOT_XP } from '../farm/farmLevelCatalog'
-import { INITIAL_COINS, PRODUCE_OFFERS, SEED_OFFERS, FOOD_OFFERS, normalizeItemCount, seedCounts, foodCounts } from './gameCatalog'
-import type { FoodId } from './gameTypes'
+import { INITIAL_COINS, PRODUCE_OFFERS, SEED_OFFERS, FOOD_OFFERS, SUPPLY_OFFERS, normalizeItemCount, seedCounts, foodCounts, supplyCounts } from './gameCatalog'
+import type { FoodId, SupplyId } from './gameTypes'
 import type {
   FarmCoreState,
   FarmGameMutationResult,
@@ -28,6 +28,7 @@ function cloneRecord(record: Record<string, number>): Record<string, number> {
 function cloneInventory(inventory: InventoryState): InventoryState {
   return {
     food: cloneRecord(inventory.food),
+    supplies: cloneRecord(inventory.supplies),
     seeds: { ...inventory.seeds },
     produce: cloneRecord(inventory.produce),
   }
@@ -77,6 +78,7 @@ export function createDefaultGameState(now: number): GameState {
     wallet: { coins: INITIAL_COINS },
     inventory: {
       food: foodCounts(),
+      supplies: supplyCounts(),
       seeds,
       produce,
     },
@@ -99,6 +101,7 @@ export function migrateLegacyGameState(input: LegacyGameInput): GameState {
     wallet: { coins: resolveLegacyCoins(input.petCoins) },
     inventory: {
       food: foodCounts(),
+      supplies: supplyCounts(),
       seeds,
       produce,
     },
@@ -118,6 +121,7 @@ export function toGameViewState(state: GameState): GameViewState {
     seedOffers: SEED_OFFERS.map((offer) => ({ ...offer })),
     produceOffers: PRODUCE_OFFERS.map((offer) => ({ ...offer })),
     foodOffers: FOOD_OFFERS.map((offer) => ({ ...offer })),
+    supplyOffers: SUPPLY_OFFERS.map((offer) => ({ ...offer })),
   }
 }
 
@@ -128,10 +132,11 @@ export function toGameViewState(state: GameState): GameViewState {
 export function emptyGameViewState(): GameViewState {
   return {
     wallet: { coins: 0 },
-    inventory: { food: foodCounts(), seeds: seedCounts(), produce: {} },
+    inventory: { food: foodCounts(), supplies: supplyCounts(), seeds: seedCounts(), produce: {} },
     seedOffers: SEED_OFFERS.map((offer) => ({ ...offer })),
     produceOffers: PRODUCE_OFFERS.map((offer) => ({ ...offer })),
     foodOffers: FOOD_OFFERS.map((offer) => ({ ...offer })),
+    supplyOffers: SUPPLY_OFFERS.map((offer) => ({ ...offer })),
   }
 }
 
@@ -415,6 +420,94 @@ export function useFood(state: GameState, foodId: string): GameMutationResult {
     inventory: {
       ...cloneInventory(state.inventory),
       food,
+    },
+  }
+
+  return {
+    ok: true,
+    game,
+    state: toGameViewState(game),
+  }
+}
+
+export function buySupply(state: GameState, supplyId: string): GameMutationResult {
+  const offer = SUPPLY_OFFERS.find((item) => item.supplyId === supplyId)
+  const view = toGameViewState(state)
+
+  if (!offer) {
+    return {
+      ok: false,
+      code: 'UNKNOWN_ITEM',
+      message: '未知商品',
+      game: cloneGameState(state),
+      state: view,
+    }
+  }
+
+  if (state.wallet.coins < offer.price) {
+    return {
+      ok: false,
+      code: 'INSUFFICIENT_COINS',
+      message: '金币不足',
+      game: cloneGameState(state),
+      state: view,
+    }
+  }
+
+  const game: GameState = {
+    ...cloneGameState(state),
+    wallet: { coins: state.wallet.coins - offer.price },
+    inventory: {
+      ...cloneInventory(state.inventory),
+      supplies: {
+        ...state.inventory.supplies,
+        [offer.supplyId]: state.inventory.supplies[offer.supplyId] + 1,
+      },
+    },
+  }
+
+  return {
+    ok: true,
+    game,
+    state: toGameViewState(game),
+  }
+}
+
+export function useSupply(state: GameState, supplyId: string): GameMutationResult {
+  const entry = SUPPLY_OFFERS.find((item) => item.supplyId === supplyId)
+  const view = toGameViewState(state)
+
+  if (!entry) {
+    return {
+      ok: false,
+      code: 'UNKNOWN_ITEM',
+      message: '未知商品',
+      game: cloneGameState(state),
+      state: view,
+    }
+  }
+
+  const owned = state.inventory.supplies[entry.supplyId as SupplyId] ?? 0
+  if (owned < 1) {
+    return {
+      ok: false,
+      code: 'INSUFFICIENT_STOCK',
+      message: '库存不足',
+      game: cloneGameState(state),
+      state: view,
+    }
+  }
+
+  const supplies = { ...state.inventory.supplies }
+  const remaining = owned - 1
+  if (remaining > 0) supplies[entry.supplyId as SupplyId] = remaining
+  else supplies[entry.supplyId as SupplyId] = 0
+
+  const game: GameState = {
+    ...cloneGameState(state),
+    inventory: {
+      ...cloneInventory(state.inventory),
+      supplies,
     },
   }
 
