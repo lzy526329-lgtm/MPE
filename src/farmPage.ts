@@ -1,13 +1,14 @@
 import { CROPS, plotUnlockRequirement } from '../electron/farm/farmCatalog'
+import { getCropShopImgPath } from '../electron/farm/cropCatalog'
 import type { CropId, FarmPageContext, FarmState, PlotState, Weather } from '../electron/farm/farmTypes'
 import {
   cropGrowthStage,
   cropSpriteStyle,
+  farmCatalogIconHtml,
   FARM_ASSETS,
   findPlotIndexAtClientPoint,
   plotSoilSrc,
   syncFarmPlotLayout,
-  toolbarIconStyle,
 } from './farmAssets'
 import { onPageChange } from './appNavigation'
 
@@ -99,14 +100,20 @@ function renderPlot(
 }
 
 function renderSeedPicker(seeds: Record<string, number>, selected: CropId): string {
-  return (Object.keys(CROPS) as CropId[])
+  const owned = (Object.keys(CROPS) as CropId[]).filter((id) => (seeds[id] ?? 0) > 0)
+  if (owned.length === 0) {
+    return '<p class="farm-seed-empty">暂无种子</p>'
+  }
+
+  return owned
     .map((id) => {
       const count = seeds[id] ?? 0
-      const active = id === selected ? ' farm-seed-chip--active' : ''
-      const disabled = count < 1 ? ' disabled' : ''
+      const active = id === selected ? ' farm-seed-card--active' : ''
       return `
-        <button class="farm-seed-chip${active}" type="button" data-crop="${id}"${disabled}>
-          ${escapeHtml(CROPS[id].name)} <em>${count}</em>
+        <button class="farm-seed-card${active}" type="button" data-crop="${id}" aria-pressed="${id === selected}">
+          ${farmCatalogIconHtml(getCropShopImgPath(id), 'farm-seed-card-icon')}
+          <span class="farm-seed-card-name">${escapeHtml(CROPS[id].name)}</span>
+          <span class="farm-seed-card-count">×${count}</span>
         </button>
       `
     })
@@ -122,12 +129,6 @@ function renderFarm(
 ): string {
   const seedNames = cropNameMap()
   const invNames = itemNameMap()
-  const todayClaimed = state.lastDailySeedClaimAt === localDateKey(now)
-  const readyCount = state.plots.filter((p) => p.status === 'ready').length
-  const dryCount = state.plots.filter((p) => {
-    const d = getPlotDisplayStatus(p, state.weather, now)
-    return d === 'dry'
-  }).length
 
   return `
     <div class="farm-scene">
@@ -145,35 +146,12 @@ function renderFarm(
         ${state.plots.map((plot, i) => renderPlot(plot, i, state, now, context)).join('')}
       </div>
 
-      <div class="farm-toolbar">
-        <button class="farm-tool" type="button" data-tool="water-all" title="一键浇水">
-          <span class="farm-tool-icon" style="${toolbarIconStyle(0)}"></span>
-          <span>一键浇水${dryCount > 0 ? ` (${dryCount})` : ''}</span>
-        </button>
-        <button class="farm-tool" type="button" data-tool="harvest-all" title="一键收割">
-          <span class="farm-tool-icon" style="${toolbarIconStyle(1)}"></span>
-          <span>一键收割${readyCount > 0 ? ` (${readyCount})` : ''}</span>
-        </button>
-        <button class="farm-tool" type="button" data-tool="claim" title="领取种子" ${todayClaimed ? 'disabled' : ''}>
-          <span class="farm-tool-icon" style="${toolbarIconStyle(2)}"></span>
-          <span>${todayClaimed ? '已领取' : '领种子'}</span>
-        </button>
-      </div>
-
       <div class="farm-seed-bar" role="toolbar" aria-label="选择种子">
         <span class="farm-seed-label">种子</span>
-        ${renderSeedPicker(state.seeds, selectedCrop)}
+        <div class="farm-seed-scroll">${renderSeedPicker(state.seeds, selectedCrop)}</div>
       </div>
     </div>
   `
-}
-
-function localDateKey(now: number): string {
-  const date = new Date(now)
-  const year = date.getFullYear()
-  const month = `${date.getMonth() + 1}`.padStart(2, '0')
-  const day = `${date.getDate()}`.padStart(2, '0')
-  return `${year}-${month}-${day}`
 }
 
 function totalSeeds(seeds: Record<string, number>): number {
@@ -185,6 +163,11 @@ function defaultSelectedCrop(seeds: Record<string, number>): CropId {
     if ((seeds[id] ?? 0) > 0) return id
   }
   return 'wheat'
+}
+
+function resolveSelectedCrop(seeds: Record<string, number>, current: CropId): CropId {
+  if ((seeds[current] ?? 0) > 0) return current
+  return defaultSelectedCrop(seeds)
 }
 
 export function mountFarmPage() {
@@ -337,7 +320,7 @@ function setupFarmPage(farmRoot: HTMLElement) {
       farmState = result.state
       farmContext = result.context ?? DEFAULT_FARM_CONTEXT
       if (!result.ok) showToast(result.error ?? '读取失败')
-      selectedCrop = defaultSelectedCrop(farmState.seeds)
+      selectedCrop = resolveSelectedCrop(farmState.seeds, selectedCrop)
       paint()
     } catch {
       showToast('无法读取农场状态，请重试。')
@@ -395,13 +378,10 @@ function setupFarmPage(farmRoot: HTMLElement) {
     if (plot.status === 'empty') {
       const count = farmState.seeds[selectedCrop] ?? 0
       if (count < 1) {
-        const todayClaimed = farmState.lastDailySeedClaimAt === localDateKey(Date.now())
         const message =
           count === 0 && totalSeeds(farmState.seeds) === 0
-            ? todayClaimed
-              ? '种子都用完了，明天可以再来领'
-              : '种子不够了，请先点下方「领种子」'
-            : `${CROPS[selectedCrop].name}种子不够，请换别的种子或领取`
+            ? '种子都用完了'
+            : `${CROPS[selectedCrop].name}种子不够，请换别的种子`
         showToast(message)
         return
       }
@@ -433,27 +413,16 @@ function setupFarmPage(farmRoot: HTMLElement) {
       handlePlotClick(plotIndex)
     })
 
-    farmRoot.querySelectorAll<HTMLButtonElement>('.farm-seed-chip').forEach((btn) => {
+    farmRoot.querySelectorAll<HTMLButtonElement>('.farm-seed-card').forEach((btn) => {
       btn.addEventListener('click', () => {
-        if (btn.disabled) return
         selectedCrop = btn.dataset.crop as CropId
-        farmRoot.querySelectorAll<HTMLButtonElement>('.farm-seed-chip').forEach((chip) => {
-          chip.classList.toggle('farm-seed-chip--active', chip.dataset.crop === selectedCrop)
+        farmRoot.querySelectorAll<HTMLButtonElement>('.farm-seed-card').forEach((card) => {
+          const active = card.dataset.crop === selectedCrop
+          card.classList.toggle('farm-seed-card--active', active)
+          card.setAttribute('aria-pressed', String(active))
         })
         showToast(`已选 ${CROPS[selectedCrop].name}`)
       })
-    })
-
-    farmRoot.querySelector<HTMLButtonElement>('[data-tool="water-all"]')?.addEventListener('click', () => {
-      void runAction(() => window.electronAPI.farmWaterAll(), '全部浇好了')
-    })
-
-    farmRoot.querySelector<HTMLButtonElement>('[data-tool="harvest-all"]')?.addEventListener('click', () => {
-      void runAction(() => window.electronAPI.farmHarvestAll(), '全部收割完成')
-    })
-
-    farmRoot.querySelector<HTMLButtonElement>('[data-tool="claim"]')?.addEventListener('click', () => {
-      void runAction(() => window.electronAPI.farmClaimDailySeeds(), '种子已领取')
     })
   }
 

@@ -161,7 +161,7 @@ export function plant(state: FarmState, plotIndex: number, cropId: CropId, now: 
 
   const seedCount = state.seeds[cropId] ?? 0
   if (seedCount < 1) {
-    return failure(state, `${getCrop(cropId).name}种子不够了，请先点下方「领种子」`)
+    return failure(state, `${getCrop(cropId).name}种子不够了`)
   }
 
   return success(

@@ -3039,87 +3039,99 @@ input[type="range"] {
   white-space: nowrap;
 }
 
-.farm-toolbar {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.farm-tool {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  min-width: 72px;
-  padding: 8px 10px 6px;
-  border: none;
-  border-radius: 14px;
-  background: #fff;
-  cursor: pointer;
-  font-size: 11px;
-  font-weight: 600;
-  color: #3a5a28;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-}
-
-.farm-tool:hover:not(:disabled) {
-  background: #fff;
-  transform: translateY(-1px);
-}
-
-.farm-tool:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.farm-tool-icon {
-  width: 36px;
-  height: 36px;
-  background-repeat: no-repeat;
-  background-size: contain;
-}
-
 .farm-seed-bar {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: center;
-  padding: 4px 0 2px;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
 .farm-seed-label {
+  flex-shrink: 0;
   font-size: 12px;
   font-weight: 700;
   color: #3a5a28;
 }
 
-.farm-seed-chip {
-  border: 2px solid #c5dcb0;
-  background: #fff;
+.farm-seed-scroll {
+  display: flex;
+  flex: 1;
+  gap: 10px;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 2px 4px;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(58, 90, 40, 0.35) transparent;
+}
+
+.farm-seed-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.farm-seed-scroll::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  padding: 4px 12px;
-  font-size: 12px;
+  background: rgba(58, 90, 40, 0.35);
+}
+
+.farm-seed-card {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 72px;
+  padding: 8px 6px 6px;
+  border: 2px solid #c5dcb0;
+  border-radius: 12px;
+  background: #fff;
   cursor: pointer;
   color: #3a5a28;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
-.farm-seed-chip em {
-  font-style: normal;
-  opacity: 0.7;
-  margin-left: 2px;
+.farm-seed-card:hover {
+  transform: translateY(-1px);
 }
 
-.farm-seed-chip--active {
+.farm-seed-card-icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+}
+
+.farm-seed-card-name {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.farm-seed-card-count {
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.72;
+}
+
+.farm-seed-card--active {
   border-color: #ffb020;
   background: #fff8e8;
   box-shadow: 0 0 0 2px rgba(255, 176, 32, 0.35);
 }
 
-.farm-seed-chip:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
+.farm-seed-empty {
+  margin: 0;
+  padding: 10px 4px;
+  font-size: 12px;
+  color: #6b8a5a;
 }
 
 .farm-toast {

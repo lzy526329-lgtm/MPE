@@ -822,7 +822,7 @@ app.innerHTML = `
           <div>
             <p class="eyebrow">桌宠玩法</p>
             <h1>农场</h1>
-            <p class="subtitle">QQ 农场风格：点地块操作，雨天自动浇水，也可一键浇水 / 一键收割。</p>
+            <p class="subtitle">QQ 农场风格：点地块播种、浇水、除虫与收割，雨天自动浇水。</p>
           </div>
         </header>
         <div class="panel" id="farm-root"></div>
