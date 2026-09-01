@@ -23,7 +23,7 @@ export type CropCatalogFile = {
   crops: Record<string, CropCatalogEntry>
 }
 
-const CROP_CATALOG = catalog as CropCatalogFile
+const CROP_CATALOG = catalog as unknown as CropCatalogFile
 
 export type CropId = keyof typeof catalog.crops & string
 

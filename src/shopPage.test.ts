@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GameErrorCode, GameViewState } from '../electron/game/gameTypes'
+import { withFoodCounts } from '../electron/game/foodCatalog'
+import { withSeedCounts } from '../electron/farm/cropCatalog'
 import { canBuySeed, formatGrowDuration, gameErrorMessage, renderShopPage } from './shopPage'
 
 const navigation = vi.hoisted(() => ({
@@ -18,8 +20,8 @@ vi.mock('./appNavigation', () => ({
 const state: GameViewState = {
   wallet: { coins: 100 },
   inventory: {
-    food: {},
-    seeds: { wheat: 5 },
+    food: withFoodCounts({}),
+    seeds: withSeedCounts({ wheat: 5 }),
     produce: {},
   },
   seedOffers: [{ cropId: 'wheat', name: '小麦种子', price: 5 }],

@@ -251,7 +251,7 @@ describe('createGameHandlers', () => {
 
     expect(result).toMatchObject({ ok: false, code: 'PERSISTENCE_FAILED' })
     expect(result.state.wallet.coins).toBe(0)
-    expect(result.state.inventory.seeds).toEqual(withSeedCounts())
+    expect(result.state.inventory.seeds).toEqual(withSeedCounts({}))
     expect(result.state.seedOffers).toHaveLength(5)
   })
 })

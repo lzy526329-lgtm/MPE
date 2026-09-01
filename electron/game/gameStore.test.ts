@@ -245,7 +245,7 @@ describe('game payload validation and recovery', () => {
     )
 
     expect(parsed.wallet.coins).toBe(0)
-    expect(parsed.inventory.seeds).toEqual(withSeedCounts())
+    expect(parsed.inventory.seeds).toEqual(withSeedCounts({}))
     expect(parsed.inventory.food).toEqual(foodCounts({ cookie: 1 }))
     expect(parsed.inventory.produce).toEqual({ wheat: 0 })
   })
@@ -352,7 +352,7 @@ describe('subtree recovery without economy loss', () => {
     const state = loadGame(dir, 2_000)
 
     expect(state.wallet.coins).toBe(3)
-    expect(state.inventory.seeds).toEqual(withSeedCounts())
+    expect(state.inventory.seeds).toEqual(withSeedCounts({}))
     expect(state.inventory.food).toEqual(foodCounts({}))
     expect(state.farm.plots).toHaveLength(24)
     expect(state.migrations.starterCoinsGranted).toBe(true)

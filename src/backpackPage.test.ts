@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GameViewState } from '../electron/game/gameTypes'
+import { withFoodCounts } from '../electron/game/foodCatalog'
+import { withSeedCounts } from '../electron/farm/cropCatalog'
 import {
   canSellProduce,
   hasInventoryItems,
@@ -27,8 +29,8 @@ const defaultOptions = {
 const state: GameViewState = {
   wallet: { coins: 100 },
   inventory: {
-    food: {},
-    seeds: { wheat: 5 },
+    food: withFoodCounts({}),
+    seeds: withSeedCounts({ wheat: 5 }),
     produce: {},
   },
   seedOffers: [{ cropId: 'wheat', name: '小麦种子', price: 5 }],
@@ -52,7 +54,7 @@ describe('backpack page rendering', () => {
   it('renders the empty seed state when every seed count is zero', () => {
     const emptySeeds: GameViewState = {
       ...state,
-      inventory: { ...state.inventory, seeds: { wheat: 0 } },
+      inventory: { ...state.inventory, seeds: withSeedCounts({ wheat: 0 }) },
     }
 
     const html = renderBackpackPage(emptySeeds, defaultOptions)
@@ -65,7 +67,7 @@ describe('backpack page rendering', () => {
   it('renders owned food and a feed picker entry in the food tab', () => {
     const withFood: GameViewState = {
       ...state,
-      inventory: { ...state.inventory, food: { cookie: 2, chocolate: 0, creamBread: 0, strawberryMilk: 0 } },
+      inventory: { ...state.inventory, food: withFoodCounts({ cookie: 2 }) },
     }
 
     const html = renderBackpackPage(withFood, { ...defaultOptions, activeTab: 'food' })
