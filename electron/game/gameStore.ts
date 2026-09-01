@@ -78,6 +78,11 @@ function parseMigrations(value: unknown): GameState['migrations'] {
   }
 }
 
+function parseTotalXp(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return 0
+  return Math.floor(value)
+}
+
 /**
  * A damaged farm subtree is rebuilt from the default farm instead of discarding
  * the whole save, so the wallet, inventory and migration flags survive.
@@ -97,7 +102,7 @@ function parseFarmCore(
     const parsed = parseFarmPayload(JSON.stringify(candidate), fallbackNow)
     if (!parsed.didReset) {
       const { seeds: _seeds, inventory: _inventory, ...farm } = parsed.state
-      return farm
+      return { ...farm, totalXp: parseTotalXp(value.totalXp) }
     }
   }
   const { seeds: _defaultSeeds, inventory: _defaultProduce, ...farm } = createDefaultFarm(now)

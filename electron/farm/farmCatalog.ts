@@ -6,21 +6,23 @@ import {
   buildEmptySeedCounts,
   getCropIds,
 } from './cropCatalog'
+import { FARM_LEVEL_CAP } from './farmLevelCatalog'
 
 export const PLOT_COUNT = 24
-export const INITIAL_UNLOCKED_PLOTS = 4
+/** 初始 6 块解锁，其余 18 块需农场 Lv.1–18 逐块解锁 */
+export const INITIAL_UNLOCKED_PLOTS = 6
 
 export type PlotUnlockRequirement = {
   level: number
   coins: number
 }
 
-/** 第 5 块起按序号递增等级与金币需求 */
+/** 第 7 块起：每块地对应 +1 农场等级，金币随序号递增 */
 export function plotUnlockRequirement(plotIndex: number): PlotUnlockRequirement | null {
   if (plotIndex < INITIAL_UNLOCKED_PLOTS || plotIndex >= PLOT_COUNT) return null
   const tier = plotIndex - INITIAL_UNLOCKED_PLOTS
   return {
-    level: Math.floor(tier / 5),
+    level: Math.min(FARM_LEVEL_CAP, tier + 1),
     coins: 15 + tier * 10,
   }
 }

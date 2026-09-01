@@ -1,6 +1,8 @@
 import { createDefaultFarm, settle, unlockPlot, type FarmActionResult } from '../farm/farmEngine'
 import type { CropId, FarmState } from '../farm/farmTypes'
 import { mergeLegacyProduce, mergeLegacySeeds, plotUnlockRequirement } from '../farm/farmCatalog'
+import { farmLevelFromTotalXp, grantFarmExperience } from '../farm/farmLevel'
+import { UNLOCK_PLOT_XP } from '../farm/farmLevelCatalog'
 import { INITIAL_COINS, PRODUCE_OFFERS, SEED_OFFERS, FOOD_OFFERS, normalizeItemCount, seedCounts, foodCounts } from './gameCatalog'
 import type { FoodId } from './gameTypes'
 import type {
@@ -168,15 +170,36 @@ export function runFarmAction(
   return farm.ok ? { ok: true, game, farm } : { ok: false, game, farm }
 }
 
+export function runFarmActionWithXp(
+  state: GameState,
+  action: (farm: FarmState) => FarmActionResult,
+  xpAmount: number,
+  rng: () => number = Math.random,
+): FarmGameMutationResult & { levelUpMessage?: string } {
+  const result = runFarmAction(state, action)
+  if (!result.ok || xpAmount <= 0) {
+    return result
+  }
+
+  const grant = grantFarmExperience(result.game, xpAmount, rng)
+  return {
+    ok: result.ok,
+    game: grant.game,
+    farm: result.farm,
+    levelUpMessage: grant.levelUpMessage,
+  }
+}
+
 export function unlockPlotWithPayment(
   state: GameState,
   plotIndex: number,
-  playerLevel: number,
   now: number,
-): FarmGameMutationResult {
+  rng: () => number = Math.random,
+): FarmGameMutationResult & { levelUpMessage?: string } {
   const settledGame = applyCompatFarmState(state, settle(toCompatFarmState(state), now))
   const requirement = plotUnlockRequirement(plotIndex)
   const farmView = toCompatFarmState(settledGame)
+  const farmLevel = farmLevelFromTotalXp(settledGame.farm.totalXp ?? 0)
 
   if (!requirement) {
     return {
@@ -186,13 +209,13 @@ export function unlockPlotWithPayment(
     }
   }
 
-  if (playerLevel < requirement.level) {
+  if (farmLevel < requirement.level) {
     return {
       ok: false,
       game: cloneGameState(settledGame),
       farm: {
         ok: false,
-        error: `需要等级 ${requirement.level} 才能解锁`,
+        error: `需要农场 Lv.${requirement.level} 才能解锁`,
         state: farmView,
       },
     }
@@ -216,7 +239,13 @@ export function unlockPlotWithPayment(
     wallet: { coins: settledGame.wallet.coins - requirement.coins },
   }
 
-  return { ok: true, game, farm: unlocked }
+  const grant = grantFarmExperience(game, UNLOCK_PLOT_XP, rng)
+  return {
+    ok: true,
+    game: grant.game,
+    farm: unlocked,
+    levelUpMessage: grant.levelUpMessage,
+  }
 }
 
 export function buySeed(state: GameState, cropId: string): GameMutationResult {

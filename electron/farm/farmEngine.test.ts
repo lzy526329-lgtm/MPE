@@ -261,28 +261,28 @@ describe('farmEngine actions', () => {
 
   it('rejects planting on locked plots', () => {
     const state = createDefaultFarm(T0)
-    const planted = plant(state, 4, 'wheat', T0)
+    const planted = plant(state, 6, 'wheat', T0)
     expect(planted.ok).toBe(false)
     if (!planted.ok) expect(planted.error).toContain('解锁')
   })
 
   it('unlocks a locked plot into empty land', () => {
     const state = createDefaultFarm(T0)
-    const unlocked = unlockPlot(state, 4)
+    const unlocked = unlockPlot(state, 6)
     expect(unlocked.ok).toBe(true)
     if (!unlocked.ok) return
-    expect(unlocked.state.plots[4]).toEqual({ status: 'empty' })
+    expect(unlocked.state.plots[6]).toEqual({ status: 'empty' })
   })
 
   it('keeps player-unlocked empty plots after migratePlotLocks', () => {
     const state = createDefaultFarm(T0)
-    const unlocked = unlockPlot(state, 4)
+    const unlocked = unlockPlot(state, 6)
     expect(unlocked.ok).toBe(true)
     if (!unlocked.ok) return
 
     const migrated = migratePlotLocks(unlocked.state.plots)
-    expect(migrated[4]).toEqual({ status: 'empty' })
-    expect(migrated[5]).toEqual({ status: 'locked' })
+    expect(migrated[6]).toEqual({ status: 'empty' })
+    expect(migrated[7]).toEqual({ status: 'locked' })
   })
 
   it('grants daily seeds once per local day', () => {

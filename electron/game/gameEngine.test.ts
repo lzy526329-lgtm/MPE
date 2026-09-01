@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { claimDailySeeds, harvest, plant } from '../farm/farmEngine'
 import { withSeedCounts } from '../farm/cropCatalog'
+import { totalXpForLevel } from '../farm/farmLevel'
 import type { FarmState } from '../farm/farmTypes'
 import {
   applyCompatFarmState,
@@ -25,6 +26,7 @@ const legacyFarm: FarmState = {
   inventory: { lettuce: 3, tomato: 1 },
   weather: 'rain',
   lastSettledAt: 500,
+  totalXp: 0,
 }
 
 describe('createDefaultGameState', () => {
@@ -302,29 +304,42 @@ describe('game state immutability', () => {
 })
 
 describe('gameEngine unlockPlotWithPayment', () => {
-  it('unlocks a plot and deducts coins when level is sufficient', () => {
+  it('unlocks a plot and deducts coins when farm level is sufficient', () => {
     const game = createDefaultGameState(1_000)
-    const result = unlockPlotWithPayment(game, 4, 0, 1_000)
+    game.farm.totalXp = totalXpForLevel(1)
+    const result = unlockPlotWithPayment(game, 6, 1_000)
 
     expect(result.ok).toBe(true)
     if (!result.ok) return
     expect(result.game.wallet.coins).toBe(85)
-    expect(result.game.farm.plots[4]).toEqual({ status: 'empty' })
+    expect(result.game.farm.plots[6]).toEqual({ status: 'empty' })
+    expect(result.game.farm.totalXp).toBe(totalXpForLevel(1) + 10)
   })
 
-  it('rejects unlock when level is too low', () => {
+  it('rejects unlock when farm level is too low', () => {
     const game = createDefaultGameState(1_000)
-    const result = unlockPlotWithPayment(game, 9, 0, 1_000)
+    const result = unlockPlotWithPayment(game, 9, 1_000)
 
     expect(result.ok).toBe(false)
     if (result.ok) return
-    expect(result.farm.error).toContain('等级')
+    expect(result.farm.error).toContain('农场 Lv.4')
     expect(result.game.wallet.coins).toBe(100)
+  })
+
+  it('allows unlock when farm level meets the requirement', () => {
+    const game = createDefaultGameState(1_000)
+    game.farm.totalXp = totalXpForLevel(4)
+    const result = unlockPlotWithPayment(game, 9, 1_000)
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.game.farm.plots[9]).toEqual({ status: 'empty' })
   })
 
   it('rejects unlock when coins are insufficient', () => {
     const game = { ...createDefaultGameState(1_000), wallet: { coins: 5 } }
-    const result = unlockPlotWithPayment(game, 4, 0, 1_000)
+    game.farm.totalXp = totalXpForLevel(1)
+    const result = unlockPlotWithPayment(game, 6, 1_000)
 
     expect(result.ok).toBe(false)
     if (result.ok) return

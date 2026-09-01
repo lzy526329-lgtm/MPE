@@ -19,8 +19,15 @@ export type PlotState = PlotEmpty | PlotLocked | PlotPlanted
 export type Weather = 'clear' | 'rain'
 
 export type FarmPageContext = {
-  playerLevel: number
   walletCoins: number
+  farmLevel: number
+  farmTotalXp: number
+  farmXpProgress: {
+    current: number
+    required: number
+    isMaxLevel: boolean
+  }
+  levelUpMessage?: string
 }
 
 export type FarmState = {
@@ -31,6 +38,7 @@ export type FarmState = {
   seeds: Record<string, number>
   weather: Weather
   lastSettledAt: number
+  totalXp: number
   lastDailySeedClaimAt?: string
   lastWeatherRollAt?: number
 }

@@ -1,5 +1,6 @@
 import { CROPS, plotUnlockRequirement } from '../electron/farm/farmCatalog'
 import { getCropShopImgPath } from '../electron/farm/cropCatalog'
+import { xpRemainingToLevel } from '../electron/farm/farmLevel'
 import type { CropId, FarmPageContext, FarmState, PlotState, Weather } from '../electron/farm/farmTypes'
 import {
   cropGrowthStage,
@@ -11,10 +12,16 @@ import {
   syncFarmPlotLayout,
 } from './farmAssets'
 import { onPageChange } from './appNavigation'
+import { openFarmLevelGuide } from './farmLevelGuide'
 
 type PlotDisplayStatus = 'empty' | 'growing' | 'dry' | 'bug' | 'ready' | 'locked'
 
-const DEFAULT_FARM_CONTEXT: FarmPageContext = { playerLevel: 0, walletCoins: 0 }
+const DEFAULT_FARM_CONTEXT: FarmPageContext = {
+  walletCoins: 0,
+  farmLevel: 0,
+  farmTotalXp: 0,
+  farmXpProgress: { current: 0, required: 500, isMaxLevel: false },
+}
 
 const WEATHER_LABEL: Record<Weather, string> = {
   clear: '☀️ 晴天',
@@ -40,20 +47,6 @@ function getPlotDisplayStatus(plot: PlotState, weather: Weather, now: number): P
   if (plot.hasBug) return 'bug'
   if (now > plot.lastWateredAt + waterIntervalMs(plot.cropId, weather)) return 'dry'
   return 'growing'
-}
-
-function formatRecordSummary(record: Record<string, number>, nameMap: Record<string, string>): string {
-  const entries = Object.entries(record).filter(([, count]) => count > 0)
-  if (entries.length === 0) return '无'
-  return entries.map(([id, count]) => `${nameMap[id] ?? id}×${count}`).join(' ')
-}
-
-function cropNameMap(): Record<string, string> {
-  return Object.fromEntries(Object.values(CROPS).map((c) => [c.id, c.name]))
-}
-
-function itemNameMap(): Record<string, string> {
-  return Object.fromEntries(Object.values(CROPS).map((c) => [c.yieldItemId, c.name]))
 }
 
 function renderPlot(
@@ -120,6 +113,33 @@ function renderSeedPicker(seeds: Record<string, number>, selected: CropId): stri
     .join('')
 }
 
+function renderFarmLevelHud(context: FarmPageContext): string {
+  const { farmLevel, farmXpProgress } = context
+  if (farmXpProgress.isMaxLevel) {
+    return `
+      <button type="button" class="farm-hud-level" data-farm-level-guide aria-label="查看农场等级奖励">
+        <span class="farm-hud-level-label">🌾 农 Lv.${farmLevel}</span>
+        <div class="farm-xp-bar farm-xp-bar--max" aria-hidden="true"><span class="farm-xp-bar-fill"></span></div>
+        <span class="farm-xp-text">MAX</span>
+      </button>
+    `
+  }
+
+  const pct = farmXpProgress.required > 0
+    ? Math.min(100, Math.round((farmXpProgress.current / farmXpProgress.required) * 100))
+    : 0
+
+  return `
+    <button type="button" class="farm-hud-level" data-farm-level-guide aria-label="查看农场等级奖励">
+      <span class="farm-hud-level-label">🌾 农 Lv.${farmLevel}</span>
+      <div class="farm-xp-bar" aria-hidden="true">
+        <span class="farm-xp-bar-fill" style="width:${pct}%"></span>
+      </div>
+      <span class="farm-xp-text">${farmXpProgress.current}/${farmXpProgress.required}</span>
+    </button>
+  `
+}
+
 function renderFarm(
   state: FarmState,
   selectedCrop: CropId,
@@ -127,17 +147,12 @@ function renderFarm(
   toast: string,
   context: FarmPageContext,
 ): string {
-  const seedNames = cropNameMap()
-  const invNames = itemNameMap()
-
   return `
     <div class="farm-scene">
       <div class="farm-hud">
-        <div class="farm-hud-pill">⭐ Lv.${context.playerLevel}</div>
+        ${renderFarmLevelHud(context)}
         <div class="farm-hud-pill">🪙 ${context.walletCoins}</div>
         <div class="farm-hud-pill">${WEATHER_LABEL[state.weather]}</div>
-        <div class="farm-hud-pill">🌱 ${escapeHtml(formatRecordSummary(state.seeds, seedNames))}</div>
-        <div class="farm-hud-pill">🧺 ${escapeHtml(formatRecordSummary(state.inventory, invNames))}</div>
       </div>
 
       ${toast ? `<p class="farm-toast" role="status">${escapeHtml(toast)}</p>` : ''}
@@ -183,6 +198,7 @@ function setupFarmPage(farmRoot: HTMLElement) {
   let busy = false
   let toast = ''
   let toastTimer: ReturnType<typeof setTimeout> | undefined
+  let closeLevelGuide: (() => void) | undefined
 
   function updateToastDom() {
     const scene = farmRoot.querySelector<HTMLElement>('.farm-scene')
@@ -340,6 +356,8 @@ function setupFarmPage(farmRoot: HTMLElement) {
       if (result.context) farmContext = result.context
       if (!result.ok) {
         showToast(result.error ?? '操作失败')
+      } else if (result.context?.levelUpMessage) {
+        showToast(result.context.levelUpMessage)
       } else if (successMsg) {
         showToast(successMsg)
       }
@@ -360,8 +378,11 @@ function setupFarmPage(farmRoot: HTMLElement) {
     if (display === 'locked') {
       const req = plotUnlockRequirement(plotIndex)
       if (!req) return
-      if (farmContext.playerLevel < req.level) {
-        showToast(`需要等级 ${req.level} 才能解锁（${req.coins} 金币）`)
+      if (farmContext.farmLevel < req.level) {
+        const remaining = xpRemainingToLevel(farmContext.farmTotalXp, req.level)
+        showToast(
+          `需要农场 Lv.${req.level} 才能解锁（当前 Lv.${farmContext.farmLevel}，还差 ${remaining} 经验）`,
+        )
         return
       }
       if (farmContext.walletCoins < req.coins) {
@@ -424,9 +445,16 @@ function setupFarmPage(farmRoot: HTMLElement) {
         showToast(`已选 ${CROPS[selectedCrop].name}`)
       })
     })
+
+    farmRoot.querySelector<HTMLButtonElement>('[data-farm-level-guide]')?.addEventListener('click', () => {
+      closeLevelGuide?.()
+      closeLevelGuide = openFarmLevelGuide(farmContext)
+    })
   }
 
   onPageChange((pageId) => {
+    closeLevelGuide?.()
+    closeLevelGuide = undefined
     if (pageId === 'farm-page') void refresh()
   })
 

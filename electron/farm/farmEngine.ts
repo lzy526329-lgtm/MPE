@@ -99,7 +99,7 @@ export function createDefaultPlots(): PlotState[] {
   )
 }
 
-/** 旧存档（全部为空地）：前 4 格可用，其余锁定。已有 locked 状态的存档保留玩家解锁结果。 */
+/** 旧存档（全部为空地）：前 6 格可用，其余锁定。已有 locked 状态的存档保留玩家解锁结果。 */
 export function migratePlotLocks(plots: PlotState[]): PlotState[] {
   const hasLockState = plots.some((plot) => plot.status === 'locked')
   if (hasLockState) {
@@ -126,6 +126,7 @@ export function createDefaultFarm(now: number): FarmState {
     seeds: cloneRecord(DEFAULT_SEEDS),
     weather: 'clear',
     lastSettledAt: now,
+    totalXp: 0,
   }
 }
 

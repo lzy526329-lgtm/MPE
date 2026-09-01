@@ -95,6 +95,7 @@ function legacyFarm(): FarmState {
     inventory: { lettuce: 3, tomato: 1 },
     weather: 'rain',
     lastSettledAt: 500,
+    totalXp: 0,
     lastDailySeedClaimAt: '2026-08-27',
     lastWeatherRollAt: 450,
   }

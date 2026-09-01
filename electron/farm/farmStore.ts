@@ -87,6 +87,10 @@ function normalizeFarmPayload(value: unknown, plotCount: number): FarmState | nu
     seeds,
     weather: value.weather,
     lastSettledAt: value.lastSettledAt,
+    totalXp:
+      typeof value.totalXp === 'number' && Number.isFinite(value.totalXp) && value.totalXp >= 0
+        ? Math.floor(value.totalXp)
+        : 0,
     ...(value.lastDailySeedClaimAt ? { lastDailySeedClaimAt: value.lastDailySeedClaimAt } : {}),
     ...(value.lastWeatherRollAt !== undefined ? { lastWeatherRollAt: value.lastWeatherRollAt } : {}),
   }

@@ -1,6 +1,6 @@
 import { app, ipcMain, type BrowserWindow } from 'electron'
 
-import { notifyPetStatusChanged, getPetPlayerLevel } from '../pet'
+import { notifyPetStatusChanged } from '../pet'
 import {
   createDefaultGameState,
   runFarmAction,
@@ -9,7 +9,7 @@ import {
   unlockPlotWithPayment,
 } from '../game/gameEngine'
 import { readGameState, withGame, type GameStoreFileOps } from '../game/gameStore'
-import type { FarmGameMutationResult, GameViewState } from '../game/gameTypes'
+import type { FarmGameMutationResult, GameState, GameViewState } from '../game/gameTypes'
 import {
   claimDailySeeds,
   harvest,
@@ -22,6 +22,12 @@ import {
   waterAll,
   type FarmActionResult,
 } from './farmEngine'
+import { farmXpProgress, grantFarmExperience } from './farmLevel'
+import {
+  DAILY_SEED_XP,
+  PLANT_XP,
+  harvestXpForCrop,
+} from './farmLevelCatalog'
 import type { CropId, FarmPageContext, FarmState } from './farmTypes'
 
 export const FARM_PERSISTENCE_ERROR = '保存失败，请重试'
@@ -46,25 +52,33 @@ export type FarmHandlerName = keyof FarmHandlers
 export type FarmHandlerOptions = {
   userDataPath: () => string
   now: () => number
-  getPlayerLevel: () => number
   publish: (state: GameViewState) => void
   publishPetStatus: () => void
   fileOps?: Partial<GameStoreFileOps>
 }
 
-type FarmMutation = FarmGameMutationResult & { coinsChanged: boolean }
+type FarmMutation = FarmGameMutationResult & {
+  coinsChanged: boolean
+  levelUpMessage?: string
+}
 
-function buildFarmContext(game: { wallet: { coins: number } }, playerLevel: number): FarmPageContext {
+function buildFarmContext(game: GameState, levelUpMessage?: string): FarmPageContext {
+  const totalXp = game.farm.totalXp ?? 0
+  const progress = farmXpProgress(totalXp)
   return {
-    playerLevel,
     walletCoins: game.wallet.coins,
+    farmLevel: progress.level,
+    farmTotalXp: totalXp,
+    farmXpProgress: {
+      current: progress.current,
+      required: progress.required,
+      isMaxLevel: progress.isMaxLevel,
+    },
+    ...(levelUpMessage ? { levelUpMessage } : {}),
   }
 }
 
-function attachContext(
-  result: FarmActionResult,
-  context: FarmPageContext,
-): FarmActionResult {
+function attachContext(result: FarmActionResult, context: FarmPageContext): FarmActionResult {
   return { ...result, context }
 }
 
@@ -82,18 +96,18 @@ export function createFarmHandlers(options: FarmHandlerOptions): FarmHandlers {
   const fallbackContext = (userDataPath: string, now: number): FarmPageContext => {
     try {
       const game = readGameState(userDataPath, now, fileOps).state
-      return buildFarmContext(game, options.getPlayerLevel())
+      return buildFarmContext(game)
     } catch {
-      return { playerLevel: options.getPlayerLevel(), walletCoins: 0 }
+      return buildFarmContext(createDefaultGameState(now))
     }
   }
 
   const run = async (
     action: (farm: FarmState, now: number) => FarmActionResult,
+    resolveXp: (farmBefore: FarmState) => number = () => 0,
   ): Promise<FarmActionResult> => {
     const now = options.now()
     const userDataPath = options.userDataPath()
-    const playerLevel = options.getPlayerLevel()
 
     let mutation: FarmMutation
     try {
@@ -102,8 +116,29 @@ export function createFarmHandlers(options: FarmHandlerOptions): FarmHandlers {
         now,
         (game) => {
           const coinsBefore = game.wallet.coins
+          const farmBefore = toCompatFarmState(game)
           const result = runFarmAction(game, (farm) => action(settle(farm, now), now))
-          return { ...result, coinsChanged: result.game.wallet.coins !== coinsBefore }
+          if (!result.ok) {
+            return { ...result, coinsChanged: false, levelUpMessage: undefined }
+          }
+
+          const xp = resolveXp(farmBefore)
+          if (xp <= 0) {
+            return {
+              ...result,
+              coinsChanged: result.game.wallet.coins !== coinsBefore,
+              levelUpMessage: undefined,
+            }
+          }
+
+          const grant = grantFarmExperience(result.game, xp)
+          return {
+            ok: true,
+            game: grant.game,
+            farm: result.farm,
+            coinsChanged: grant.game.wallet.coins !== coinsBefore,
+            levelUpMessage: grant.levelUpMessage,
+          }
         },
         fileOps,
       )
@@ -115,7 +150,7 @@ export function createFarmHandlers(options: FarmHandlerOptions): FarmHandlers {
       )
     }
 
-    const context = buildFarmContext(mutation.game, playerLevel)
+    const context = buildFarmContext(mutation.game, mutation.levelUpMessage)
     if (!mutation.ok) return attachContext(mutation.farm, context)
     options.publish(toGameViewState(mutation.game))
     if (mutation.coinsChanged) options.publishPetStatus()
@@ -125,7 +160,6 @@ export function createFarmHandlers(options: FarmHandlerOptions): FarmHandlers {
   const runUnlock = async (plotIndex: number): Promise<FarmActionResult> => {
     const now = options.now()
     const userDataPath = options.userDataPath()
-    const playerLevel = options.getPlayerLevel()
 
     let mutation: FarmMutation
     try {
@@ -134,8 +168,12 @@ export function createFarmHandlers(options: FarmHandlerOptions): FarmHandlers {
         now,
         (game) => {
           const coinsBefore = game.wallet.coins
-          const result = unlockPlotWithPayment(game, plotIndex, playerLevel, now)
-          return { ...result, coinsChanged: result.game.wallet.coins !== coinsBefore }
+          const result = unlockPlotWithPayment(game, plotIndex, now)
+          return {
+            ...result,
+            coinsChanged: result.ok && result.game.wallet.coins !== coinsBefore,
+            levelUpMessage: result.levelUpMessage,
+          }
         },
         fileOps,
       )
@@ -147,7 +185,7 @@ export function createFarmHandlers(options: FarmHandlerOptions): FarmHandlers {
       )
     }
 
-    const context = buildFarmContext(mutation.game, playerLevel)
+    const context = buildFarmContext(mutation.game, mutation.levelUpMessage)
     if (!mutation.ok) return attachContext(mutation.farm, context)
     options.publish(toGameViewState(mutation.game))
     if (mutation.coinsChanged) options.publishPetStatus()
@@ -156,14 +194,38 @@ export function createFarmHandlers(options: FarmHandlerOptions): FarmHandlers {
 
   return {
     getState: () => run((farm, now) => ({ ok: true, state: rollOpenEvents(farm, now) })),
-    plant: (request) => run((farm, now) => plant(farm, request.plotIndex, request.cropId, now)),
+    plant: (request) =>
+      run(
+        (farm, now) => plant(farm, request.plotIndex, request.cropId, now),
+        () => PLANT_XP,
+      ),
     water: (request) => run((farm, now) => water(farm, request.plotIndex, now)),
     debug: (request) => run((farm) => squashBug(farm, request.plotIndex)),
-    harvest: (request) => run((farm, now) => harvest(farm, request.plotIndex, now)),
+    harvest: (request) =>
+      run(
+        (farm, now) => harvest(farm, request.plotIndex, now),
+        (farmBefore) => {
+          const plot = farmBefore.plots[request.plotIndex]
+          if (plot.status !== 'ready') return 0
+          return harvestXpForCrop(plot.cropId)
+        },
+      ),
     unlockPlot: (request) => runUnlock(request.plotIndex),
-    claimDailySeeds: () => run((farm, now) => claimDailySeeds(farm, now)),
+    claimDailySeeds: () =>
+      run(
+        (farm, now) => claimDailySeeds(farm, now),
+        () => DAILY_SEED_XP,
+      ),
     waterAll: () => run((farm, now) => waterAll(farm, now)),
-    harvestAll: () => run((farm, now) => harvestAll(farm, now)),
+    harvestAll: () =>
+      run(
+        (farm, now) => harvestAll(farm, now),
+        (farmBefore) =>
+          farmBefore.plots.reduce((sum, plot) => {
+            if (plot.status !== 'ready') return sum
+            return sum + harvestXpForCrop(plot.cropId)
+          }, 0),
+      ),
   }
 }
 
@@ -171,7 +233,6 @@ export function registerFarmIpc(getMain: () => BrowserWindow | null): void {
   const handlers = createFarmHandlers({
     userDataPath: () => app.getPath('userData'),
     now: Date.now,
-    getPlayerLevel: getPetPlayerLevel,
     publish: (state) => getMain()?.webContents.send('game:state-changed', state),
     publishPetStatus: notifyPetStatusChanged,
   })

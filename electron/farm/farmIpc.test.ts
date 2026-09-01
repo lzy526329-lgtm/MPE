@@ -62,7 +62,6 @@ function harness(fileOps: Partial<GameStoreFileOps> = {}): Harness {
   const handlers = createFarmHandlers({
     userDataPath: () => dir,
     now: () => NOW,
-    getPlayerLevel: () => 5,
     publish,
     publishPetStatus,
     fileOps,
@@ -91,7 +90,12 @@ const successCases: SuccessCase[] = [
     expect: (result) => {
       expect(result.state.plots).toHaveLength(24)
       expect(result.state.seeds).toEqual(withSeedCounts({ wheat: 5 }))
-      expect(result.context).toMatchObject({ playerLevel: 5, walletCoins: 100 })
+      expect(result.context).toMatchObject({
+        farmLevel: 0,
+        farmTotalXp: 0,
+        walletCoins: 100,
+        farmXpProgress: { current: 0, required: 500, isMaxLevel: false },
+      })
     },
   },
   {
@@ -204,12 +208,15 @@ describe('createFarmHandlers wiring', () => {
 
   it('unlockPlot deducts coins, publishes wallet changes and refreshes pet status', async () => {
     const { dir, handlers, publish, publishPetStatus } = harness()
+    const game = seededGame()
+    game.farm.totalXp = 500
+    saveGameAtomic(dir, game)
 
-    const result = await handlers.unlockPlot({ plotIndex: 4 })
+    const result = await handlers.unlockPlot({ plotIndex: 6 })
 
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    expect(result.state.plots[4]).toEqual({ status: 'empty' })
+    expect(result.state.plots[6]).toEqual({ status: 'empty' })
     expect(result.context?.walletCoins).toBe(85)
     expect(storedGame(dir).wallet.coins).toBe(85)
     expect(publish).toHaveBeenCalledOnce()
