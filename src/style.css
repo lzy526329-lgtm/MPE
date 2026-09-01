@@ -1815,6 +1815,29 @@ input[type="range"] {
   grid-column: 1 / -1;
 }
 
+.pet-growth-bar {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: #eef1f6;
+  overflow: hidden;
+}
+
+.pet-growth-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #7c9cff, #5b7cff);
+  width: 0%;
+  transition: width 0.25s ease;
+}
+
+.pet-growth-meta {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+}
+
 .pet-trait-list {
   display: flex;
   flex-wrap: wrap;

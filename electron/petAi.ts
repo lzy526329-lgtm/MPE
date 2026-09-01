@@ -2,7 +2,7 @@ import { app, ipcMain, type BrowserWindow } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 import { buildPetSystemPrompt, buildSituationalLineSystemPrompt, buildSituationalLineUserPrompt } from './petContextBuilder'
-import { getPetStatus, markPetInteracted } from './pet'
+import { getPetStatus, grantPetChatGrowth, markPetInteracted } from './pet'
 import type { AppPageId } from './appPages'
 import {
   clearPetMemory,
@@ -552,6 +552,7 @@ export function registerPetAiIpc(
 
     const reply = await runChatWithSkills(playerText, openMainPage)
     markPetInteracted()
+    grantPetChatGrowth()
     const petWin = getPetWindow()
     if (petWin && !petWin.isDestroyed()) {
       petWin.webContents.send('pet:ai-bubble', { text: bubbleSnippet(reply.text) })

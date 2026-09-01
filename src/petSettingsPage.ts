@@ -6,6 +6,7 @@ import {
   formatPersonalitySummary,
   GENDER_LABELS,
 } from '../electron/petProfile'
+import { petGrowthProgress } from '../electron/petLevel'
 import { openFeedFoodPicker } from './feedFoodPicker'
 import { listSpineAnimations, mountSpinePreview, type SpinePreviewHandle } from './spinePreview'
 
@@ -60,7 +61,8 @@ function renderProfile(root: HTMLElement, status: PetStatus) {
   const gender = root.querySelector<HTMLElement>('#pet-profile-gender')
   const title = root.querySelector<HTMLElement>('#pet-profile-title')
   const level = root.querySelector<HTMLElement>('#pet-profile-level')
-  const growth = root.querySelector<HTMLElement>('#pet-profile-growth')
+  const growthFill = root.querySelector<HTMLElement>('#pet-profile-growth-fill')
+  const growthMeta = root.querySelector<HTMLElement>('#pet-profile-growth-meta')
   const birthday = root.querySelector<HTMLElement>('#pet-profile-birthday')
   const createdAt = root.querySelector<HTMLElement>('#pet-profile-created-at')
   const personality = root.querySelector<HTMLElement>('#pet-profile-personality')
@@ -71,7 +73,8 @@ function renderProfile(root: HTMLElement, status: PetStatus) {
     !gender ||
     !title ||
     !level ||
-    !growth ||
+    !growthFill ||
+    !growthMeta ||
     !birthday ||
     !createdAt ||
     !personality ||
@@ -84,8 +87,11 @@ function renderProfile(root: HTMLElement, status: PetStatus) {
   if (document.activeElement !== name) name.value = profile.name
   gender.textContent = GENDER_LABELS[profile.gender]
   title.textContent = profile.title
-  level.textContent = String(profile.level)
-  growth.textContent = String(profile.growth)
+  const progress = petGrowthProgress(profile.growth)
+  level.textContent = `Lv.${progress.level}`
+  const pct = progress.required > 0 ? Math.round((progress.current / progress.required) * 100) : 100
+  growthFill.style.width = `${pct}%`
+  growthMeta.textContent = `${progress.current} / ${progress.required} · 累计 ${progress.totalGrowth.toLocaleString()}`
   birthday.textContent = profile.birthday
   createdAt.textContent = profile.createdAt
   personality.textContent = formatPersonalitySummary(profile.personality)
@@ -449,7 +455,7 @@ export function mountPetSettingsPage() {
         <section class="pet-settings-panel is-active" data-pet-panel="profile">
           <article class="pet-config-card">
             <h2>基础信息</h2>
-            <p>首次打开时会随机生成名字、性别与性格。等级与成长会在后续玩法中提升。</p>
+            <p>首次打开时会随机生成名字、性别与性格。喂食、清洁、休息、小游戏和对话都会积累亲密度。</p>
             <div class="pet-profile-grid">
               <label class="field">
                 <span>名称</span>
@@ -465,11 +471,14 @@ export function mountPetSettingsPage() {
               </div>
               <div class="pet-profile-item">
                 <span>等级</span>
-                <strong id="pet-profile-level">0</strong>
+                <strong id="pet-profile-level">Lv.0</strong>
               </div>
-              <div class="pet-profile-item">
+              <div class="pet-profile-item pet-profile-item--wide">
                 <span>成长</span>
-                <strong id="pet-profile-growth">0</strong>
+                <div class="pet-growth-bar" aria-hidden="true">
+                  <span class="pet-growth-bar-fill" id="pet-profile-growth-fill"></span>
+                </div>
+                <em class="pet-growth-meta" id="pet-profile-growth-meta">0 / 80 · 累计 0</em>
               </div>
               <div class="pet-profile-item">
                 <span>生日</span>

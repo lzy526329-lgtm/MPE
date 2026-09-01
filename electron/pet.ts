@@ -40,6 +40,18 @@ import {
   type ProactiveLatches,
   type WorkSessionState,
 } from './petProactiveChat'
+import {
+  grantChatGrowth,
+  grantPetGrowth,
+  petLevelFromGrowth,
+  type PetGrowthDaily,
+} from './petLevel'
+import {
+  PET_GROWTH_CLEAN,
+  PET_GROWTH_FEED,
+  PET_GROWTH_MINIGAME,
+  PET_GROWTH_REST,
+} from './petLevelCatalog'
 
 export type PetCareReactPayload = {
   kind: CareKind
@@ -73,6 +85,8 @@ type PetSettings = {
   health?: number
   /** @deprecated use stats / hunger inverted to satiety */
   hunger?: number
+  /** 对话亲密度日上限追踪 */
+  growthDaily?: PetGrowthDaily
   /** @deprecated migrated to reminders[] */
   reminderEnabled?: boolean
   /** @deprecated */
@@ -212,16 +226,50 @@ function migrateLegacyStats(settings: PetSettings): PetStatsStored {
 function ensurePetProfile(settings: PetSettings): PetProfileStored {
   if (settings.profile?.id) {
     const profile = settings.profile
+    const growth = profile.growth ?? 0
+    const level = petLevelFromGrowth(growth)
     return {
       ...profile,
-      title: profile.title || titleForLevel(profile.level ?? 0),
-      level: profile.level ?? 0,
-      growth: profile.growth ?? 0,
+      title: profile.title || titleForLevel(level),
+      level,
+      growth,
       coins: profile.coins ?? 0,
       personality: profile.personality ?? createDefaultProfile().personality,
     }
   }
   return createDefaultProfile()
+}
+
+function formatLocalDateKey(date = new Date()) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+function applyPetGrowth(amount: number) {
+  if (amount <= 0) return
+  const settings = ensurePetData()
+  const result = grantPetGrowth(getPetProfile(settings), amount, settings.growthDaily)
+  const patch: Partial<PetSettings> = { profile: result.profile }
+  if (result.growthDaily) patch.growthDaily = result.growthDaily
+  writeSettings(patch)
+  notifyPetStatusChanged()
+}
+
+export function grantPetChatGrowth() {
+  const settings = ensurePetData()
+  const result = grantChatGrowth(
+    getPetProfile(settings),
+    settings.growthDaily,
+    formatLocalDateKey(),
+  )
+  if (result.xpGained <= 0) return
+  writeSettings({
+    profile: result.profile,
+    growthDaily: result.growthDaily,
+  })
+  notifyPetStatusChanged()
 }
 
 function ensurePetData(settings = readSettings()) {
@@ -1154,25 +1202,30 @@ export function feedPetWithSatiety(gain: number) {
   const status = applyVitals({ satiety: clampStat(stats.satiety + gain) })
   rememberCareEvent(status.profile.id, 'feed')
   markPetInteracted({ hungry: false })
+  applyPetGrowth(PET_GROWTH_FEED)
   emitCareReact('feed')
-  return status
+  return getPetStatus()
 }
 
 function cleanPetAction() {
   const stats = getPetStats()
-  const status = applyVitals({ hygiene: clampStat(stats.hygiene + 35) })
+  applyVitals({ hygiene: clampStat(stats.hygiene + 35) })
+  const status = getPetStatus()
   rememberCareEvent(status.profile.id, 'clean')
   markPetInteracted({ dirty: false })
+  applyPetGrowth(PET_GROWTH_CLEAN)
   emitCareReact('clean')
-  return status
+  return getPetStatus()
 }
 
 function restPetAction() {
   const stats = getPetStats()
-  const status = applyVitals({ health: clampStat(stats.health + 25) })
+  applyVitals({ health: clampStat(stats.health + 25) })
+  const status = getPetStatus()
   rememberCareEvent(status.profile.id, 'rest')
   markPetInteracted({ weak: false })
-  return status
+  applyPetGrowth(PET_GROWTH_REST)
+  return getPetStatus()
 }
 
 function applyPlayVitals() {
@@ -1480,8 +1533,9 @@ export function registerPetIpc(
     if (!isPetOpen()) return
     buildPetMenu().popup({ window: petWin! })
   })
-  ipcMain.handle('pet:minigame-ended', () => {
+  ipcMain.handle('pet:minigame-ended', (_event, input?: { completed?: boolean }) => {
     activeMinigameId = null
+    if (input?.completed) applyPetGrowth(PET_GROWTH_MINIGAME)
   })
   ipcMain.handle('pet:get-status', () => getPetStatus())
   ipcMain.handle('pet:set-auto-walk', (_event, autoWalk: boolean) => {

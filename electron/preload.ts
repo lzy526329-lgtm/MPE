@@ -146,7 +146,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('pet:minigame', listener)
     return () => ipcRenderer.removeListener('pet:minigame', listener)
   },
-  notifyPetMinigameEnded: (): Promise<void> => ipcRenderer.invoke('pet:minigame-ended'),
+  notifyPetMinigameEnded: (payload?: { completed?: boolean }): Promise<void> =>
+    ipcRenderer.invoke('pet:minigame-ended', payload),
   getPetStatus: (): Promise<PetStatus> => ipcRenderer.invoke('pet:get-status'),
   setPetAutoWalk: (autoWalk: boolean): Promise<PetStatus> =>
     ipcRenderer.invoke('pet:set-auto-walk', autoWalk),

@@ -898,7 +898,9 @@ function tick(now: number) {
 function stopBallGame(finalScore?: number, reason: 'timeup' | 'dead' | 'stop' = 'stop') {
   if (!ballGame.isActive() && finalScore === undefined) return
   if (ballGame.isActive()) ballGame.stop()
-  void window.electronAPI?.notifyPetMinigameEnded?.()
+  void window.electronAPI?.notifyPetMinigameEnded?.({
+    completed: reason === 'timeup',
+  })
   if (typeof finalScore === 'number') {
     if (reason === 'dead') showAiBubble(`倒下了…本局得分 ${finalScore}`)
     else showAiBubble(`时间到！本局得分 ${finalScore}`)
@@ -915,7 +917,9 @@ function stopBallGame(finalScore?: number, reason: 'timeup' | 'dead' | 'stop' = 
 function stopHeartGame(finalScore?: number, reason: 'timeup' | 'miss' | 'stop' = 'stop') {
   if (!heartGame.isActive() && finalScore === undefined) return
   if (heartGame.isActive()) heartGame.stop()
-  void window.electronAPI?.notifyPetMinigameEnded?.()
+  void window.electronAPI?.notifyPetMinigameEnded?.({
+    completed: reason === 'timeup',
+  })
   if (typeof finalScore === 'number') {
     if (reason === 'miss') showAiBubble(`掉球了…本局连击 ${finalScore}`)
     else showAiBubble(`时间到！本局连击 ${finalScore}`)
