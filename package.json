@@ -1,6 +1,6 @@
 {
   "name": "mpt",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "description": "MY PET · 以桌面宠物为中心的本地工具箱",
   "author": {
     "name": "MPT",
@@ -22,7 +22,8 @@
     "package:linux": "npm run build:app && electron-builder --linux --publish never",
     "preview": "node scripts/run.mjs vite preview",
     "test": "vitest run",
-    "generate:crop-catalog": "node scripts/generate-crop-catalog.mjs"
+    "generate:crop-catalog": "node scripts/generate-crop-catalog.mjs",
+    "generate:food-catalog": "node scripts/generate-food-catalog.mjs"
   },
   "build": {
     "appId": "com.mpt.app",

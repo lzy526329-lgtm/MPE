@@ -1,7 +1,9 @@
-import type { GameViewState } from '../electron/game/gameTypes'
+import type { GameViewState, FoodId } from '../electron/game/gameTypes'
 import type { CropId } from '../electron/farm/farmTypes'
 import { formatCropGrowLabel, getCropCatalogEntry, getCropShopImgPath } from '../electron/farm/cropCatalog'
+import { getFoodImagePath } from '../electron/game/foodCatalog'
 import { farmCatalogIconHtml } from './farmAssets'
+import { foodCatalogIconHtml, formatFoodSatietyLabel } from './foodAssets'
 import { getCurrentPage, onPageChange } from './appNavigation'
 import {
   DEFAULT_GAME_TAB,
@@ -15,6 +17,7 @@ import {
 export type ShopRenderOptions = {
   activeTab: GameTab
   busyCropId: CropId | null
+  busyFoodId: string | null
   error: string | null
 }
 
@@ -41,6 +44,40 @@ function seedGrowLabel(cropId: CropId): string | null {
 
 export function canBuySeed(coins: number, price: number): boolean {
   return coins >= price
+}
+
+function renderFoodOffer(
+  state: GameViewState,
+  offer: GameViewState['foodOffers'][number],
+  busyFoodId: string | null,
+): string {
+  const buying = busyFoodId === offer.foodId
+  const affordable = canBuySeed(state.wallet.coins, offer.price)
+  const disabled = busyFoodId !== null || !affordable
+  const owned = state.inventory.food[offer.foodId] ?? 0
+  const shopIcon = foodCatalogIconHtml(getFoodImagePath(offer.foodId), 'shop-offer-icon')
+
+  return `
+    <article class="shop-offer-card">
+      <div class="shop-offer-heading">
+        ${shopIcon}
+        <div>
+          <h2>${escapeHtml(offer.name)}</h2>
+          <p class="shop-offer-grow">${escapeHtml(formatFoodSatietyLabel(offer.satiety))}</p>
+          <p>拥有 ${owned}</p>
+        </div>
+      </div>
+      <div class="shop-offer-action">
+        <strong>${offer.price} 金币</strong>
+        ${!affordable ? '<span class="shop-offer-warning">金币不足</span>' : ''}
+        <button
+          class="primary-button shop-buy-button"
+          type="button"
+          data-buy-food="${escapeHtml(offer.foodId)}"${disabled ? ' disabled' : ''}
+        >${buying ? '购买中…' : '购买 1 份'}</button>
+      </div>
+    </article>
+  `
 }
 
 function renderOffer(
@@ -82,9 +119,12 @@ export function renderShopPage(
   state: GameViewState,
   options: ShopRenderOptions,
 ): string {
-  const { activeTab, busyCropId, error } = options
+  const { activeTab, busyCropId, busyFoodId, error } = options
   const seedOffers = state.seedOffers
     .map((offer) => renderOffer(state, offer, busyCropId))
+    .join('')
+  const foodOffers = state.foodOffers
+    .map((offer) => renderFoodOffer(state, offer, busyFoodId))
     .join('')
 
   return `
@@ -106,11 +146,14 @@ export function renderShopPage(
         <div class="shop-offer-grid">${seedOffers}</div>
       </section>
       <section class="game-pane${activeTab === 'food' ? '' : ' hidden'}" data-game-pane="food">
-        <div class="game-empty">
-          <span aria-hidden="true">🍪</span>
-          <strong>更多食物即将上架</strong>
-          <p>新的宠物零食正在准备中。</p>
-        </div>
+        ${foodOffers.length > 0
+          ? `<div class="shop-offer-grid">${foodOffers}</div>`
+          : `
+            <div class="game-empty">
+              <span aria-hidden="true">🍪</span>
+              <strong>暂无食物上架</strong>
+            </div>
+          `}
       </section>
     </div>
   `
@@ -127,6 +170,7 @@ export function mountShopPage(): void {
   let state: GameViewState | null = null
   let activeTab = DEFAULT_GAME_TAB
   let busyCropId: CropId | null = null
+  let busyFoodId: string | null = null
   let error: string | null = null
   let loading = false
   let stateGeneration = 0
@@ -149,7 +193,7 @@ export function mountShopPage(): void {
         : '<div class="game-empty" data-shop-idle></div>'
       return
     }
-    root.innerHTML = renderShopPage(state, { activeTab, busyCropId, error })
+    root.innerHTML = renderShopPage(state, { activeTab, busyCropId, busyFoodId, error })
   }
 
   const refresh = async () => {
@@ -201,6 +245,28 @@ export function mountShopPage(): void {
     }
   }
 
+  const buyFoodItem = async (foodId: FoodId) => {
+    if (!state || busyFoodId !== null) return
+    const offer = state.foodOffers.find((item) => item.foodId === foodId)
+    if (!offer || !canBuySeed(state.wallet.coins, offer.price)) return
+
+    busyFoodId = foodId
+    error = null
+    render()
+    try {
+      const result = await window.electronAPI.gameBuyFood(foodId)
+      state = result.state
+      if (!result.ok) error = gameErrorMessage(result.code)
+    } catch {
+      error = '购买失败，请重试。'
+    } finally {
+      stateGeneration += 1
+      loading = false
+      busyFoodId = null
+      render()
+    }
+  }
+
   root.addEventListener('click', (event) => {
     const target = event.target
     if (!(target instanceof Element)) return
@@ -214,6 +280,15 @@ export function mountShopPage(): void {
 
     if (target.closest('[data-shop-retry]')) {
       void refresh()
+      return
+    }
+
+    const buyFoodButton = target.closest<HTMLButtonElement>('[data-buy-food]')
+    if (buyFoodButton && !buyFoodButton.disabled) {
+      const foodId = buyFoodButton.dataset.buyFood
+      if (foodId && state?.foodOffers.some((offer) => offer.foodId === foodId)) {
+        void buyFoodItem(foodId as FoodId)
+      }
       return
     }
 

@@ -41,7 +41,7 @@ import type {
 import type { UpdateState } from '../electron/updater'
 import type { FarmActionResult } from '../electron/farm/farmEngine'
 import type { CropId } from '../electron/farm/farmTypes'
-import type { GameActionResult, GameViewState } from '../electron/game/gameTypes'
+import type { FoodId, GameActionResult, GameViewState } from '../electron/game/gameTypes'
 
 declare global {
   interface Window {
@@ -177,6 +177,8 @@ declare global {
       gameGetState: () => Promise<GameViewState>
       gameBuySeed: (cropId: CropId) => Promise<GameActionResult>
       gameSellProduce: (produceId: string) => Promise<GameActionResult>
+      gameBuyFood: (foodId: FoodId) => Promise<GameActionResult>
+      gameUseFood: (foodId: FoodId) => Promise<GameActionResult>
       onGameStateChanged: (callback: (state: GameViewState) => void) => () => void
     }
   }

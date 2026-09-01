@@ -5,7 +5,7 @@ import { createDefaultFarm } from '../farm/farmEngine'
 import { parseFarmPayload } from '../farm/farmStore'
 import type { FarmState } from '../farm/farmTypes'
 import { migrateLegacyGameState } from './gameEngine'
-import { normalizeItemCount, seedCounts } from './gameCatalog'
+import { normalizeItemCount, seedCounts, foodCounts } from './gameCatalog'
 import type { FarmCoreState, GameState } from './gameTypes'
 
 export type PersistableMutation = { ok: boolean; game: GameState }
@@ -110,7 +110,7 @@ export function parseGamePayload(raw: string, now: number): GameState {
 
   const wallet = isRecord(value.wallet) ? value.wallet : {}
   const inventory = isRecord(value.inventory) ? value.inventory : {}
-  const food = normalizeCountRecord(inventory.food)
+  const food = foodCounts(normalizeCountRecord(inventory.food))
   const seeds = seedCounts(normalizeCountRecord(inventory.seeds))
   const produce = normalizeCountRecord(inventory.produce)
 

@@ -6,6 +6,7 @@ import {
   formatPersonalitySummary,
   GENDER_LABELS,
 } from '../electron/petProfile'
+import { openFeedFoodPicker } from './feedFoodPicker'
 import { listSpineAnimations, mountSpinePreview, type SpinePreviewHandle } from './spinePreview'
 
 const PET_SIZE_MIN = 96
@@ -915,9 +916,8 @@ export function mountPetSettingsPage() {
     apply(await window.electronAPI.setPetAutoWalk(input.checked))
   })
 
-  root.querySelector<HTMLButtonElement>('#pet-feed')?.addEventListener('click', async () => {
-    if (!window.electronAPI?.feedPet) return
-    apply(await window.electronAPI.feedPet())
+  root.querySelector<HTMLButtonElement>('#pet-feed')?.addEventListener('click', () => {
+    void openFeedFoodPicker()
   })
 
   root.querySelector<HTMLButtonElement>('#pet-clean')?.addEventListener('click', async () => {

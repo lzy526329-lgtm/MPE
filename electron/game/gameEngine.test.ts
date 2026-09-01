@@ -5,6 +5,7 @@ import { withSeedCounts } from '../farm/cropCatalog'
 import type { FarmState } from '../farm/farmTypes'
 import {
   applyCompatFarmState,
+  buyFood,
   buySeed,
   createDefaultGameState,
   migrateLegacyGameState,
@@ -13,6 +14,7 @@ import {
   toCompatFarmState,
   toGameActionResult,
   unlockPlotWithPayment,
+  useFood,
 } from './gameEngine'
 
 const legacyFarm: FarmState = {
@@ -327,5 +329,49 @@ describe('gameEngine unlockPlotWithPayment', () => {
     expect(result.ok).toBe(false)
     if (result.ok) return
     expect(result.farm.error).toContain('金币')
+  })
+})
+
+describe('buyFood', () => {
+  it('deducts coins and adds food to inventory', () => {
+    const result = buyFood(createDefaultGameState(1_000), 'cookie')
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.game.wallet.coins).toBe(97)
+    expect(result.game.inventory.food.cookie).toBe(1)
+    expect(result.state.foodOffers).toEqual(expect.arrayContaining([
+      { foodId: 'cookie', name: '饼干', price: 3, satiety: 12 },
+    ]))
+  })
+
+  it('rejects purchase when coins are insufficient', () => {
+    const before = { ...createDefaultGameState(1_000), wallet: { coins: 2 } }
+    const result = buyFood(before, 'cookie')
+
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.code).toBe('INSUFFICIENT_COINS')
+  })
+})
+
+describe('useFood', () => {
+  it('consumes one food item from inventory', () => {
+    const before = createDefaultGameState(1_000)
+    before.inventory.food.cookie = 2
+
+    const result = useFood(before, 'cookie')
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.game.inventory.food.cookie).toBe(1)
+  })
+
+  it('rejects use when stock is empty', () => {
+    const result = useFood(createDefaultGameState(1_000), 'cookie')
+
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.code).toBe('INSUFFICIENT_STOCK')
   })
 })

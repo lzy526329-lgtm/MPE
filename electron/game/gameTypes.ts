@@ -1,7 +1,8 @@
+import type { FoodId, FoodOffer } from './foodCatalog'
 import type { FarmActionResult } from '../farm/farmEngine'
 import type { CropId, FarmState } from '../farm/farmTypes'
 
-export type FoodId = string
+export type { FoodId } from './foodCatalog'
 export type FarmCoreState = Omit<FarmState, 'seeds' | 'inventory'>
 
 export type WalletState = { coins: number }
@@ -29,6 +30,7 @@ export type GameViewState = {
   inventory: InventoryState
   seedOffers: SeedOffer[]
   produceOffers: ProduceOffer[]
+  foodOffers: FoodOffer[]
 }
 export type GameErrorCode =
   | 'UNKNOWN_ITEM'

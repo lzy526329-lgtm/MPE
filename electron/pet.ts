@@ -28,6 +28,9 @@ import {
 import { rememberCareEvent, rememberRename } from './petMemory'
 import { pickCareLine, type CareKind } from './petCareLines'
 import { peekWalletCoins } from './game/gameStore'
+import { toGameViewState } from './game/gameEngine'
+import { readGameState } from './game/gameStore'
+import { createGameHandlers } from './game/gameIpc'
 import {
   advanceWorkSession,
   decideProactiveChat,
@@ -1115,9 +1118,40 @@ function emitCareReact(kind: CareKind) {
   void generateSituationalLine(kind, fallback).then(send)
 }
 
-function feedPetAction() {
+function buildFeedMenuItems(): Electron.MenuItemConstructorOptions[] {
+  try {
+    const view = toGameViewState(readGameState(app.getPath('userData'), Date.now()).state)
+    const owned = view.foodOffers.filter(
+      (offer) => (view.inventory.food[offer.foodId] ?? 0) > 0,
+    )
+    if (owned.length === 0) {
+      return [{ label: '暂无食物', enabled: false }]
+    }
+
+    const handlers = createGameHandlers({
+      userDataPath: app.getPath('userData'),
+      now: Date.now,
+      publish: (state) => getMainWindow()?.webContents.send('game:state-changed', state),
+      publishPetStatus: notifyPetStatusChanged,
+    })
+
+    return owned.map((offer) => {
+      const count = view.inventory.food[offer.foodId] ?? 0
+      return {
+        label: `${offer.name} ×${count} (+${offer.satiety})`,
+        click: () => {
+          void handlers.useFood(offer.foodId)
+        },
+      }
+    })
+  } catch {
+    return [{ label: '加载失败', enabled: false }]
+  }
+}
+
+export function feedPetWithSatiety(gain: number) {
   const stats = getPetStats()
-  const status = applyVitals({ satiety: clampStat(stats.satiety + 35) })
+  const status = applyVitals({ satiety: clampStat(stats.satiety + gain) })
   rememberCareEvent(status.profile.id, 'feed')
   markPetInteracted({ hungry: false })
   emitCareReact('feed')
@@ -1185,9 +1219,7 @@ function buildPetMenu() {
     { type: 'separator' },
     {
       label: '喂食',
-      click: () => {
-        feedPetAction()
-      },
+      submenu: buildFeedMenuItems(),
     },
     {
       label: '清洁',
@@ -1467,7 +1499,9 @@ export function registerPetIpc(
     notifyStatusChanged(status)
     return status
   })
-  ipcMain.handle('pet:feed', () => feedPetAction())
+  ipcMain.handle('pet:feed', () => {
+    throw new Error('请先从食物列表中选择要喂的食物')
+  })
   ipcMain.handle('pet:clean', () => cleanPetAction())
   ipcMain.handle('pet:rest', () => restPetAction())
   ipcMain.handle('pet:get-profile', () => getPetProfile())

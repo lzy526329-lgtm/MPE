@@ -33,6 +33,7 @@ const state: GameViewState = {
   },
   seedOffers: [{ cropId: 'wheat', name: '小麦种子', price: 5 }],
   produceOffers: [{ produceId: 'wheat', name: '小麦', price: 4 }],
+  foodOffers: [{ foodId: 'cookie', name: '饼干', price: 3, satiety: 12 }],
 }
 
 describe('backpack page rendering', () => {
@@ -59,6 +60,29 @@ describe('backpack page rendering', () => {
     expect(html).toContain('<strong>暂无种子</strong>')
     expect(html).not.toContain('小麦种子')
     expect(html).not.toContain('backpack-item-card')
+  })
+
+  it('renders owned food and a feed picker entry in the food tab', () => {
+    const withFood: GameViewState = {
+      ...state,
+      inventory: { ...state.inventory, food: { cookie: 2, chocolate: 0, creamBread: 0, strawberryMilk: 0 } },
+    }
+
+    const html = renderBackpackPage(withFood, { ...defaultOptions, activeTab: 'food' })
+
+    expect(html).toContain('饼干')
+    expect(html).toContain('× 2')
+    expect(html).toContain('./foods/%E9%A5%BC%E5%B9%B2.png')
+    expect(html).toContain('+12 饱食度')
+    expect(html).toContain('data-open-feed-picker')
+    expect(html).toContain('喂食宠物')
+    expect(html).not.toContain('data-use-food')
+  })
+
+  it('disables feed picker when there is no food', () => {
+    const html = renderBackpackPage(state, { ...defaultOptions, activeTab: 'food' })
+
+    expect(html).toContain('data-open-feed-picker disabled')
   })
 
   it('renders the exact empty food state', () => {

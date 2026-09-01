@@ -1,21 +1,26 @@
 import { app, ipcMain, type BrowserWindow } from 'electron'
 
-import { notifyPetStatusChanged } from '../pet'
+import { notifyPetStatusChanged, feedPetWithSatiety } from '../pet'
 import type { CropId } from '../farm/farmTypes'
 import {
+  buyFood,
   buySeed,
   emptyGameViewState,
   sellProduce,
   toGameActionResult,
   toGameViewState,
+  useFood,
 } from './gameEngine'
+import { getFoodCatalogEntry } from './foodCatalog'
 import { loadGame, readGameState, withGame, type GameStoreFileOps } from './gameStore'
-import type { GameActionResult, GameViewState } from './gameTypes'
+import type { FoodId, GameActionResult, GameViewState } from './gameTypes'
 
 export type GameHandlers = {
   getState: () => Promise<GameViewState>
   buySeed: (cropId: CropId) => Promise<GameActionResult>
   sellProduce: (produceId: string) => Promise<GameActionResult>
+  buyFood: (foodId: FoodId) => Promise<GameActionResult>
+  useFood: (foodId: FoodId) => Promise<GameActionResult>
 }
 
 export type GameHandlerOptions = {
@@ -112,6 +117,64 @@ export function createGameHandlers(options: GameHandlerOptions): GameHandlers {
       }
       return result
     },
+    buyFood: async (foodId) => {
+      let result: GameActionResult
+      try {
+        result = toGameActionResult(
+          await withGame(
+            options.userDataPath,
+            options.now(),
+            (game) => buyFood(game, foodId),
+            fileOps,
+          ),
+        )
+      } catch (error) {
+        console.error('[game] failed to persist a food purchase', error)
+        return {
+          ok: false,
+          code: 'PERSISTENCE_FAILED',
+          message: '保存失败',
+          state: renderableState(),
+        }
+      }
+
+      remember(result.state)
+      if (result.ok) {
+        options.publish(result.state)
+        options.publishPetStatus()
+      }
+      return result
+    },
+    useFood: async (foodId) => {
+      let result: GameActionResult
+      try {
+        const mutation = await withGame(
+          options.userDataPath,
+          options.now(),
+          (game) => useFood(game, foodId),
+          fileOps,
+        )
+        if (mutation.ok) {
+          feedPetWithSatiety(getFoodCatalogEntry(foodId).satiety)
+        }
+        result = toGameActionResult(mutation)
+      } catch (error) {
+        console.error('[game] failed to persist food use', error)
+        return {
+          ok: false,
+          code: 'PERSISTENCE_FAILED',
+          message: '保存失败',
+          state: renderableState(),
+        }
+      }
+
+      remember(result.state)
+      if (result.ok) {
+        options.publish(result.state)
+        options.publishPetStatus()
+      }
+      return result
+    },
   }
 }
 
@@ -126,4 +189,6 @@ export function registerGameIpc(getMain: () => BrowserWindow | null): void {
   ipcMain.handle('game:get-state', () => handlers.getState())
   ipcMain.handle('game:buy-seed', (_event, cropId: CropId) => handlers.buySeed(cropId))
   ipcMain.handle('game:sell-produce', (_event, produceId: string) => handlers.sellProduce(produceId))
+  ipcMain.handle('game:buy-food', (_event, foodId: FoodId) => handlers.buyFood(foodId))
+  ipcMain.handle('game:use-food', (_event, foodId: FoodId) => handlers.useFood(foodId))
 }

@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "foods": {
+    "cookie": {
+      "name": "饼干",
+      "price": 3,
+      "satiety": 12,
+      "image": "饼干.png"
+    },
+    "chocolate": {
+      "name": "巧克力",
+      "price": 5,
+      "satiety": 18,
+      "image": "巧克力.png"
+    },
+    "creamBread": {
+      "name": "奶油面包",
+      "price": 8,
+      "satiety": 28,
+      "image": "奶油面包.png"
+    },
+    "strawberryMilk": {
+      "name": "草莓牛奶",
+      "price": 12,
+      "satiety": 35,
+      "image": "草莓牛奶.png"
+    }
+  }
+}

@@ -1,8 +1,11 @@
 import type { GameViewState } from '../electron/game/gameTypes'
 import type { CropId } from '../electron/farm/farmTypes'
 import { getCropShopImgPath } from '../electron/farm/cropCatalog'
+import { getFoodImagePath } from '../electron/game/foodCatalog'
 import { getCurrentPage, onPageChange } from './appNavigation'
 import { farmCatalogIconHtml } from './farmAssets'
+import { foodCatalogIconHtml, formatFoodSatietyLabel } from './foodAssets'
+import { openFeedFoodPicker } from './feedFoodPicker'
 import {
   DEFAULT_GAME_TAB,
   escapeHtml,
@@ -58,18 +61,23 @@ function renderSeedItems(state: GameViewState): string {
     .join('')
 }
 
-function renderFoodItems(food: Record<string, number>): string {
-  return Object.entries(food)
-    .filter(([, count]) => count > 0)
-    .map(([name, count]) => `
+function renderFoodItems(state: GameViewState): string {
+  return state.foodOffers
+    .filter((offer) => (state.inventory.food[offer.foodId] ?? 0) > 0)
+    .map((offer) => {
+      const owned = state.inventory.food[offer.foodId] ?? 0
+
+      return `
       <article class="backpack-item-card">
-        <span class="backpack-item-icon" aria-hidden="true">🍪</span>
-        <div>
-          <h2>${escapeHtml(name)}</h2>
-          <strong>× ${count}</strong>
+        ${foodCatalogIconHtml(getFoodImagePath(offer.foodId), 'backpack-item-icon')}
+        <div class="backpack-item-body">
+          <h2>${escapeHtml(offer.name)}</h2>
+          <strong>× ${owned}</strong>
+          <span class="backpack-item-satiety">${escapeHtml(formatFoodSatietyLabel(offer.satiety))}</span>
         </div>
       </article>
-    `)
+    `
+    })
     .join('')
 }
 
@@ -155,12 +163,20 @@ export function renderBackpackPage(
           `}
       </section>
       <section class="game-pane${activeTab === 'food' ? '' : ' hidden'}" data-game-pane="food">
+        <div class="backpack-food-toolbar">
+          <button
+            class="primary-button backpack-feed-open-button"
+            type="button"
+            data-open-feed-picker${hasFood ? '' : ' disabled'}
+          >喂食宠物</button>
+        </div>
         ${hasFood
-          ? `<div class="backpack-item-grid">${renderFoodItems(state.inventory.food)}</div>`
+          ? `<div class="backpack-item-grid">${renderFoodItems(state)}</div>`
           : `
             <div class="game-empty">
               <span aria-hidden="true">🍪</span>
               <strong>暂无食物</strong>
+              <p>请先去商店购买。</p>
             </div>
           `}
       </section>
@@ -252,6 +268,25 @@ export function mountBackpackPage(): void {
     }
   }
 
+  const openFeedPicker = async () => {
+    const result = await openFeedFoodPicker()
+    if (result.ok) {
+      try {
+        state = await window.electronAPI.gameGetState()
+        error = null
+        render()
+      } catch {
+        error = '刷新背包失败，请重试。'
+        render()
+      }
+      return
+    }
+    if (result.reason === 'failed' && result.message) {
+      error = result.message
+      render()
+    }
+  }
+
   root.addEventListener('click', (event) => {
     const target = event.target
     if (!(target instanceof Element)) return
@@ -265,6 +300,11 @@ export function mountBackpackPage(): void {
 
     if (target.closest('[data-backpack-retry]')) {
       void refresh()
+      return
+    }
+
+    if (target.closest<HTMLButtonElement>('[data-open-feed-picker]:not([disabled])')) {
+      void openFeedPicker()
       return
     }
 

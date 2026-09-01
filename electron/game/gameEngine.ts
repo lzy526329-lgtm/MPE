@@ -1,7 +1,8 @@
 import { createDefaultFarm, settle, unlockPlot, type FarmActionResult } from '../farm/farmEngine'
 import type { CropId, FarmState } from '../farm/farmTypes'
 import { mergeLegacyProduce, mergeLegacySeeds, plotUnlockRequirement } from '../farm/farmCatalog'
-import { INITIAL_COINS, PRODUCE_OFFERS, SEED_OFFERS, normalizeItemCount, seedCounts } from './gameCatalog'
+import { INITIAL_COINS, PRODUCE_OFFERS, SEED_OFFERS, FOOD_OFFERS, normalizeItemCount, seedCounts, foodCounts } from './gameCatalog'
+import type { FoodId } from './gameTypes'
 import type {
   FarmCoreState,
   FarmGameMutationResult,
@@ -73,7 +74,7 @@ export function createDefaultGameState(now: number): GameState {
     version: 1,
     wallet: { coins: INITIAL_COINS },
     inventory: {
-      food: {},
+      food: foodCounts(),
       seeds,
       produce,
     },
@@ -95,7 +96,7 @@ export function migrateLegacyGameState(input: LegacyGameInput): GameState {
     version: 1,
     wallet: { coins: resolveLegacyCoins(input.petCoins) },
     inventory: {
-      food: {},
+      food: foodCounts(),
       seeds,
       produce,
     },
@@ -114,6 +115,7 @@ export function toGameViewState(state: GameState): GameViewState {
     inventory: cloneInventory(state.inventory),
     seedOffers: SEED_OFFERS.map((offer) => ({ ...offer })),
     produceOffers: PRODUCE_OFFERS.map((offer) => ({ ...offer })),
+    foodOffers: FOOD_OFFERS.map((offer) => ({ ...offer })),
   }
 }
 
@@ -124,9 +126,10 @@ export function toGameViewState(state: GameState): GameViewState {
 export function emptyGameViewState(): GameViewState {
   return {
     wallet: { coins: 0 },
-    inventory: { food: {}, seeds: seedCounts(), produce: {} },
+    inventory: { food: foodCounts(), seeds: seedCounts(), produce: {} },
     seedOffers: SEED_OFFERS.map((offer) => ({ ...offer })),
     produceOffers: PRODUCE_OFFERS.map((offer) => ({ ...offer })),
+    foodOffers: FOOD_OFFERS.map((offer) => ({ ...offer })),
   }
 }
 
@@ -295,6 +298,94 @@ export function sellProduce(state: GameState, produceId: string): GameMutationRe
     inventory: {
       ...cloneInventory(state.inventory),
       produce,
+    },
+  }
+
+  return {
+    ok: true,
+    game,
+    state: toGameViewState(game),
+  }
+}
+
+export function buyFood(state: GameState, foodId: string): GameMutationResult {
+  const offer = FOOD_OFFERS.find((item) => item.foodId === foodId)
+  const view = toGameViewState(state)
+
+  if (!offer) {
+    return {
+      ok: false,
+      code: 'UNKNOWN_ITEM',
+      message: '未知商品',
+      game: cloneGameState(state),
+      state: view,
+    }
+  }
+
+  if (state.wallet.coins < offer.price) {
+    return {
+      ok: false,
+      code: 'INSUFFICIENT_COINS',
+      message: '金币不足',
+      game: cloneGameState(state),
+      state: view,
+    }
+  }
+
+  const game: GameState = {
+    ...cloneGameState(state),
+    wallet: { coins: state.wallet.coins - offer.price },
+    inventory: {
+      ...cloneInventory(state.inventory),
+      food: {
+        ...state.inventory.food,
+        [offer.foodId]: state.inventory.food[offer.foodId] + 1,
+      },
+    },
+  }
+
+  return {
+    ok: true,
+    game,
+    state: toGameViewState(game),
+  }
+}
+
+export function useFood(state: GameState, foodId: string): GameMutationResult {
+  const entry = FOOD_OFFERS.find((item) => item.foodId === foodId)
+  const view = toGameViewState(state)
+
+  if (!entry) {
+    return {
+      ok: false,
+      code: 'UNKNOWN_ITEM',
+      message: '未知商品',
+      game: cloneGameState(state),
+      state: view,
+    }
+  }
+
+  const owned = state.inventory.food[entry.foodId as FoodId] ?? 0
+  if (owned < 1) {
+    return {
+      ok: false,
+      code: 'INSUFFICIENT_STOCK',
+      message: '库存不足',
+      game: cloneGameState(state),
+      state: view,
+    }
+  }
+
+  const food = { ...state.inventory.food }
+  const remaining = owned - 1
+  if (remaining > 0) food[entry.foodId as FoodId] = remaining
+  else food[entry.foodId as FoodId] = 0
+
+  const game: GameState = {
+    ...cloneGameState(state),
+    inventory: {
+      ...cloneInventory(state.inventory),
+      food,
     },
   }
 

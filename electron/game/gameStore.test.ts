@@ -15,6 +15,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { withSeedCounts } from '../farm/cropCatalog'
 import type { FarmState } from '../farm/farmTypes'
 import { buySeed, createDefaultGameState } from './gameEngine'
+import { foodCounts } from './gameCatalog'
 import {
   loadGame,
   parseGamePayload,
@@ -232,7 +233,7 @@ describe('game payload validation and recovery', () => {
     const game = createDefaultGameState(1_000)
     game.wallet.coins = Number.NaN
     game.inventory.seeds.wheat = -3
-    game.inventory.food.apple = 1.5
+    game.inventory.food.cookie = 1.5
     game.inventory.produce.wheat = Number.POSITIVE_INFINITY
 
     const parsed = parseGamePayload(
@@ -245,7 +246,7 @@ describe('game payload validation and recovery', () => {
 
     expect(parsed.wallet.coins).toBe(0)
     expect(parsed.inventory.seeds).toEqual(withSeedCounts())
-    expect(parsed.inventory.food).toEqual({ apple: 1 })
+    expect(parsed.inventory.food).toEqual(foodCounts({ cookie: 1 }))
     expect(parsed.inventory.produce).toEqual({ wheat: 0 })
   })
 
@@ -352,7 +353,7 @@ describe('subtree recovery without economy loss', () => {
 
     expect(state.wallet.coins).toBe(3)
     expect(state.inventory.seeds).toEqual(withSeedCounts())
-    expect(state.inventory.food).toEqual({})
+    expect(state.inventory.food).toEqual(foodCounts({}))
     expect(state.farm.plots).toHaveLength(24)
     expect(state.migrations.starterCoinsGranted).toBe(true)
     expect(corruptBackups(dir)).toEqual([])

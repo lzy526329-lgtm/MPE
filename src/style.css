@@ -3426,6 +3426,140 @@ input[type="range"] {
   cursor: not-allowed;
 }
 
+.backpack-food-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.backpack-feed-open-button:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+.backpack-item-satiety {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.feed-food-picker-host {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.feed-food-picker-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 18, 24, 0.42);
+}
+
+.feed-food-picker-panel {
+  position: relative;
+  width: min(420px, 100%);
+  max-height: min(80vh, 560px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: 0 18px 48px rgba(15, 18, 24, 0.18);
+}
+
+.feed-food-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.feed-food-picker-header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.feed-food-picker-close {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.feed-food-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: auto;
+}
+
+.feed-food-picker-item {
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e4e8f0;
+  border-radius: 14px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.feed-food-picker-item:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.feed-food-picker-item:disabled {
+  opacity: 0.56;
+  cursor: not-allowed;
+}
+
+.feed-food-picker-icon {
+  width: 56px;
+  height: 56px;
+}
+
+.feed-food-picker-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.feed-food-picker-meta strong {
+  font-size: 15px;
+}
+
+.feed-food-picker-meta em {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.feed-food-picker-action {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-dark);
+}
+
+.feed-food-picker-empty {
+  min-height: 160px;
+}
+
+.feed-food-picker-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.feed-food-picker-error {
+  margin: 0;
+}
+
 .game-empty {
   min-height: 220px;
   display: flex;

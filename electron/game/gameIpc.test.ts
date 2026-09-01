@@ -9,6 +9,13 @@ import { createDefaultGameState } from './gameEngine'
 import { createGameHandlers } from './gameIpc'
 import { saveGameAtomic } from './gameStore'
 
+vi.mock('../pet', () => ({
+  notifyPetStatusChanged: vi.fn(),
+  feedPetWithSatiety: vi.fn(),
+}))
+
+import { feedPetWithSatiety } from '../pet'
+
 const dirs: string[] = []
 
 function makeDir(): string {
@@ -42,6 +49,10 @@ describe('createGameHandlers', () => {
       expect.arrayContaining([{ produceId: 'wheat', name: '小麦', price: 4 }]),
     )
     expect(state.produceOffers).toHaveLength(5)
+    expect(state.foodOffers).toEqual(
+      expect.arrayContaining([{ foodId: 'cookie', name: '饼干', price: 3, satiety: 12 }]),
+    )
+    expect(state.foodOffers).toHaveLength(4)
   })
 
   it('publishes the updated game and pet status after a successful sale', async () => {
@@ -120,6 +131,48 @@ describe('createGameHandlers', () => {
     expect(result.ok).toBe(false)
     expect(publish).not.toHaveBeenCalled()
     expect(publishPetStatus).not.toHaveBeenCalled()
+  })
+
+  it('publishes after a successful food purchase', async () => {
+    const publish = vi.fn()
+    const publishPetStatus = vi.fn()
+    const handlers = createGameHandlers({
+      userDataPath: makeDir(),
+      now: () => 1_000,
+      publish,
+      publishPetStatus,
+    })
+
+    const result = await handlers.buyFood('cookie')
+
+    expect(result.ok).toBe(true)
+    expect(result.state.wallet.coins).toBe(97)
+    expect(result.state.inventory.food.cookie).toBe(1)
+    expect(publish).toHaveBeenCalledOnce()
+    expect(publishPetStatus).toHaveBeenCalledOnce()
+  })
+
+  it('feeds the pet with catalog satiety after using food', async () => {
+    const dir = makeDir()
+    const initial = createDefaultGameState(1_000)
+    initial.inventory.food.cookie = 1
+    saveGameAtomic(dir, initial)
+    const publish = vi.fn()
+    const publishPetStatus = vi.fn()
+    const handlers = createGameHandlers({
+      userDataPath: dir,
+      now: () => 1_000,
+      publish,
+      publishPetStatus,
+    })
+
+    const result = await handlers.useFood('cookie')
+
+    expect(result.ok).toBe(true)
+    expect(result.state.inventory.food.cookie).toBe(0)
+    expect(feedPetWithSatiety).toHaveBeenCalledWith(12)
+    expect(publish).toHaveBeenCalledOnce()
+    expect(publishPetStatus).toHaveBeenCalledOnce()
   })
 
   it('reports a persistence failure with the unchanged state instead of rejecting', async () => {

@@ -24,11 +24,13 @@ const state: GameViewState = {
   },
   seedOffers: [{ cropId: 'wheat', name: '小麦种子', price: 5 }],
   produceOffers: [{ produceId: 'wheat', name: '小麦', price: 4 }],
+  foodOffers: [{ foodId: 'cookie', name: '饼干', price: 3, satiety: 12 }],
 }
 
 const defaultOptions = {
   activeTab: 'seeds' as const,
   busyCropId: null,
+  busyFoodId: null,
   error: null,
 }
 
@@ -72,9 +74,26 @@ describe('shop page rendering', () => {
     expect(html).toContain('购买中…')
   })
 
-  it('renders the confirmed food placeholder', () => {
-    expect(renderShopPage(state, { ...defaultOptions, activeTab: 'food' }))
-      .toContain('更多食物即将上架')
+  it('renders food offers with price and satiety in the food tab', () => {
+    const html = renderShopPage(state, { ...defaultOptions, activeTab: 'food' })
+
+    expect(html).toContain('饼干')
+    expect(html).toContain('3 金币')
+    expect(html).toContain('+12 饱食度')
+    expect(html).toContain('./foods/%E9%A5%BC%E5%B9%B2.png')
+    expect(html).toContain('data-buy-food="cookie"')
+    expect(html).toContain('购买 1 份')
+  })
+
+  it('disables a food offer while buying', () => {
+    const html = renderShopPage(state, {
+      ...defaultOptions,
+      activeTab: 'food',
+      busyFoodId: 'cookie',
+    })
+
+    expect(html).toContain('data-buy-food="cookie" disabled')
+    expect(html).toContain('购买中…')
   })
 
   it('escapes offer names before inserting them into markup', () => {
