@@ -150,6 +150,14 @@ export function rememberCareEvent(petId: string, kind: 'feed' | 'clean' | 'rest'
   })
 }
 
+export function rememberDream(petId: string, dream: string) {
+  return appendMemoryEntry(petId, {
+    type: 'event',
+    content: `我做了一个梦：${dream.slice(0, 80)}`,
+    metadata: { kind: 'dream' },
+  })
+}
+
 export function rememberRename(petId: string, name: string) {
   return appendMemoryEntry(petId, {
     type: 'gift',

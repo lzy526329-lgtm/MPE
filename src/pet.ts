@@ -7,10 +7,12 @@ import type { PetElement } from '../electron/petProfile'
 import { createBallHitGame } from './petBallGame'
 import { createHeartRallyGame } from './petHeartGame'
 import { resolveBallHitConfig, resolveHeartRallyConfig } from './petSkillDefaults'
+import { pickAnimationName, preferredSleepAnimation } from './petAnimationNames'
+import { bindSleepExclusiveSlots, playExclusiveAnimation } from './petSpineSlots'
 import type { PetCharacter } from '../electron/petCharacters'
 import './pet.css'
 
-type AnimName = 'idle' | 'walk' | 'drag' | 'click' | 'victory'
+type AnimName = 'idle' | 'walk' | 'drag' | 'click' | 'victory' | 'sleep'
 type WalkDir = 'walkLeft' | 'walkRight'
 
 type WanderParams = {
@@ -84,6 +86,7 @@ let dragOriginY = 0
 /** 拖拽开始时缓存工作区，拖动中按左右自动转身 */
 let dragWorkArea: { x: number; y: number; width: number; height: number } | null = null
 let autoWalk = true
+let petResting = false
 let petSatiety = 100
 let petHygiene = 100
 let petHealth = 100
@@ -337,7 +340,7 @@ function syncPetViewport(
 
 function applyPetStatus(status: Pick<
   PetStatus,
-  'autoWalk' | 'size' | 'characterId' | 'satiety' | 'hygiene' | 'health' | 'mood' | 'profile'
+  'autoWalk' | 'size' | 'characterId' | 'satiety' | 'hygiene' | 'health' | 'mood' | 'profile' | 'resting'
 >) {
   const nextContent = Math.max(64, Math.round(status.size))
   const contentChanged = nextContent !== contentSize
@@ -359,6 +362,7 @@ function applyPetStatus(status: Pick<
     fitSpineToView(spine)
     setFacing(facing)
     if (playing && preferredTouch(spine) === playing) playTouch()
+    else if (status.resting) playSleep()
     else if (anim === 'walk') playWalk()
     else playIdle()
   } else if (contentChanged) {
@@ -369,6 +373,16 @@ function applyPetStatus(status: Pick<
   }
 
   autoWalk = status.autoWalk !== false
+  petResting = Boolean(status.resting)
+  if (petResting) {
+    stopWalk()
+    if (spine) playSleep()
+    return
+  }
+  if (anim === 'sleep') {
+    setAnim('idle')
+    nextWanderAt = performance.now() + 8000
+  }
   if (autoWalk) return
   stopWalk()
 }
@@ -438,8 +452,7 @@ function animationNames(character: Spine) {
 }
 
 function pickAnimation(character: Spine, candidates: string[]) {
-  const names = animationNames(character)
-  return candidates.find((name) => names.includes(name)) ?? null
+  return pickAnimationName(animationNames(character), candidates)
 }
 
 function preferredIdle(character: Spine) {
@@ -480,22 +493,45 @@ function preferredDie(character: Spine) {
   return pickAnimation(character, ['die', 'down', 'hit'])
 }
 
+function preferredSleep(character: Spine) {
+  return preferredSleepAnimation(animationNames(character))
+}
+
 function playIdle() {
   if (!spine) return
   const idle = preferredIdle(spine)
   if (!idle) return
-  if (currentAnimationName() !== idle) spine.state.setAnimation(0, idle, true)
+  if (currentAnimationName() !== idle) playExclusiveAnimation(spine, idle, true)
+}
+
+function playSleep(loop = true) {
+  if (!spine) return
+  const sleep = preferredSleep(spine) ?? preferredIdle(spine)
+  if (!sleep) return
+  clearWalkTarget()
+  clickLockUntil = 0
+  anim = 'sleep'
+  if (currentAnimationName() !== sleep) playExclusiveAnimation(spine, sleep, loop)
 }
 
 function playTouch() {
   if (!spine) return
   const touch = preferredTouch(spine) ?? preferredIdle(spine)
   if (!touch) return
-  spine.state.setAnimation(0, touch, false)
+  playExclusiveAnimation(spine, touch, false)
 }
 
-function playNamedAnimation(name: string) {
+function playNamedAnimation(name: string, loop = false) {
   if (!spine) return
+  if (name === 'shuijiao' || name === 'sleep' || name === 'rest') {
+    playSleep(true)
+    return
+  }
+  if (name === 'idle') {
+    anim = 'idle'
+    playIdle()
+    return
+  }
   const preferred =
     name === 'skill_touch'
       ? preferredSkillTouch(spine)
@@ -503,7 +539,9 @@ function playNamedAnimation(name: string) {
         ? preferredVictory(spine)
         : name === 'touch'
           ? preferredTouch(spine)
-          : pickAnimation(spine, [name])
+          : name === 'shuijiao' || name === 'sleep' || name === 'rest'
+            ? preferredSleep(spine)
+            : pickAnimation(spine, [name])
   const animName = preferred ?? preferredIdle(spine)
   if (!animName) return
   clearWalkTarget()
@@ -514,21 +552,21 @@ function playNamedAnimation(name: string) {
   clickLockUntil = performance.now() + durationMs
   // 走 click 锁：tick / complete 会回到 idle，避免定在最后一帧
   anim = 'click'
-  spine.state.setAnimation(0, animName, false)
+  playExclusiveAnimation(spine, animName, false)
 }
 
 function playVictory() {
   if (!spine) return
   const victory = preferredVictory(spine) ?? preferredIdle(spine)
   if (!victory) return
-  spine.state.setAnimation(0, victory, false)
+  playExclusiveAnimation(spine, victory, false)
 }
 
 function playWalk() {
   if (!spine) return
   const walk = preferredWalk(spine) ?? preferredIdle(spine)
   if (!walk) return
-  if (currentAnimationName() !== walk) spine.state.setAnimation(0, walk, true)
+  if (currentAnimationName() !== walk) playExclusiveAnimation(spine, walk, true)
 }
 
 /** 打小球：按技能 JSON 动画名播放，不存在则回退 attack_2 等 */
@@ -543,7 +581,7 @@ function playAttack(animationName?: string) {
   )
   clickLockUntil = performance.now() + durationMs
   anim = 'click'
-  spine.state.setAnimation(0, attack, false)
+  playExclusiveAnimation(spine, attack, false)
   return durationMs
 }
 
@@ -558,7 +596,7 @@ function playHurt() {
   )
   clickLockUntil = performance.now() + durationMs
   anim = 'click'
-  spine.state.setAnimation(0, hurt, false)
+  playExclusiveAnimation(spine, hurt, false)
   return durationMs
 }
 
@@ -573,7 +611,7 @@ function playDie() {
   )
   clickLockUntil = performance.now() + durationMs
   anim = 'click'
-  spine.state.setAnimation(0, die, false)
+  playExclusiveAnimation(spine, die, false)
   return durationMs
 }
 
@@ -596,6 +634,7 @@ function setAnim(next: AnimName) {
 }
 
 function handleCareReact(payload: { text: string; animation?: string }) {
+  if (petResting) return
   showAiBubble(payload.text)
   clearWalkTarget()
   const durationMs = spine
@@ -625,7 +664,7 @@ function unionBounds(
 function sampleAnimationBounds(character: Spine, name: string) {
   const duration = Math.max(animationDuration(character, name), 0.05)
   const samples = Math.max(12, Math.ceil(duration * 24))
-  character.state.setAnimation(0, name, false)
+  playExclusiveAnimation(character, name, false)
   character.update(0)
   let box: { x: number; y: number; width: number; height: number } | null = null
   for (let i = 0; i <= samples; i++) {
@@ -732,20 +771,23 @@ async function loadCharacter(id: string) {
     if (seq !== characterLoadSeq) return
     const spineData = resource.spineData ?? resource
     const character = new Spine(spineData)
+    bindSleepExclusiveSlots(character as never)
     fitSpineToView(character)
     const idle = preferredIdle(character)
-    if (idle) character.state.setAnimation(0, idle, true)
+    if (idle) playExclusiveAnimation(character, idle, true)
     character.state.addListener({
       complete: (entry) => {
         const name = (entry as { animation?: { name: string } }).animation?.name
         if (!name || !spine) return
+        if (anim === 'sleep' || petResting) return
         if (preferredDie(spine) === name) return
         if (
           anim === 'click' &&
           (preferredTouch(spine) === name ||
             preferredSkillTouch(spine) === name ||
             preferredAttack(spine) === name ||
-            preferredHurt(spine) === name)
+            preferredHurt(spine) === name ||
+            preferredSleep(spine) === name)
         ) {
           setAnim('idle')
         }
@@ -759,6 +801,7 @@ async function loadCharacter(id: string) {
     loadedSkeletonUrl = selected.skeletonUrl
     anim = 'idle'
     setFacing(facing)
+    if (petResting) playSleep()
   } catch (error) {
     console.error('[pet] failed to load character', selected.id, selected.skeletonUrl, error)
   } finally {
@@ -793,6 +836,10 @@ function directionFromDelta(dx: number): WalkDir {
 
 async function wander(now: number) {
   if (ballGame.isActive() || heartGame.isActive()) {
+    stopWalk()
+    return
+  }
+  if (petResting || anim === 'sleep') {
     stopWalk()
     return
   }
@@ -889,7 +936,7 @@ function tick(now: number) {
   heartGame.tick(now)
   const playingDie = Boolean(spine && preferredDie(spine) === currentAnimationName())
   if (!playingDie && (anim === 'click' || anim === 'victory') && now >= clickLockUntil) {
-    setAnim('idle')
+    if (!petResting) setAnim('idle')
   }
   if (!ballGame.isActive() && !heartGame.isActive() && !dragging) void wander(now)
   requestAnimationFrame(tick)
@@ -1066,6 +1113,10 @@ canvas.addEventListener('mousedown', async (event) => {
   }
   const info = await bounds()
   if (!info) {
+    if (petResting) {
+      void window.electronAPI?.wakePet()
+      return
+    }
     clickLockUntil = performance.now() + 900
     setAnim('click')
     return
@@ -1079,7 +1130,7 @@ canvas.addEventListener('mousedown', async (event) => {
   dragOffsetY = event.screenY - info.y
   dragWorkArea = info.workArea
   faceByScreenSide(info.x + info.width / 2, info.workArea)
-  setAnim('drag')
+  if (!petResting) setAnim('drag')
 })
 
 window.addEventListener('mousemove', async (event) => {
@@ -1119,9 +1170,14 @@ window.addEventListener('mouseup', (event) => {
   dragWorkArea = null
   const cooldown = computeWanderParams().arriveIdleMs
   if (dragMoved) {
+    if (petResting) return
     setAnim('idle')
     scheduleIdle([Math.min(2500, cooldown[0]), Math.min(5000, cooldown[1])])
     void faceTowardScreenCenter()
+    return
+  }
+  if (petResting) {
+    void window.electronAPI?.wakePet()
     return
   }
   clickLockUntil = performance.now() + 900
@@ -1152,6 +1208,9 @@ window.electronAPI?.onPetChatMessage?.(showChatMessage)
 window.electronAPI?.onPetChatClear?.(hideChatMessage)
 window.electronAPI?.onPetAiBubble?.((payload) => showAiBubble(payload.text))
 window.electronAPI?.onPetCareReact?.(handleCareReact)
+window.electronAPI?.onPetPlayAnimation?.((payload) => {
+  if (payload.animation) playNamedAnimation(payload.animation, payload.loop)
+})
 window.electronAPI?.onPetMinigame?.((event) => {
   if (event.action === 'start' && event.id === 'ball-hit') {
     startBallGame()

@@ -2,6 +2,7 @@ import '@pixi/unsafe-eval'
 import 'pixi-spine'
 import { Application, Assets } from 'pixi.js'
 import { Spine } from 'pixi-spine'
+import { bindSleepExclusiveSlots, playExclusiveAnimation } from './petSpineSlots'
 
 export type SpinePreviewHandle = {
   destroy: () => void
@@ -105,7 +106,7 @@ function unionBounds(box: FitBox | null, next: FitBox): FitBox {
 function sampleAnimationBounds(character: Spine, name: string): FitBox | null {
   const duration = Math.max(animationDuration(character, name), 0.05)
   const samples = Math.max(8, Math.ceil(duration * 16))
-  character.state.setAnimation(0, name, false)
+  playExclusiveAnimation(character, name, false)
   character.update(0)
   let box: FitBox | null = null
   for (let i = 0; i <= samples; i++) {
@@ -239,9 +240,10 @@ export async function mountSpinePreview(
     if (destroyed) return null
 
     spine = new Spine(spineData as ConstructorParameters<typeof Spine>[0])
+    bindSleepExclusiveSlots(spine as never)
     const anim = options.animation || preferredIdle(spine)
     applyPixelFit(spine, size, resolution, anim)
-    if (anim) spine.state.setAnimation(0, anim, options.loop !== false)
+    if (anim) playExclusiveAnimation(spine, anim, options.loop !== false)
 
     slotId = nextSlotId++
     slots.set(slotId, { id: slotId, canvas, ctx, spine, size, resolution })
@@ -259,7 +261,7 @@ export async function mountSpinePreview(
       setAnimation(name: string, loop = true) {
         if (!spine) return
         applyPixelFit(spine, size, resolution, name)
-        spine.state.setAnimation(0, name, loop)
+        playExclusiveAnimation(spine, name, loop)
       },
       listAnimations() {
         return spine ? animationNames(spine) : []

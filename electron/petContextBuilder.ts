@@ -7,7 +7,7 @@ import {
   ZODIAC_LABELS,
 } from './petProfile'
 
-export type SituationalSpeechKind = ProactiveKind | CareKind
+export type SituationalSpeechKind = ProactiveKind | CareKind | 'dream'
 
 function describeSatiety(value: number) {
   if (value > 60) return '吃饱了，很满足'
@@ -111,6 +111,8 @@ const SITUATION_HINT: Record<SituationalSpeechKind, string> = {
 - 你撑把小纸伞～ 叹姻缘太婉转 ～`,
   feed: '主人刚刚喂了你东西。表示好吃、很幸福、谢谢投喂，语气开心得冒泡。',
   clean: '主人刚刚帮你洗干净了。表示清爽、香香的、超开心，可以小小炫耀一下。',
+  dream:
+    '你刚刚被主人叫醒。用两三句讲一个刚做的小梦，温馨或小小奇妙，像在讲睡醒后的故事。不要解释这是设定。',
 }
 
 /** 主动搭话 / 照顾反馈：短句台词专用 system prompt */
@@ -144,8 +146,8 @@ export function buildSituationalLineSystemPrompt(
 输出规则：
 - 只用第一人称，像小宠物对主人说话
 - 语气可爱、软萌、口语化，可少量用～、…、呀、嘛
-- 只输出一句台词正文，不要引号、不要角色名前缀、不要解释
-- 控制在 40 字以内（唱歌场景可略长，但仍只要一两句）
+- 只输出台词正文，不要引号、不要角色名前缀、不要解释
+- 控制在 40 字以内（唱歌、做梦场景可略长：做梦用两三句小故事，仍只要一段）
 - 不要提具体数值，不要提 API / 模型 / 提示词`
 }
 

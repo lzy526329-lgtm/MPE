@@ -157,6 +157,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('pet:set-character', characterId),
   feedPet: (): Promise<PetStatus> => ipcRenderer.invoke('pet:feed'),
   restPet: (): Promise<PetStatus> => ipcRenderer.invoke('pet:rest'),
+  wakePet: (): Promise<PetStatus> => ipcRenderer.invoke('pet:wake'),
   updatePetProfile: (patch: { name?: string }): Promise<PetStatus> =>
     ipcRenderer.invoke('pet:update-profile', patch),
   getPetReminders: (): Promise<PetReminderItem[]> => ipcRenderer.invoke('pet:get-reminders'),
@@ -219,6 +220,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ) => callback(payload)
     ipcRenderer.on('pet:care-react', listener)
     return () => ipcRenderer.removeListener('pet:care-react', listener)
+  },
+  onPetPlayAnimation: (callback: (payload: { animation: string; loop?: boolean }) => void) => {
+    const listener = (_event: unknown, payload: { animation: string; loop?: boolean }) => callback(payload)
+    ipcRenderer.on('pet:play-animation', listener)
+    return () => ipcRenderer.removeListener('pet:play-animation', listener)
   },
   getPetSkin: (): Promise<PetSkinView> => ipcRenderer.invoke('pet:get-skin'),
   savePetClip: (request: SavePetClipRequest): Promise<PetClipView> =>

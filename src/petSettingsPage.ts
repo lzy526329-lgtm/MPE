@@ -150,7 +150,13 @@ function renderStatus(root: HTMLElement, status: PetStatus) {
   hygieneFill.className = `pet-stat-fill ${barClass(status.hygiene)}`
   healthFill.className = `pet-stat-fill ${barClass(status.health)}`
   moodFill.className = `pet-stat-fill ${barClass(status.mood)}`
-  mood.textContent = moodText(status)
+  mood.textContent = status.resting ? '正在睡觉。点一下桌宠才能叫醒。' : moodText(status)
+
+  const restButton = root.querySelector<HTMLButtonElement>('#pet-rest')
+  if (restButton) {
+    restButton.disabled = Boolean(status.resting)
+    restButton.textContent = status.resting ? '休息中' : '休息'
+  }
 }
 
 const CARD_PREVIEW_SIZE = 132
@@ -622,6 +628,7 @@ export function mountPetSettingsPage() {
               <button class="secondary-button" id="pet-clean" type="button">洗澡</button>
               <button class="secondary-button" id="pet-rest" type="button">休息</button>
             </div>
+            <p class="field-hint">休息会循环睡觉，健康慢慢涨；点桌宠才能叫醒，醒来会讲刚才的梦。</p>
           </article>
         </section>
         <section class="pet-settings-panel" data-pet-panel="reminders" hidden>

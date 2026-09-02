@@ -2,7 +2,7 @@ import { app, ipcMain, type BrowserWindow } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 import { buildPetSystemPrompt, buildSituationalLineSystemPrompt, buildSituationalLineUserPrompt } from './petContextBuilder'
-import { getPetStatus, grantPetChatGrowth, markPetInteracted } from './pet'
+import { getPetStatus, grantPetChatGrowth, isPetCurrentlyResting, markPetInteracted } from './pet'
 import type { AppPageId } from './appPages'
 import {
   clearPetMemory,
@@ -223,7 +223,7 @@ function sanitizeSituationalLine(raw: string, fallback: string, maxLen = 80) {
     .split(/\n+/)
     .map((line) => line.replace(/^[\d*・\-\s]+/, '').trim())
     .filter(Boolean)
-  text = lines.slice(0, 2).join(' ').trim()
+  text = lines.slice(0, maxLen >= 100 ? 3 : 2).join(' ').trim()
   if (text.length > maxLen) text = `${text.slice(0, maxLen - 1)}…`
   return text || fallback
 }
@@ -232,7 +232,7 @@ function sanitizeSituationalLine(raw: string, fallback: string, maxLen = 80) {
  * 按场景生成一句桌宠台词；失败或未开启时由调用方使用本地模板。
  */
 export async function generateSituationalLine(
-  kind: ProactiveKind | CareKind,
+  kind: ProactiveKind | CareKind | 'dream',
   fallback: string,
 ): Promise<string> {
   if (!isProactiveAiEnabled()) return fallback
@@ -240,7 +240,7 @@ export async function generateSituationalLine(
   const status = getPetStatus()
   const memorySnippets = getRecentMemorySnippets(status.profile.id)
   const ownerNotes = getOwnerNotes(status.profile.id)
-  const maxLen = kind === 'sing' ? 100 : 80
+  const maxLen = kind === 'sing' || kind === 'dream' ? 100 : 80
 
   try {
     const message = await callDeepSeek(
@@ -549,6 +549,9 @@ export function registerPetAiIpc(
   ipcMain.handle('pet:ai-send', async (_event, text: string) => {
     const playerText = String(text ?? '').trim()
     if (!playerText) throw new Error('请输入消息')
+    if (isPetCurrentlyResting()) {
+      throw new Error('它在睡觉，点一下桌宠叫醒后再聊吧')
+    }
 
     const reply = await runChatWithSkills(playerText, openMainPage)
     markPetInteracted()

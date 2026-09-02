@@ -107,6 +107,7 @@ declare global {
       setPetCharacter: (characterId: string) => Promise<PetStatus>
       feedPet: () => Promise<PetStatus>
       restPet: () => Promise<PetStatus>
+      wakePet: () => Promise<PetStatus>
       updatePetProfile: (patch: { name?: string }) => Promise<PetStatus>
       getPetReminders: () => Promise<PetReminderItem[]>
       upsertPetReminder: (request: {
@@ -142,6 +143,7 @@ declare global {
           animation: 'victory'
         }) => void,
       ) => () => void
+      onPetPlayAnimation: (callback: (payload: { animation: string; loop?: boolean }) => void) => () => void
       getPetSkin: () => Promise<PetSkinView>
       savePetClip: (request: SavePetClipRequest) => Promise<PetClipView>
       updatePetClip: (request: UpdatePetClipRequest) => Promise<PetSkinView>

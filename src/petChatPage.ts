@@ -11,7 +11,8 @@ function escapeHtml(value: string) {
 }
 
 function statusSummary(status: PetStatus) {
-  return `${status.profile.name} · 饱食 ${status.satiety} · 卫生 ${status.hygiene} · 健康 ${status.health} · 心情 ${status.mood}`
+  const rest = status.resting ? ' · 睡觉中' : ''
+  return `${status.profile.name} · 饱食 ${status.satiety} · 卫生 ${status.hygiene} · 健康 ${status.health} · 心情 ${status.mood}${rest}`
 }
 
 export function mountPetChatPage() {
@@ -43,6 +44,7 @@ export function mountPetChatPage() {
   }
   let messages: ChatItem[] = []
   let sending = false
+  let petResting = false
   let petName = '宠物'
 
   function setError(text: string) {
@@ -70,7 +72,9 @@ export function mountPetChatPage() {
     keyHint.textContent = settings.hasApiKey ? `已保存 Key：${settings.apiKeyHint}` : '尚未配置 API Key'
     modelChip.classList.toggle('is-ready', settings.hasApiKey)
     settingsToggle.classList.toggle('is-ready', settings.hasApiKey)
-    sendButton.disabled = sending || !settings.hasApiKey
+    sendButton.disabled = sending || petResting || !settings.hasApiKey
+    inputEl.disabled = sending || petResting
+    inputEl.placeholder = petResting ? '它在睡觉，点桌宠叫醒后再聊' : '给宠物发送消息…'
     proactiveAiToggle.checked = settings.proactiveAiEnabled
     proactiveAiToggle.disabled = !settings.hasApiKey
   }
@@ -125,7 +129,9 @@ export function mountPetChatPage() {
     try {
       const status = await window.electronAPI.getPetStatus()
       petName = status.profile.name
+      petResting = Boolean(status.resting)
       statusBar.textContent = statusSummary(status)
+      updateKeyUi()
       if (messages.length === 0) renderMessages()
     } catch {
       statusBar.textContent = '无法读取宠物状态'
@@ -221,7 +227,7 @@ export function mountPetChatPage() {
 
   async function sendMessage() {
     const text = inputEl.value.trim()
-    if (!text || sending) return
+    if (!text || sending || petResting) return
     if (!settings.hasApiKey) {
       setError('请先配置 DeepSeek API Key')
       setSettingsOpen(true)
@@ -276,6 +282,8 @@ export function mountPetChatPage() {
 
   window.electronAPI.onPetStatusChanged?.((status) => {
     petName = status.profile.name
+    petResting = Boolean(status.resting)
     statusBar.textContent = statusSummary(status)
+    updateKeyUi()
   })
 }

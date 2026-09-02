@@ -25,8 +25,14 @@ import {
   type SavePetClipRequest,
   type UpdatePetClipRequest,
 } from './petSkin'
-import { rememberCareEvent, rememberRename } from './petMemory'
-import { pickCareLine, type CareKind } from './petCareLines'
+import { rememberCareEvent, rememberDream, rememberRename } from './petMemory'
+import { pickCareLine, pickDreamLine, type CareKind } from './petCareLines'
+import {
+  DREAM_REMINDER_ID,
+  isDreamReminderId,
+  isPetResting,
+  tickRestingVitals,
+} from './petRest'
 import { peekWalletCoins } from './game/gameStore'
 import { toGameViewState } from './game/gameEngine'
 import { readGameState } from './game/gameStore'
@@ -79,6 +85,8 @@ type PetSettings = {
   lastInteractAt?: number
   lastProactiveAt?: number
   proactiveLatches?: ProactiveLatches
+  /** 进入休息的时间戳；有值即正在睡觉 */
+  restingSince?: number
   reminders?: PetReminderStored[]
   activeChatReminderId?: string
   /** @deprecated use stats.satiety */
@@ -133,6 +141,7 @@ export type PetStatus = {
   hygiene: number
   health: number
   mood: number
+  resting: boolean
   profile: PetProfileStored
 }
 
@@ -529,6 +538,22 @@ function findPendingReminder(reminders: PetReminderItem[], settings = readSettin
   return reminders.find((item) => item.pendingText && item.requireConfirm) ?? null
 }
 
+function isCurrentlyResting(settings = readSettings()) {
+  return isPetResting(settings.restingSince)
+}
+
+export function isPetCurrentlyResting() {
+  return isCurrentlyResting(ensurePetData())
+}
+
+function silencePetTalk() {
+  stopActiveChatTimer()
+  activeChatMessage = null
+  chatQueue = []
+  emitPetChatClear()
+  writeSettings({ activeChatReminderId: undefined })
+}
+
 function persistReminders(reminders: PetReminderStored[], extra: Partial<PetSettings> = {}) {
   writeSettings({ reminders, ...extra })
 }
@@ -596,6 +621,7 @@ export function getPetStatus(): PetStatus {
     hygiene: roundStat(stats.hygiene),
     health: roundStat(stats.health),
     mood: resolveMood(stats, profile),
+    resting: isPetResting(settings.restingSince),
     profile,
   }
 }
@@ -658,6 +684,7 @@ function flushNextChatInQueue() {
 }
 
 function enqueueChatMessage(message: PetChatMessage) {
+  if (isCurrentlyResting() && !isDreamReminderId(message.reminderId)) return
   chatQueue.push(message)
   flushNextChatInQueue()
 }
@@ -776,16 +803,36 @@ function fireReminder(reminder: PetReminderItem, now: number) {
 
 function confirmReminder(reminderId?: string) {
   const settings = readSettings()
+  const id = reminderId ?? settings.activeChatReminderId ?? activeChatMessage?.reminderId
+  if (isDreamReminderId(id) || isDreamReminderId(activeChatMessage?.reminderId)) {
+    stopActiveChatTimer()
+    activeChatMessage = null
+    emitPetChatClear()
+    writeSettings({ activeChatReminderId: undefined })
+    const pending = findPendingReminder(getReminderItems())
+    if (pending?.pendingText) {
+      enqueueChatMessage({
+        reminderId: pending.id,
+        text: pending.pendingText,
+        requireConfirm: true,
+        dismissAfterMs: null,
+      })
+    } else {
+      flushNextChatInQueue()
+    }
+    return getReminderItems()
+  }
+
   const reminders = getReminderItems(settings)
   const pending = findPendingReminder(reminders, settings)
-  const id = reminderId ?? settings.activeChatReminderId ?? pending?.id
-  if (!id) return reminders
+  const resolvedId = reminderId ?? settings.activeChatReminderId ?? pending?.id
+  if (!resolvedId) return reminders
 
-  const reminder = reminders.find((item) => item.id === id)
+  const reminder = reminders.find((item) => item.id === resolvedId)
   if (!reminder?.pendingText) return reminders
 
   const oneShot = reminder.mode === 'interval-once' || reminder.mode === 'datetime-once'
-  updateStoredReminder(id, {
+  updateStoredReminder(resolvedId, {
     pendingText: undefined,
     pendingSince: undefined,
     enabled: oneShot ? false : reminder.enabled,
@@ -793,12 +840,12 @@ function confirmReminder(reminderId?: string) {
   })
 
   const stillPending = getReminderItems().find(
-    (item) => item.id !== id && item.pendingText && item.requireConfirm,
+    (item) => item.id !== resolvedId && item.pendingText && item.requireConfirm,
   )
   writeSettings({
     activeChatReminderId: stillPending?.id,
   })
-  removeQueuedReminder(id)
+  removeQueuedReminder(resolvedId)
   stopActiveChatTimer()
   activeChatMessage = null
   emitPetChatClear()
@@ -819,6 +866,7 @@ function confirmReminder(reminderId?: string) {
 }
 
 function tickReminder() {
+  if (isCurrentlyResting()) return
   const settings = readSettings()
   const reminders = getReminderItems(settings)
   if (!reminders.length) return
@@ -884,6 +932,7 @@ export function markPetInteracted(extraLatches?: ProactiveLatches) {
 
 function tickProactiveChat() {
   if (!isPetOpen()) return
+  if (isCurrentlyResting()) return
   const now = Date.now()
   if (now - lastProactiveCheckAt < PROACTIVE_CHECK_INTERVAL_MS) return
   lastProactiveCheckAt = now
@@ -963,10 +1012,29 @@ function tickVitals() {
 
   const now = Date.now()
   const last = settings.lastVitalAt ?? now
-  const elapsedHours = (now - last) / 3_600_000
-  if (elapsedHours <= 0) return getPetStatus()
+  const elapsedMs = now - last
+  if (elapsedMs <= 0) return getPetStatus()
 
   const stats = getPetStats(settings)
+
+  if (isPetResting(settings.restingSince)) {
+    const next = tickRestingVitals(
+      {
+        health: stats.health,
+        satiety: stats.satiety,
+        hygiene: stats.hygiene,
+        moodBonus: stats.moodBonus ?? 0,
+      },
+      elapsedMs,
+    )
+    const displayChanged = roundStat(next.health) !== roundStat(stats.health)
+    if (!displayChanged && now - last < VITALS_FLUSH_MS) {
+      return getPetStatus()
+    }
+    return applyVitals({ ...next, lastVitalAt: now })
+  }
+
+  const elapsedHours = elapsedMs / 3_600_000
   const rates = getPersonalityDecayRates(getPetProfile(settings).personality)
   const satiety = clampStat(stats.satiety - rates.satiety * elapsedHours)
   const hygiene = clampStat(stats.hygiene - rates.hygiene * elapsedHours)
@@ -1146,6 +1214,7 @@ function openMainPage(pageId: AppPageId) {
 }
 
 function emitCareReact(kind: CareKind) {
+  if (isCurrentlyResting()) return
   if (!petWin || petWin.isDestroyed()) return
   const fallback = pickCareLine(kind)
   const send = (text: string) => {
@@ -1234,7 +1303,7 @@ export function feedPetWithSatiety(gain: number) {
   rememberCareEvent(status.profile.id, 'feed')
   markPetInteracted({ hungry: false })
   applyPetGrowth(PET_GROWTH_FEED)
-  emitCareReact('feed')
+  if (!isCurrentlyResting()) emitCareReact('feed')
   return getPetStatus()
 }
 
@@ -1245,18 +1314,51 @@ export function cleanPetWithHygiene(gain: number) {
   rememberCareEvent(status.profile.id, 'clean')
   markPetInteracted({ dirty: false })
   applyPetGrowth(PET_GROWTH_CLEAN)
-  emitCareReact('clean')
+  if (!isCurrentlyResting()) emitCareReact('clean')
   return getPetStatus()
 }
 
 function restPetAction() {
-  const stats = getPetStats()
-  applyVitals({ health: clampStat(stats.health + 25) })
+  if (isCurrentlyResting()) return getPetStatus()
+  if (!isPetOpen()) createPetWindow()
+  stopPetMinigame()
+  silencePetTalk()
+  writeSettings({ restingSince: Date.now() })
   const status = getPetStatus()
   rememberCareEvent(status.profile.id, 'rest')
   markPetInteracted({ weak: false })
   applyPetGrowth(PET_GROWTH_REST)
+  if (petWin && !petWin.isDestroyed()) {
+    petWin.webContents.send('pet:play-animation', { animation: 'shuijiao', loop: true })
+  }
+  notifyStatusChanged()
   return getPetStatus()
+}
+
+function wakePetAction() {
+  if (!isCurrentlyResting()) return getPetStatus()
+  writeSettings({ restingSince: undefined })
+  markPetInteracted()
+  notifyStatusChanged()
+  void speakDreamAfterWake()
+  return getPetStatus()
+}
+
+async function speakDreamAfterWake() {
+  const fallback = pickDreamLine()
+  const status = getPetStatus()
+  enqueueChatMessage({
+    reminderId: DREAM_REMINDER_ID,
+    text: fallback,
+    requireConfirm: true,
+    dismissAfterMs: null,
+  })
+  rememberDream(status.profile.id, fallback)
+  const text = await generateSituationalLine('dream', fallback)
+  if (activeChatMessage?.reminderId !== DREAM_REMINDER_ID) return
+  if (text === fallback) return
+  activeChatMessage = { ...activeChatMessage, text }
+  emitPetChatMessage(activeChatMessage)
 }
 
 function applyPlayVitals() {
@@ -1277,6 +1379,7 @@ function emitPetMinigame(event: PetMinigameEvent) {
 }
 
 function startPetMinigame(id: 'ball-hit' | 'heart-rally') {
+  if (isCurrentlyResting()) return
   if (!isPetOpen()) createPetWindow()
   if (activeMinigameId) return
   applyPlayVitals()
@@ -1310,7 +1413,8 @@ function buildPetMenu() {
       submenu: buildCleanMenuItems(),
     },
     {
-      label: '休息',
+      label: isCurrentlyResting() ? '休息中' : '休息',
+      enabled: !isCurrentlyResting(),
       click: () => {
         restPetAction()
       },
@@ -1327,12 +1431,12 @@ function buildPetMenu() {
       submenu: [
         {
           label: ballHitActive ? '打小球（进行中）' : '打小球',
-          enabled: !anyMinigameActive,
+          enabled: !anyMinigameActive && !isCurrentlyResting(),
           click: () => startPetMinigame('ball-hit'),
         },
         {
           label: heartRallyActive ? '弹爱心（进行中）' : '弹爱心',
-          enabled: !anyMinigameActive,
+          enabled: !anyMinigameActive && !isCurrentlyResting(),
           click: () => startPetMinigame('heart-rally'),
         },
       ],
@@ -1586,6 +1690,7 @@ export function registerPetIpc(
     throw new Error('请先从食物列表中选择要喂的食物')
   })
   ipcMain.handle('pet:rest', () => restPetAction())
+  ipcMain.handle('pet:wake', () => wakePetAction())
   ipcMain.handle('pet:get-profile', () => getPetProfile())
   ipcMain.handle('pet:update-profile', (_event, patch: { name?: string }) => {
     const settings = ensurePetData()
