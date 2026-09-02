@@ -13,6 +13,7 @@ import {
 } from './farmAssets'
 import { onPageChange } from './appNavigation'
 import { openFarmLevelGuide } from './farmLevelGuide'
+import { playFarmPesticideEffect, playFarmWaterEffect, preloadFarmPlotEffect } from './farmPlotWaterEffect'
 
 type PlotDisplayStatus = 'empty' | 'growing' | 'dry' | 'bug' | 'ready' | 'locked'
 
@@ -417,10 +418,14 @@ function setupFarmPage(farmRoot: HTMLElement) {
       return
     }
     if (display === 'dry') {
+      const tile = farmRoot.querySelector<HTMLElement>(`.farm-plot-tile[data-plot="${plotIndex}"]`)
+      if (tile) playFarmWaterEffect(tile)
       void runAction(() => window.electronAPI.farmWater({ plotIndex }), '浇水完成')
       return
     }
     if (display === 'bug') {
+      const tile = farmRoot.querySelector<HTMLElement>(`.farm-plot-tile[data-plot="${plotIndex}"]`)
+      if (tile) playFarmPesticideEffect(tile)
       void runAction(() => window.electronAPI.farmDebug({ plotIndex }), '除虫完成')
     }
   }
@@ -459,5 +464,7 @@ function setupFarmPage(farmRoot: HTMLElement) {
   })
 
   void refresh()
+  void preloadFarmPlotEffect('water')
+  void preloadFarmPlotEffect('pesticide')
   window.setInterval(tickPlots, 5000)
 }

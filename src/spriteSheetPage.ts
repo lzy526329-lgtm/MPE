@@ -170,7 +170,7 @@ export function mountSpriteSheetPage() {
       dropZone.hidden = true
       editor.hidden = false
       syncGridHint(null)
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      ctx?.clearRect(0, 0, canvas.width, canvas.height)
       errorMessage.textContent = ''
     }
     image.onerror = () => {

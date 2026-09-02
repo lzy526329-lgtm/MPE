@@ -3220,6 +3220,20 @@ input[type="range"] {
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
 }
 
+.farm-water-effect,
+.farm-plot-sprite-effect {
+  position: fixed;
+  z-index: 10000;
+  pointer-events: none;
+}
+
+.farm-water-effect canvas,
+.farm-plot-sprite-effect canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .farm-plot-badges {
   position: absolute;
   top: calc(var(--plot-face-y, 0.5) * 100% - 14px);

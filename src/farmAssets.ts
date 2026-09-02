@@ -35,7 +35,41 @@ export const FARM_ASSETS = {
     farmAsset('种子袋-cutout.png'),
     farmAsset('杀虫剂-cutout.png'),
   ],
+  waterEffect: farmAsset('浇水-spritesheet-cutout.png'),
+  pesticideEffect: farmAsset('杀虫剂.png'),
 } as const
+
+export type FarmSpriteEffectDef = {
+  src: string
+  sheetWidth: number
+  sheetHeight: number
+  cols: number
+  rows: number
+  frameCount: number
+  fps: number
+}
+
+/** 浇水序列帧雪碧图（与序列帧预览中配置一致） */
+export const FARM_WATER_EFFECT: FarmSpriteEffectDef = {
+  src: FARM_ASSETS.waterEffect,
+  sheetWidth: 4320,
+  sheetHeight: 3600,
+  cols: 6,
+  rows: 5,
+  frameCount: 30,
+  fps: 20,
+}
+
+/** 除虫序列帧雪碧图 */
+export const FARM_PESTICIDE_EFFECT: FarmSpriteEffectDef = {
+  src: FARM_ASSETS.pesticideEffect,
+  sheetWidth: 4320,
+  sheetHeight: 3600,
+  cols: 6,
+  rows: 5,
+  frameCount: 30,
+  fps: 20,
+}
 
 /** farm-bg.png 像素比，保证百分比坐标与背景对齐 */
 export const FARM_BG_ASPECT = 2516 / 1666
