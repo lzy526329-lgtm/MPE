@@ -14,12 +14,16 @@ export type AppPageId =
   | 'photoplus-page'
   | 'sysinfo-page'
   | 'disk-clean-page'
+  | 'spritesheet-page'
+  | 'video-frames-page'
 
 export const APP_HOME_PAGE: AppPageId = 'pet-settings-page'
 
 export const PET_TOOL_MENU: { id: AppPageId; label: string }[] = [
   { id: 'image-page', label: '图片压缩' },
   { id: 'cutout-page', label: '图片抠图' },
+  { id: 'spritesheet-page', label: '序列帧预览' },
+  { id: 'video-frames-page', label: '视频转序列帧' },
   { id: 'watermark-page', label: '视频去水印' },
   { id: 'compression-page', label: '文件压缩' },
   { id: 'archive-page', label: '文件解压' },

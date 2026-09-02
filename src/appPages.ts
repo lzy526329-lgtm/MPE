@@ -14,6 +14,8 @@ export type AppPageId =
   | 'photoplus-page'
   | 'sysinfo-page'
   | 'disk-clean-page'
+  | 'spritesheet-page'
+  | 'video-frames-page'
 
 export const APP_HOME_PAGE: AppPageId = 'pet-settings-page'
 
@@ -33,6 +35,8 @@ export const APP_PAGE_TITLES: Record<AppPageId, string> = {
   'photoplus-page': '拉取图片',
   'sysinfo-page': '电脑信息',
   'disk-clean-page': '磁盘瘦身',
+  'spritesheet-page': '序列帧预览',
+  'video-frames-page': '视频转序列帧',
 }
 
 export const TOOL_PAGES: AppPageId[] = [
@@ -45,4 +49,6 @@ export const TOOL_PAGES: AppPageId[] = [
   'photoplus-page',
   'sysinfo-page',
   'disk-clean-page',
+  'spritesheet-page',
+  'video-frames-page',
 ]

@@ -2,6 +2,8 @@ import './style.css'
 import type { CompressRequest } from '../electron/compress'
 import type { ArchiveInfo, CompressionSource } from '../electron/archive'
 import { mountCutoutPage } from './cutoutPage'
+import { mountSpriteSheetPage } from './spriteSheetPage'
+import { mountVideoToSpritesheetPage } from './videoToSpritesheetPage'
 import { mountWatermarkPage } from './watermarkPage'
 import { mountPhotoplusPage } from './photoplusPage'
 import { mountSystemInfoPage } from './systemInfoPage'
@@ -205,6 +207,175 @@ app.innerHTML = `
             <button class="download-button" id="cutout-download-button" type="button">下载 PNG</button>
           </div>
           <p class="error-message" id="cutout-error" role="alert"></p>
+        </div>
+      </section>
+
+      <section class="tool-page" id="spritesheet-page" hidden>
+        <header>
+          <div>
+            <p class="eyebrow">图像工具</p>
+            <h1>序列帧预览</h1>
+            <p class="subtitle">导入雪碧图，设置单帧尺寸与帧率，本地预览横条、竖条或网格排列的动画。</p>
+          </div>
+        </header>
+        <div class="panel">
+          <label class="drop-zone" id="spritesheet-drop-zone" for="spritesheet-file-input">
+            <input id="spritesheet-file-input" type="file" accept="image/png,image/jpeg,image/webp,image/avif" hidden />
+            <span class="upload-icon">▶</span>
+            <strong>拖拽雪碧图到这里，或点击选择</strong>
+            <span>支持 PNG、JPG、WebP；按从左到右、从上到下切帧</span>
+          </label>
+
+          <div class="editor" id="spritesheet-editor" hidden>
+            <div class="spritesheet-layout">
+              <div class="preview-card">
+                <div class="preview-heading">
+                  <span>播放预览</span>
+                  <button class="text-button" id="spritesheet-replace-button" type="button">重新选择</button>
+                </div>
+                <div class="preview-frame spritesheet-preview-frame">
+                  <canvas id="spritesheet-canvas" aria-label="序列帧预览"></canvas>
+                </div>
+                <div class="file-summary">
+                  <div>
+                    <strong id="spritesheet-file-name"></strong>
+                    <span id="spritesheet-file-info"></span>
+                  </div>
+                  <span class="size-pill" id="spritesheet-frame-label">—</span>
+                </div>
+              </div>
+
+              <div class="settings-card">
+                <h2>序列帧参数</h2>
+                <div class="spritesheet-field-grid">
+                  <label class="field">
+                    <span>雪碧图宽度 (px)</span>
+                    <input id="spritesheet-sheet-width" type="number" min="1" step="1" />
+                  </label>
+                  <label class="field">
+                    <span>雪碧图高度 (px)</span>
+                    <input id="spritesheet-sheet-height" type="number" min="1" step="1" />
+                  </label>
+                  <label class="field">
+                    <span>列数</span>
+                    <input id="spritesheet-cols" type="number" min="1" step="1" placeholder="如 11" />
+                  </label>
+                  <label class="field">
+                    <span>行数</span>
+                    <input id="spritesheet-rows" type="number" min="1" step="1" placeholder="如 11" />
+                  </label>
+                  <label class="field">
+                    <span>帧数</span>
+                    <input id="spritesheet-frame-count" type="number" min="1" step="1" placeholder="如 120" />
+                  </label>
+                  <label class="field">
+                    <span>帧率 (FPS)</span>
+                    <input id="spritesheet-fps" type="number" min="1" max="60" step="1" value="12" />
+                  </label>
+                </div>
+                <p class="field-hint" id="spritesheet-grid-hint">导入后请手动填写列数、行数与帧数。切帧顺序：从左到右、从上到下。</p>
+                <div class="spritesheet-controls">
+                  <button class="secondary-button" id="spritesheet-prev-button" type="button">上一帧</button>
+                  <button class="primary-button" id="spritesheet-play-button" type="button">播放</button>
+                  <button class="secondary-button" id="spritesheet-next-button" type="button">下一帧</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="error-message" id="spritesheet-error" role="alert"></p>
+        </div>
+      </section>
+
+      <section class="tool-page" id="video-frames-page" hidden>
+        <header>
+          <div>
+            <p class="eyebrow">视频工具</p>
+            <h1>视频转序列帧</h1>
+            <p class="subtitle">从本地视频按帧率抽帧，合成为雪碧图 PNG，可继续到序列帧预览播放。</p>
+          </div>
+        </header>
+        <div class="panel">
+          <label class="drop-zone" id="video-frames-drop-zone" for="video-frames-file-input">
+            <input id="video-frames-file-input" type="file" accept="video/*" hidden />
+            <span class="upload-icon">🎞</span>
+            <strong>拖拽视频到这里，或点击选择</strong>
+            <span>支持 MP4、WebM、MOV 等常见格式</span>
+          </label>
+
+          <div class="editor" id="video-frames-editor" hidden>
+            <div class="spritesheet-layout">
+              <div class="preview-card">
+                <div class="preview-heading">
+                  <span>雪碧图预览</span>
+                  <button class="text-button" id="video-frames-replace-button" type="button">重新选择</button>
+                </div>
+                <div class="preview-frame spritesheet-preview-frame video-frames-preview-frame">
+                  <img id="video-frames-preview" alt="雪碧图预览" hidden />
+                  <span class="video-frames-preview-placeholder" id="video-frames-preview-placeholder">转换完成后在此预览</span>
+                </div>
+                <div class="file-summary">
+                  <div>
+                    <strong id="video-frames-file-name"></strong>
+                    <span id="video-frames-file-info"></span>
+                  </div>
+                  <span class="size-pill" id="video-frames-preview-meta">—</span>
+                </div>
+              </div>
+
+              <div class="settings-card">
+                <h2>转换参数</h2>
+                <div class="spritesheet-field-grid">
+                  <label class="field">
+                    <span>抽帧帧率 (FPS)</span>
+                    <input id="video-frames-fps" type="number" min="1" max="60" step="1" value="12" />
+                  </label>
+                  <label class="field">
+                    <span>最多帧数</span>
+                    <input id="video-frames-max-frames" type="number" min="1" max="600" step="1" value="120" />
+                  </label>
+                  <label class="field">
+                    <span>最大宽度 (0=原尺寸)</span>
+                    <input id="video-frames-max-width" type="number" min="0" step="1" value="0" />
+                  </label>
+                  <label class="field">
+                    <span>最大高度 (0=原尺寸)</span>
+                    <input id="video-frames-max-height" type="number" min="0" step="1" value="0" />
+                  </label>
+                </div>
+                <label class="field">
+                  <span>排列方式</span>
+                  <select id="video-frames-layout">
+                    <option value="grid">网格（推荐）</option>
+                    <option value="horizontal">横向条带</option>
+                    <option value="vertical">纵向条带</option>
+                  </select>
+                </label>
+                <p class="field-hint">按设定 FPS 从视频均匀取帧，全部在本地处理，不会上传。</p>
+                <div class="video-frames-progress" id="video-frames-progress" hidden>
+                  <div class="video-frames-progress-bar" aria-hidden="true">
+                    <span class="video-frames-progress-fill" id="video-frames-progress-fill"></span>
+                  </div>
+                  <span class="video-frames-progress-text" id="video-frames-progress-text">准备中…</span>
+                </div>
+                <button class="primary-button" id="video-frames-run-button" type="button">开始转换</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="result" id="video-frames-result" hidden>
+            <div class="result-copy">
+              <span class="success-icon">✓</span>
+              <div>
+                <strong>转换完成</strong>
+                <span id="video-frames-result-detail"></span>
+              </div>
+            </div>
+            <div class="video-frames-result-actions">
+              <button class="download-button" id="video-frames-download-button" type="button">下载 PNG</button>
+              <button class="secondary-button" id="video-frames-open-preview-button" type="button" hidden>在序列帧预览中打开</button>
+            </div>
+          </div>
+          <p class="error-message" id="video-frames-error" role="alert"></p>
         </div>
       </section>
 
@@ -1319,6 +1490,8 @@ window.addEventListener('beforeunload', () => {
 })
 
 mountCutoutPage()
+mountSpriteSheetPage()
+mountVideoToSpritesheetPage()
 mountWatermarkPage()
 mountPhotoplusPage()
 mountSystemInfoPage()

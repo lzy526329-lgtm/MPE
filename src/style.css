@@ -3803,6 +3803,98 @@ input[type="range"] {
   margin: 0;
 }
 
+.spritesheet-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.1fr) minmax(260px, 0.9fr);
+  gap: 16px;
+}
+
+.spritesheet-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.spritesheet-preview-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
+  background:
+    linear-gradient(45deg, #eef1f6 25%, transparent 25%) 0 0 / 16px 16px,
+    linear-gradient(45deg, transparent 75%, #eef1f6 75%) 0 0 / 16px 16px,
+    linear-gradient(45deg, transparent 75%, #eef1f6 75%) 8px 8px / 16px 16px,
+    #f8f9fc;
+}
+
+.spritesheet-preview-frame canvas {
+  display: block;
+  max-width: 100%;
+  image-rendering: pixelated;
+}
+
+.spritesheet-controls {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.spritesheet-controls .primary-button {
+  flex: 1;
+}
+
+@media (max-width: 900px) {
+  .spritesheet-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.video-frames-preview-frame {
+  position: relative;
+}
+
+.video-frames-preview-frame img {
+  max-width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+}
+
+.video-frames-preview-placeholder {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.video-frames-progress {
+  margin: 12px 0;
+}
+
+.video-frames-progress-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: #eef1f6;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.video-frames-progress-fill {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #7c9cff, #5b7cff);
+  transition: width 0.15s ease;
+}
+
+.video-frames-progress-text {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.video-frames-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .game-empty {
   min-height: 220px;
   display: flex;
