@@ -33,9 +33,11 @@ import {
   isPetResting,
   tickRestingVitals,
 } from './petRest'
-import { peekWalletCoins } from './game/gameStore'
-import { toGameViewState } from './game/gameEngine'
-import { readGameState } from './game/gameStore'
+import { settle } from './farm/farmEngine'
+import { detectFarmNeeds } from './farm/farmNeeds'
+import { commitFarmReminderLatches, decideFarmReminder, farmReminderId, type FarmReminderLatches } from './farm/farmReminders'
+import { peekWalletCoins, readGameState } from './game/gameStore'
+import { toCompatFarmState, toGameViewState } from './game/gameEngine'
 import { createGameHandlers } from './game/gameIpc'
 import {
   advanceWorkSession,
@@ -85,6 +87,7 @@ type PetSettings = {
   lastInteractAt?: number
   lastProactiveAt?: number
   proactiveLatches?: ProactiveLatches
+  farmReminderLatches?: FarmReminderLatches
   /** 进入休息的时间戳；有值即正在睡觉 */
   restingSince?: number
   reminders?: PetReminderStored[]
@@ -646,8 +649,12 @@ function notifyRemindersUpdated(reminders = getReminderItems()) {
 }
 
 function emitPetChatMessage(message: PetChatMessage) {
-  if (petWin && !petWin.isDestroyed()) {
-    petWin.webContents.send('pet:chat-message', message)
+  try {
+    if (petWin && !petWin.isDestroyed()) {
+      petWin.webContents.send('pet:chat-message', message)
+    }
+  } catch {
+    /* 渲染进程崩溃时 send 会抛，不能卡住主动搭话循环 */
   }
 }
 
@@ -930,6 +937,46 @@ export function markPetInteracted(extraLatches?: ProactiveLatches) {
   })
 }
 
+function farmLatchesEqual(a: FarmReminderLatches, b: FarmReminderLatches) {
+  return Boolean(a.harvest) === Boolean(b.harvest) && Boolean(a.bug) === Boolean(b.bug) && Boolean(a.water) === Boolean(b.water)
+}
+
+/** 只读检测农场需要，失败时跳过，避免坏档打断主动搭话。 */
+function peekFarmNeeds(now: number) {
+  try {
+    const farm = settle(toCompatFarmState(readGameState(app.getPath('userData'), now).state), now)
+    return detectFarmNeeds(farm, now)
+  } catch {
+    return null
+  }
+}
+
+function tickFarmReminder(now: number, settings: PetSettings): boolean {
+  const needs = peekFarmNeeds(now)
+  if (!needs) return false
+
+  const previous = settings.farmReminderLatches ?? {}
+  const result = decideFarmReminder({ needs, latches: previous })
+  const { decision } = result
+
+  if (!decision) {
+    const latches = commitFarmReminderLatches(result, false)
+    if (!farmLatchesEqual(latches, previous)) {
+      writeSettings({ farmReminderLatches: latches })
+    }
+    return false
+  }
+
+  enqueueChatMessage({
+    reminderId: farmReminderId(decision.kind),
+    text: decision.text,
+    requireConfirm: false,
+    dismissAfterMs: decision.dismissAfterMs,
+  })
+  writeSettings({ farmReminderLatches: commitFarmReminderLatches(result, true) })
+  return true
+}
+
 function tickProactiveChat() {
   if (!isPetOpen()) return
   if (isCurrentlyResting()) return
@@ -944,6 +991,8 @@ function tickProactiveChat() {
 
   const settings = ensurePetData()
   if (!settings.enabled) return
+
+  if (tickFarmReminder(now, settings)) return
 
   const idleSeconds = powerMonitor.getSystemIdleTime()
   const work = advanceWorkSession(workSessionState, idleSeconds, now)
@@ -1347,18 +1396,16 @@ function wakePetAction() {
 async function speakDreamAfterWake() {
   const fallback = pickDreamLine()
   const status = getPetStatus()
+  const text = isProactiveAiEnabled()
+    ? await generateSituationalLine('dream', fallback)
+    : fallback
+  rememberDream(status.profile.id, text)
   enqueueChatMessage({
     reminderId: DREAM_REMINDER_ID,
-    text: fallback,
+    text,
     requireConfirm: true,
     dismissAfterMs: null,
   })
-  rememberDream(status.profile.id, fallback)
-  const text = await generateSituationalLine('dream', fallback)
-  if (activeChatMessage?.reminderId !== DREAM_REMINDER_ID) return
-  if (text === fallback) return
-  activeChatMessage = { ...activeChatMessage, text }
-  emitPetChatMessage(activeChatMessage)
 }
 
 function applyPlayVitals() {
@@ -1498,6 +1545,7 @@ export function createPetWindow() {
   }
 
   const settings = readSettings()
+  writeSettings({ farmReminderLatches: {} })
   const size = getPetSize()
   const cursor = screen.getCursorScreenPoint()
   const fallback = clampToWorkArea(cursor.x - size / 2, cursor.y - size / 2, size)
@@ -1550,6 +1598,7 @@ export function createPetWindow() {
     stopActiveChatTimer()
     activeChatMessage = null
     chatQueue = []
+    writeSettings({ farmReminderLatches: {} })
     const pending = findPendingReminder(getReminderItems())
     if (pending?.pendingText) {
       enqueueChatMessage({
@@ -1559,6 +1608,12 @@ export function createPetWindow() {
         dismissAfterMs: null,
       })
       flushNextChatInQueue()
+    } else {
+      const settings = ensurePetData()
+      if (settings.enabled && !isCurrentlyResting()) {
+        lastProactiveCheckAt = 0
+        tickFarmReminder(Date.now(), settings)
+      }
     }
   })
   petWin.on('blur', refreshPetWinTransparency)
@@ -1566,6 +1621,7 @@ export function createPetWindow() {
   petWin.on('moved', persistPosition)
   petWin.webContents.on('render-process-gone', (_event, details) => {
     appendPetCrashLog('render-process-gone', details)
+    writeSettings({ farmReminderLatches: {} })
     if (details.reason === 'clean-exit') return
     schedulePetCrashRecover(details.reason)
   })

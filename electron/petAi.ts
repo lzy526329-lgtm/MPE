@@ -1,7 +1,7 @@
 import { app, ipcMain, type BrowserWindow } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
-import { buildPetSystemPrompt, buildSituationalLineSystemPrompt, buildSituationalLineUserPrompt } from './petContextBuilder'
+import { buildPetSystemPrompt, buildSituationalLineSystemPrompt, buildSituationalLineUserPrompt, type SituationalSpeechKind } from './petContextBuilder'
 import { getPetStatus, grantPetChatGrowth, isPetCurrentlyResting, markPetInteracted } from './pet'
 import type { AppPageId } from './appPages'
 import {
@@ -19,8 +19,6 @@ import {
   type PetSkillId,
   type PetSkillPrefill,
 } from './petSkills'
-import type { CareKind } from './petCareLines'
-import type { ProactiveKind } from './petProactiveChat'
 
 /** DeepSeek 最便宜档，适合桌宠短对话 */
 export const PET_AI_MODEL = 'deepseek-v4-flash'
@@ -232,7 +230,7 @@ function sanitizeSituationalLine(raw: string, fallback: string, maxLen = 80) {
  * 按场景生成一句桌宠台词；失败或未开启时由调用方使用本地模板。
  */
 export async function generateSituationalLine(
-  kind: ProactiveKind | CareKind | 'dream',
+  kind: SituationalSpeechKind,
   fallback: string,
 ): Promise<string> {
   if (!isProactiveAiEnabled()) return fallback

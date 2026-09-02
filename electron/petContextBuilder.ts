@@ -1,5 +1,6 @@
 import type { PetStatus } from './pet'
 import type { CareKind } from './petCareLines'
+import type { FarmNeedKind } from './farm/farmNeeds'
 import type { ProactiveKind } from './petProactiveChat'
 import {
   ELEMENT_LABELS,
@@ -7,7 +8,7 @@ import {
   ZODIAC_LABELS,
 } from './petProfile'
 
-export type SituationalSpeechKind = ProactiveKind | CareKind | 'dream'
+export type SituationalSpeechKind = ProactiveKind | CareKind | FarmNeedKind | 'dream'
 
 function describeSatiety(value: number) {
   if (value > 60) return '吃饱了，很满足'
@@ -113,6 +114,9 @@ const SITUATION_HINT: Record<SituationalSpeechKind, string> = {
   clean: '主人刚刚帮你洗干净了。表示清爽、香香的、超开心，可以小小炫耀一下。',
   dream:
     '你刚刚被主人叫醒。用两三句讲一个刚做的小梦，温馨或小小奇妙，像在讲睡醒后的故事。不要解释这是设定。',
+  harvest: '农场里有作物已经成熟。提醒主人去收获，语气轻快，不要啰嗦。',
+  bug: '农场里有作物生虫了。提醒主人去除虫，可以小小着急，但仍然可爱。',
+  water: '农场里有作物该浇水了。提醒主人去浇水，关心庄稼但不要像说明书。',
 }
 
 /** 主动搭话 / 照顾反馈：短句台词专用 system prompt */
