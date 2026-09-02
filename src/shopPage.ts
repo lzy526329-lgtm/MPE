@@ -1,4 +1,4 @@
-import type { GameViewState, FoodId, SupplyId } from '../electron/game/gameTypes'
+import type { GameViewState, FoodId, SupplyId, DecorId } from '../electron/game/gameTypes'
 import type { CropId } from '../electron/farm/farmTypes'
 import { formatCropGrowLabel, getCropCatalogEntry, getCropShopImgPath } from '../electron/farm/cropCatalog'
 import { getFoodImagePath } from '../electron/game/foodCatalog'
@@ -6,6 +6,7 @@ import { getSupplyImagePath } from '../electron/game/supplyCatalog'
 import { farmCatalogIconHtml } from './farmAssets'
 import { foodCatalogIconHtml, formatFoodSatietyLabel } from './foodAssets'
 import { supplyCatalogIconHtml, formatSupplyHygieneLabel } from './supplyAssets'
+import { decorCatalogIconHtml } from './decorAssets'
 import { getCurrentPage, onPageChange } from './appNavigation'
 import {
   DEFAULT_GAME_TAB,
@@ -21,6 +22,7 @@ export type ShopRenderOptions = {
   busyCropId: CropId | null
   busyFoodId: string | null
   busySupplyId: string | null
+  busyDecorId: string | null
   error: string | null
 }
 
@@ -47,6 +49,40 @@ function seedGrowLabel(cropId: CropId): string | null {
 
 export function canBuySeed(coins: number, price: number): boolean {
   return coins >= price
+}
+
+function renderDecorOffer(
+  state: GameViewState,
+  offer: GameViewState['decorOffers'][number],
+  busyDecorId: string | null,
+): string {
+  const buying = busyDecorId === offer.decorId
+  const affordable = canBuySeed(state.wallet.coins, offer.price)
+  const disabled = busyDecorId !== null || !affordable
+  const owned = state.inventory.decors[offer.decorId] ?? 0
+  const shopIcon = decorCatalogIconHtml(offer.src, 'shop-offer-icon')
+
+  return `
+    <article class="shop-offer-card">
+      <div class="shop-offer-heading">
+        ${shopIcon}
+        <div>
+          <h2>${escapeHtml(offer.name)}</h2>
+          <p class="shop-offer-grow">农场装饰</p>
+          <p>拥有 ${owned}</p>
+        </div>
+      </div>
+      <div class="shop-offer-action">
+        <strong>${offer.price} 金币</strong>
+        ${!affordable ? '<span class="shop-offer-warning">金币不足</span>' : ''}
+        <button
+          class="primary-button shop-buy-button"
+          type="button"
+          data-buy-decor="${escapeHtml(offer.decorId)}"${disabled ? ' disabled' : ''}
+        >${buying ? '购买中…' : '购买 1 件'}</button>
+      </div>
+    </article>
+  `
 }
 
 function renderSupplyOffer(
@@ -156,7 +192,7 @@ export function renderShopPage(
   state: GameViewState,
   options: ShopRenderOptions,
 ): string {
-  const { activeTab, busyCropId, busyFoodId, busySupplyId, error } = options
+  const { activeTab, busyCropId, busyFoodId, busySupplyId, busyDecorId, error } = options
   const seedOffers = state.seedOffers
     .map((offer) => renderOffer(state, offer, busyCropId))
     .join('')
@@ -165,6 +201,9 @@ export function renderShopPage(
     .join('')
   const supplyOffers = state.supplyOffers
     .map((offer) => renderSupplyOffer(state, offer, busySupplyId))
+    .join('')
+  const decorOffers = state.decorOffers
+    .map((offer) => renderDecorOffer(state, offer, busyDecorId))
     .join('')
 
   return `
@@ -177,6 +216,8 @@ export function renderShopPage(
             role="tab" aria-selected="${activeTab === 'food'}" data-game-tab="food">食物</button>
           <button class="game-tab${activeTab === 'supplies' ? ' active' : ''}" type="button"
             role="tab" aria-selected="${activeTab === 'supplies'}" data-game-tab="supplies">杂货</button>
+          <button class="game-tab${activeTab === 'decors' ? ' active' : ''}" type="button"
+            role="tab" aria-selected="${activeTab === 'decors'}" data-game-tab="decors">装饰</button>
         </div>
         <div class="game-wallet" aria-label="当前余额">
           <span aria-hidden="true">●</span>
@@ -207,6 +248,16 @@ export function renderShopPage(
             </div>
           `}
       </section>
+      <section class="game-pane${activeTab === 'decors' ? '' : ' hidden'}" data-game-pane="decors">
+        ${decorOffers.length > 0
+          ? `<div class="shop-offer-grid">${decorOffers}</div>`
+          : `
+            <div class="game-empty">
+              <span aria-hidden="true">🏡</span>
+              <strong>暂无装饰上架</strong>
+            </div>
+          `}
+      </section>
     </div>
   `
 }
@@ -224,6 +275,7 @@ export function mountShopPage(): void {
   let busyCropId: CropId | null = null
   let busyFoodId: string | null = null
   let busySupplyId: string | null = null
+  let busyDecorId: string | null = null
   let error: string | null = null
   let loading = false
   let stateGeneration = 0
@@ -246,7 +298,7 @@ export function mountShopPage(): void {
         : '<div class="game-empty" data-shop-idle></div>'
       return
     }
-    root.innerHTML = renderShopPage(state, { activeTab, busyCropId, busyFoodId, busySupplyId, error })
+    root.innerHTML = renderShopPage(state, { activeTab, busyCropId, busyFoodId, busySupplyId, busyDecorId, error })
   }
 
   const refresh = async () => {
@@ -342,6 +394,28 @@ export function mountShopPage(): void {
     }
   }
 
+  const buyDecorItem = async (decorId: DecorId) => {
+    if (!state || busyDecorId !== null) return
+    const offer = state.decorOffers.find((item) => item.decorId === decorId)
+    if (!offer || !canBuySeed(state.wallet.coins, offer.price)) return
+
+    busyDecorId = decorId
+    error = null
+    render()
+    try {
+      const result = await window.electronAPI.gameBuyDecor(decorId)
+      state = result.state
+      if (!result.ok) error = gameErrorMessage(result.code)
+    } catch {
+      error = '购买失败，请重试。'
+    } finally {
+      stateGeneration += 1
+      loading = false
+      busyDecorId = null
+      render()
+    }
+  }
+
   root.addEventListener('click', (event) => {
     const target = event.target
     if (!(target instanceof Element)) return
@@ -355,6 +429,15 @@ export function mountShopPage(): void {
 
     if (target.closest('[data-shop-retry]')) {
       void refresh()
+      return
+    }
+
+    const buyDecorButton = target.closest<HTMLButtonElement>('[data-buy-decor]')
+    if (buyDecorButton && !buyDecorButton.disabled) {
+      const decorId = buyDecorButton.dataset.buyDecor
+      if (decorId && state?.decorOffers.some((offer) => offer.decorId === decorId)) {
+        void buyDecorItem(decorId as DecorId)
+      }
       return
     }
 

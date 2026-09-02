@@ -3,6 +3,7 @@ import type { GameErrorCode, GameViewState } from '../electron/game/gameTypes'
 import { withFoodCounts } from '../electron/game/foodCatalog'
 import { withSupplyCounts } from '../electron/game/supplyCatalog'
 import { withSeedCounts } from '../electron/farm/cropCatalog'
+import { withDecorCounts } from '../electron/game/decorCatalog'
 import { canBuySeed, formatGrowDuration, gameErrorMessage, renderShopPage } from './shopPage'
 
 const navigation = vi.hoisted(() => ({
@@ -25,11 +26,13 @@ const state: GameViewState = {
     supplies: withSupplyCounts({}),
     seeds: withSeedCounts({ wheat: 5 }),
     produce: {},
+    decors: withDecorCounts({}),
   },
   seedOffers: [{ cropId: 'wheat', name: '小麦种子', price: 5 }],
   produceOffers: [{ produceId: 'wheat', name: '小麦', price: 4 }],
   foodOffers: [{ foodId: 'cookie', name: '饼干', price: 3, satiety: 12 }],
   supplyOffers: [{ supplyId: 'bodyWash', name: '沐浴露', price: 5, hygiene: 40 }],
+  decorOffers: [],
 }
 
 const defaultOptions = {
@@ -37,6 +40,7 @@ const defaultOptions = {
   busyCropId: null,
   busyFoodId: null,
   busySupplyId: null,
+  busyDecorId: null,
   error: null,
 }
 

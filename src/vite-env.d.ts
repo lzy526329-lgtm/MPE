@@ -40,8 +40,8 @@ import type {
 } from '../electron/pdf'
 import type { UpdateState } from '../electron/updater'
 import type { FarmActionResult } from '../electron/farm/farmEngine'
-import type { CropId } from '../electron/farm/farmTypes'
-import type { FoodId, GameActionResult, GameViewState, SupplyId } from '../electron/game/gameTypes'
+import type { CropId, PlacedDecor } from '../electron/farm/farmTypes'
+import type { FoodId, GameActionResult, GameViewState, SupplyId, DecorId } from '../electron/game/gameTypes'
 
 declare global {
   interface Window {
@@ -175,6 +175,9 @@ declare global {
       farmClaimDailySeeds: () => Promise<FarmActionResult>
       farmWaterAll: () => Promise<FarmActionResult>
       farmHarvestAll: () => Promise<FarmActionResult>
+      farmPlaceDecor: (request: { decorId: DecorId }) => Promise<FarmActionResult>
+      farmRemoveDecor: (request: { instanceId: string }) => Promise<FarmActionResult>
+      farmSavePlacedDecors: (request: { placedDecors: PlacedDecor[] }) => Promise<FarmActionResult>
       gameGetState: () => Promise<GameViewState>
       gameBuySeed: (cropId: CropId) => Promise<GameActionResult>
       gameSellProduce: (produceId: string) => Promise<GameActionResult>
@@ -182,6 +185,7 @@ declare global {
       gameUseFood: (foodId: FoodId) => Promise<GameActionResult>
       gameBuySupply: (supplyId: SupplyId) => Promise<GameActionResult>
       gameUseSupply: (supplyId: SupplyId) => Promise<GameActionResult>
+      gameBuyDecor: (decorId: DecorId) => Promise<GameActionResult>
       onGameStateChanged: (callback: (state: GameViewState) => void) => () => void
     }
   }

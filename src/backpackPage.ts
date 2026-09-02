@@ -7,6 +7,7 @@ import { getCurrentPage, onPageChange } from './appNavigation'
 import { farmCatalogIconHtml } from './farmAssets'
 import { foodCatalogIconHtml, formatFoodSatietyLabel } from './foodAssets'
 import { supplyCatalogIconHtml, formatSupplyHygieneLabel } from './supplyAssets'
+import { decorCatalogIconHtml } from './decorAssets'
 import { openFeedFoodPicker } from './feedFoodPicker'
 import {
   DEFAULT_GAME_TAB,
@@ -25,7 +26,7 @@ export type BackpackRenderOptions = {
 }
 
 export function isBackpackTab(value: string | undefined): value is BackpackTab {
-  return value === 'food' || value === 'seeds' || value === 'produce' || value === 'supplies'
+  return value === 'food' || value === 'seeds' || value === 'produce' || value === 'supplies' || value === 'decors'
 }
 
 export function canSellProduce(owned: number): boolean {
@@ -77,6 +78,25 @@ function renderFoodItems(state: GameViewState): string {
           <h2>${escapeHtml(offer.name)}</h2>
           <strong>× ${owned}</strong>
           <span class="backpack-item-satiety">${escapeHtml(formatFoodSatietyLabel(offer.satiety))}</span>
+        </div>
+      </article>
+    `
+    })
+    .join('')
+}
+
+function renderDecorItems(state: GameViewState): string {
+  return state.decorOffers
+    .filter((offer) => (state.inventory.decors[offer.decorId] ?? 0) > 0)
+    .map((offer) => {
+      const owned = state.inventory.decors[offer.decorId] ?? 0
+      return `
+      <article class="backpack-item-card">
+        ${decorCatalogIconHtml(offer.src, 'backpack-item-icon')}
+        <div class="backpack-item-body">
+          <h2>${escapeHtml(offer.name)}</h2>
+          <strong>× ${owned}</strong>
+          <p class="backpack-item-satiety">去农场 → 装饰摆放</p>
         </div>
       </article>
     `
@@ -157,6 +177,7 @@ export function renderBackpackPage(
   const hasSeeds = hasInventoryItems(state.inventory.seeds)
   const hasProduce = hasInventoryItems(state.inventory.produce)
   const hasSupplies = hasInventoryItems(state.inventory.supplies)
+  const hasDecors = hasInventoryItems(state.inventory.decors)
 
   return `
     <div class="game-page-shell">
@@ -170,6 +191,8 @@ export function renderBackpackPage(
             role="tab" aria-selected="${activeTab === 'food'}" data-game-tab="food">食物</button>
           <button class="game-tab${activeTab === 'supplies' ? ' active' : ''}" type="button"
             role="tab" aria-selected="${activeTab === 'supplies'}" data-game-tab="supplies">杂货</button>
+          <button class="game-tab${activeTab === 'decors' ? ' active' : ''}" type="button"
+            role="tab" aria-selected="${activeTab === 'decors'}" data-game-tab="decors">装饰</button>
         </div>
         <div class="game-wallet" aria-label="当前余额">
           <span aria-hidden="true">●</span>
@@ -222,6 +245,17 @@ export function renderBackpackPage(
             <div class="game-empty">
               <span aria-hidden="true">🧴</span>
               <strong>暂无杂货</strong>
+              <p>请先去商店购买。</p>
+            </div>
+          `}
+      </section>
+      <section class="game-pane${activeTab === 'decors' ? '' : ' hidden'}" data-game-pane="decors">
+        ${hasDecors
+          ? `<div class="backpack-item-grid">${renderDecorItems(state)}</div>`
+          : `
+            <div class="game-empty">
+              <span aria-hidden="true">🏡</span>
+              <strong>暂无装饰</strong>
               <p>请先去商店购买。</p>
             </div>
           `}

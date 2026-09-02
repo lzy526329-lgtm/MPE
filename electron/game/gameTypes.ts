@@ -1,10 +1,12 @@
 import type { FoodId, FoodOffer } from './foodCatalog'
 import type { SupplyId, SupplyOffer } from './supplyCatalog'
+import type { DecorId, DecorOffer } from './decorCatalog'
 import type { FarmActionResult } from '../farm/farmEngine'
 import type { CropId, FarmState } from '../farm/farmTypes'
 
 export type { FoodId } from './foodCatalog'
 export type { SupplyId } from './supplyCatalog'
+export type { DecorId } from './decorCatalog'
 export type FarmCoreState = Omit<FarmState, 'seeds' | 'inventory'>
 
 export type WalletState = { coins: number }
@@ -13,6 +15,7 @@ export type InventoryState = {
   supplies: Record<SupplyId, number>
   seeds: Record<CropId, number>
   produce: Record<string, number>
+  decors: Record<DecorId, number>
 }
 export type GameMigrationState = {
   starterCoinsGranted: boolean
@@ -35,6 +38,7 @@ export type GameViewState = {
   produceOffers: ProduceOffer[]
   foodOffers: FoodOffer[]
   supplyOffers: SupplyOffer[]
+  decorOffers: DecorOffer[]
 }
 export type GameErrorCode =
   | 'UNKNOWN_ITEM'

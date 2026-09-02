@@ -91,6 +91,7 @@ function cloneInventory(inventory: InventoryState): InventoryState {
     supplies: { ...inventory.supplies },
     seeds: { ...inventory.seeds },
     produce: { ...inventory.produce },
+    decors: { ...inventory.decors },
   }
 }
 

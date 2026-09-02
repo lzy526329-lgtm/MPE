@@ -98,6 +98,7 @@ function legacyFarm(): FarmState {
     totalXp: 0,
     lastDailySeedClaimAt: '2026-08-27',
     lastWeatherRollAt: 450,
+    placedDecors: [],
   }
 }
 

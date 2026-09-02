@@ -5,8 +5,9 @@ import { createDefaultFarm } from '../farm/farmEngine'
 import { parseFarmPayload } from '../farm/farmStore'
 import type { FarmState } from '../farm/farmTypes'
 import { migrateLegacyGameState } from './gameEngine'
-import { normalizeItemCount, seedCounts, foodCounts, supplyCounts } from './gameCatalog'
+import { normalizeItemCount, seedCounts, foodCounts, supplyCounts, decorCounts } from './gameCatalog'
 import type { FarmCoreState, GameState } from './gameTypes'
+import { parsePlacedDecors } from '../farm/decorEngine'
 
 export type PersistableMutation = { ok: boolean; game: GameState }
 export type GameMutator<T extends PersistableMutation> = (state: GameState) => T | Promise<T>
@@ -102,11 +103,12 @@ function parseFarmCore(
     const parsed = parseFarmPayload(JSON.stringify(candidate), fallbackNow)
     if (!parsed.didReset) {
       const { seeds: _seeds, inventory: _inventory, ...farm } = parsed.state
-      return { ...farm, totalXp: parseTotalXp(value.totalXp) }
+      const placedDecors = parsePlacedDecors(isRecord(value) ? value.placedDecors : undefined)
+      return { ...farm, totalXp: parseTotalXp(value.totalXp), placedDecors }
     }
   }
   const { seeds: _defaultSeeds, inventory: _defaultProduce, ...farm } = createDefaultFarm(now)
-  return farm
+  return { ...farm, placedDecors: [] }
 }
 
 export function parseGamePayload(raw: string, now: number): GameState {
@@ -119,11 +121,12 @@ export function parseGamePayload(raw: string, now: number): GameState {
   const supplies = supplyCounts(normalizeCountRecord(inventory.supplies))
   const seeds = seedCounts(normalizeCountRecord(inventory.seeds))
   const produce = normalizeCountRecord(inventory.produce)
+  const decors = decorCounts(normalizeCountRecord(inventory.decors))
 
   return {
     version: 1,
     wallet: { coins: normalizeItemCount(wallet.coins) },
-    inventory: { food, supplies, seeds, produce },
+    inventory: { food, supplies, seeds, produce, decors },
     farm: parseFarmCore(value.farm, now, seeds, produce),
     migrations: parseMigrations(value.migrations),
   }

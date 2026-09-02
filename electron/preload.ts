@@ -39,8 +39,8 @@ import type {
 import type { UpdateState } from './updater'
 import type { FarmActionResult } from './farm/farmEngine'
 import type { CutoutRequest, CutoutResult } from './cutout'
-import type { CropId } from './farm/farmTypes'
-import type { GameActionResult, GameViewState, FoodId, SupplyId } from './game/gameTypes'
+import type { CropId, PlacedDecor } from './farm/farmTypes'
+import type { GameActionResult, GameViewState, FoodId, SupplyId, DecorId } from './game/gameTypes'
 
 contextBridge.exposeInMainWorld('electronAPI', {
   platform: process.platform,
@@ -284,6 +284,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('farm:claim-daily-seeds'),
   farmWaterAll: (): Promise<FarmActionResult> => ipcRenderer.invoke('farm:water-all'),
   farmHarvestAll: (): Promise<FarmActionResult> => ipcRenderer.invoke('farm:harvest-all'),
+  farmPlaceDecor: (request: { decorId: DecorId }): Promise<FarmActionResult> =>
+    ipcRenderer.invoke('farm:place-decor', request),
+  farmRemoveDecor: (request: { instanceId: string }): Promise<FarmActionResult> =>
+    ipcRenderer.invoke('farm:remove-decor', request),
+  farmSavePlacedDecors: (request: { placedDecors: PlacedDecor[] }): Promise<FarmActionResult> =>
+    ipcRenderer.invoke('farm:save-placed-decors', request),
   gameGetState: (): Promise<GameViewState> => ipcRenderer.invoke('game:get-state'),
   gameBuySeed: (cropId: CropId): Promise<GameActionResult> =>
     ipcRenderer.invoke('game:buy-seed', cropId),
@@ -297,6 +303,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('game:buy-supply', supplyId),
   gameUseSupply: (supplyId: SupplyId): Promise<GameActionResult> =>
     ipcRenderer.invoke('game:use-supply', supplyId),
+  gameBuyDecor: (decorId: DecorId): Promise<GameActionResult> =>
+    ipcRenderer.invoke('game:buy-decor', decorId),
   onGameStateChanged: (callback: (state: GameViewState) => void) => {
     const listener = (_event: unknown, state: GameViewState) => callback(state)
     ipcRenderer.on('game:state-changed', listener)

@@ -127,6 +127,7 @@ export function createDefaultFarm(now: number): FarmState {
     weather: 'clear',
     lastSettledAt: now,
     totalXp: 0,
+    placedDecors: [],
   }
 }
 

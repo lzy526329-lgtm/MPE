@@ -29,6 +29,7 @@ const legacyFarm: FarmState = {
   weather: 'rain',
   lastSettledAt: 500,
   totalXp: 0,
+  placedDecors: [],
 }
 
 describe('createDefaultGameState', () => {

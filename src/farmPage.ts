@@ -13,7 +13,10 @@ import {
 } from './farmAssets'
 import { onPageChange } from './appNavigation'
 import { openFarmLevelGuide } from './farmLevelGuide'
+import type { DecorId } from '../electron/game/gameTypes'
 import { playFarmPesticideEffect, playFarmWaterEffect, preloadFarmPlotEffect } from './farmPlotWaterEffect'
+import { placedDecorsToFarmDecors, farmDecorsToPlaced, renderFarmDecorHtml, syncFarmDecorDom, type FarmDecorDef } from './farmSceneDecor'
+import { mountFarmSceneEditor, type FarmSceneEditorHandle } from './farmSceneEditor'
 
 type PlotDisplayStatus = 'empty' | 'growing' | 'dry' | 'bug' | 'ready' | 'locked'
 
@@ -22,6 +25,7 @@ const DEFAULT_FARM_CONTEXT: FarmPageContext = {
   farmLevel: 0,
   farmTotalXp: 0,
   farmXpProgress: { current: 0, required: 500, isMaxLevel: false },
+  ownedDecors: {},
 }
 
 const WEATHER_LABEL: Record<Weather, string> = {
@@ -147,6 +151,7 @@ function renderFarm(
   now: number,
   toast: string,
   context: FarmPageContext,
+  decors: FarmDecorDef[],
 ): string {
   return `
     <div class="farm-scene">
@@ -159,6 +164,7 @@ function renderFarm(
       ${toast ? `<p class="farm-toast" role="status">${escapeHtml(toast)}</p>` : ''}
 
       <div class="farm-stage" style="background-image:url('${FARM_ASSETS.bg}')">
+        ${renderFarmDecorHtml(decors)}
         ${state.plots.map((plot, i) => renderPlot(plot, i, state, now, context)).join('')}
       </div>
 
@@ -200,6 +206,12 @@ function setupFarmPage(farmRoot: HTMLElement) {
   let toast = ''
   let toastTimer: ReturnType<typeof setTimeout> | undefined
   let closeLevelGuide: (() => void) | undefined
+  let farmDecors: FarmDecorDef[] = []
+  let sceneEditor: FarmSceneEditorHandle | undefined
+
+  function syncDecorsFromState(state: FarmState) {
+    farmDecors = placedDecorsToFarmDecors(state.placedDecors ?? [])
+  }
 
   function updateToastDom() {
     const scene = farmRoot.querySelector<HTMLElement>('.farm-scene')
@@ -325,10 +337,86 @@ function setupFarmPage(farmRoot: HTMLElement) {
       farmRoot.innerHTML = '<p class="sysinfo-loading">加载农场…</p>'
       return
     }
-    farmRoot.innerHTML = renderFarm(farmState, selectedCrop, Date.now(), toast, farmContext)
+    farmRoot.innerHTML = renderFarm(farmState, selectedCrop, Date.now(), toast, farmContext, farmDecors)
     bindEvents()
     syncPlotLayout()
     ensurePlotLayoutResizeObserver()
+    ensureSceneEditor()
+  }
+
+  function ensureSceneEditor() {
+    const host = document.querySelector<HTMLElement>('#farm-page')
+    if (!host) return
+    if (!sceneEditor) {
+      sceneEditor = mountFarmSceneEditor(host, {
+        mode: 'player',
+        getStage: () => farmRoot.querySelector<HTMLElement>('.farm-stage'),
+        getDecors: () => farmDecors,
+        setDecors: (decors) => {
+          farmDecors = decors
+        },
+        getOwnedDecors: () => farmContext.ownedDecors ?? {},
+        onDecorsChange: () => {},
+        onPlaceDecor: async (decorId) => {
+          if (busy) return
+          busy = true
+          try {
+            const result = await window.electronAPI.farmPlaceDecor({ decorId: decorId as DecorId })
+            farmState = result.state
+            if (result.context) farmContext = result.context
+            if (!result.ok) {
+              showToast(result.error ?? '放置失败')
+              return
+            }
+            syncDecorsFromState(result.state)
+            const stage = farmRoot.querySelector<HTMLElement>('.farm-stage')
+            if (stage) syncFarmDecorDom(stage, farmDecors)
+          } catch {
+            showToast('放置失败，请重试。')
+          } finally {
+            busy = false
+          }
+        },
+        onRemoveDecor: async (instanceId) => {
+          if (busy) return
+          busy = true
+          try {
+            const result = await window.electronAPI.farmRemoveDecor({ instanceId })
+            farmState = result.state
+            if (result.context) farmContext = result.context
+            if (!result.ok) {
+              showToast(result.error ?? '收回失败')
+              return
+            }
+            syncDecorsFromState(result.state)
+            const stage = farmRoot.querySelector<HTMLElement>('.farm-stage')
+            if (stage) syncFarmDecorDom(stage, farmDecors)
+          } catch {
+            showToast('收回失败，请重试。')
+          } finally {
+            busy = false
+          }
+        },
+        onPersistLayout: async (decors) => {
+          try {
+            const result = await window.electronAPI.farmSavePlacedDecors({
+              placedDecors: farmDecorsToPlaced(decors),
+            })
+            if (!result.ok) {
+              showToast(result.error ?? '保存布局失败')
+              return
+            }
+            farmState = result.state
+            if (result.context) farmContext = result.context
+            syncDecorsFromState(result.state)
+          } catch {
+            showToast('保存布局失败，请重试。')
+          }
+        },
+      })
+      return
+    }
+    sceneEditor.rebindStage()
   }
 
   async function refresh() {
@@ -338,6 +426,7 @@ function setupFarmPage(farmRoot: HTMLElement) {
       farmContext = result.context ?? DEFAULT_FARM_CONTEXT
       if (!result.ok) showToast(result.error ?? '读取失败')
       selectedCrop = resolveSelectedCrop(farmState.seeds, selectedCrop)
+      syncDecorsFromState(farmState)
       paint()
     } catch {
       showToast('无法读取农场状态，请重试。')
@@ -434,6 +523,7 @@ function setupFarmPage(farmRoot: HTMLElement) {
     const stage = farmRoot.querySelector<HTMLElement>('.farm-stage')
     stage?.addEventListener('click', (event) => {
       if (!stage) return
+      if (sceneEditor?.isActive()) return
       const plotIndex = findPlotIndexAtClientPoint(stage, event.clientX, event.clientY)
       if (plotIndex === null) return
       handlePlotClick(plotIndex)

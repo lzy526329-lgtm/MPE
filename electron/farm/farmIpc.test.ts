@@ -161,7 +161,7 @@ const successCases: SuccessCase[] = [
 ]
 
 describe('createFarmHandlers wiring', () => {
-  it('exposes exactly the nine farm channels', () => {
+  it('exposes exactly the twelve farm channels', () => {
     const { handlers } = harness()
 
     expect(Object.keys(handlers).sort()).toEqual(
@@ -171,7 +171,10 @@ describe('createFarmHandlers wiring', () => {
         'getState',
         'harvest',
         'harvestAll',
+        'placeDecor',
         'plant',
+        'removeDecor',
+        'savePlacedDecors',
         'unlockPlot',
         'water',
         'waterAll',
@@ -313,6 +316,9 @@ describe('registerFarmIpc', () => {
     'farm:claim-daily-seeds',
     'farm:water-all',
     'farm:harvest-all',
+    'farm:place-decor',
+    'farm:remove-decor',
+    'farm:save-placed-decors',
   ]
 
   afterEach(() => {

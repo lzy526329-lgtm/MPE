@@ -18,6 +18,17 @@ export type PlotState = PlotEmpty | PlotLocked | PlotPlanted
 
 export type Weather = 'clear' | 'rain'
 
+/** 已放置的农场装饰（相对 farm-stage 百分比坐标） */
+export type PlacedDecor = {
+  instanceId: string
+  decorId: string
+  left: number
+  top: number
+  width: number
+  zIndex: number
+  flipX?: boolean
+}
+
 export type FarmPageContext = {
   walletCoins: number
   farmLevel: number
@@ -27,6 +38,8 @@ export type FarmPageContext = {
     required: number
     isMaxLevel: boolean
   }
+  /** 未放置的装饰库存 */
+  ownedDecors?: Record<string, number>
   levelUpMessage?: string
 }
 
@@ -41,4 +54,5 @@ export type FarmState = {
   totalXp: number
   lastDailySeedClaimAt?: string
   lastWeatherRollAt?: number
+  placedDecors: PlacedDecor[]
 }

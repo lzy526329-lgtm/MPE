@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "decors": {
+    "pond": {
+      "name": "池塘",
+      "price": 80,
+      "src": "pond.png",
+      "defaultWidth": 20
+    },
+    "pond2": {
+      "name": "池塘 2",
+      "price": 100,
+      "src": "pond2.png",
+      "defaultWidth": 20
+    },
+    "sign": {
+      "name": "招牌",
+      "price": 40,
+      "src": "sign-cutout.png",
+      "defaultWidth": 12
+    },
+    "room": {
+      "name": "小屋",
+      "price": 150,
+      "src": "room-cutout.png",
+      "defaultWidth": 28
+    },
+    "tree": {
+      "name": "树",
+      "price": 60,
+      "src": "trre-cutout.png",
+      "defaultWidth": 15
+    },
+    "hay": {
+      "name": "草垛",
+      "price": 35,
+      "src": "caoduo-cutout.png",
+      "defaultWidth": 14
+    },
+    "goods": {
+      "name": "货物",
+      "price": 45,
+      "src": "goods.png",
+      "defaultWidth": 12
+    },
+    "light": {
+      "name": "灯光",
+      "price": 30,
+      "src": "light.png",
+      "defaultWidth": 10
+    }
+  }
+}

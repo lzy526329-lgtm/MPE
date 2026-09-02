@@ -6,6 +6,7 @@ import {
   buyFood,
   buySeed,
   buySupply,
+  buyDecor,
   emptyGameViewState,
   sellProduce,
   toGameActionResult,
@@ -16,7 +17,7 @@ import {
 import { getFoodCatalogEntry } from './foodCatalog'
 import { getSupplyCatalogEntry } from './supplyCatalog'
 import { loadGame, readGameState, withGame, type GameStoreFileOps } from './gameStore'
-import type { FoodId, GameActionResult, GameViewState, SupplyId } from './gameTypes'
+import type { FoodId, GameActionResult, GameViewState, SupplyId, DecorId } from './gameTypes'
 
 export type GameHandlers = {
   getState: () => Promise<GameViewState>
@@ -26,6 +27,7 @@ export type GameHandlers = {
   useFood: (foodId: FoodId) => Promise<GameActionResult>
   buySupply: (supplyId: SupplyId) => Promise<GameActionResult>
   useSupply: (supplyId: SupplyId) => Promise<GameActionResult>
+  buyDecor: (decorId: DecorId) => Promise<GameActionResult>
 }
 
 export type GameHandlerOptions = {
@@ -238,6 +240,34 @@ export function createGameHandlers(options: GameHandlerOptions): GameHandlers {
       }
       return result
     },
+    buyDecor: async (decorId) => {
+      let result: GameActionResult
+      try {
+        result = toGameActionResult(
+          await withGame(
+            options.userDataPath,
+            options.now(),
+            (game) => buyDecor(game, decorId),
+            fileOps,
+          ),
+        )
+      } catch (error) {
+        console.error('[game] failed to persist a decor purchase', error)
+        return {
+          ok: false,
+          code: 'PERSISTENCE_FAILED',
+          message: '保存失败',
+          state: renderableState(),
+        }
+      }
+
+      remember(result.state)
+      if (result.ok) {
+        options.publish(result.state)
+        options.publishPetStatus()
+      }
+      return result
+    },
   }
 }
 
@@ -256,4 +286,5 @@ export function registerGameIpc(getMain: () => BrowserWindow | null): void {
   ipcMain.handle('game:use-food', (_event, foodId: FoodId) => handlers.useFood(foodId))
   ipcMain.handle('game:buy-supply', (_event, supplyId: SupplyId) => handlers.buySupply(supplyId))
   ipcMain.handle('game:use-supply', (_event, supplyId: SupplyId) => handlers.useSupply(supplyId))
+  ipcMain.handle('game:buy-decor', (_event, decorId: DecorId) => handlers.buyDecor(decorId))
 }

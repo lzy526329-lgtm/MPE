@@ -1,6 +1,6 @@
 import '@pixi/unsafe-eval'
 import 'pixi-spine'
-import { Application, Assets } from 'pixi.js'
+import { Application, Assets, Ticker } from 'pixi.js'
 import { Spine } from 'pixi-spine'
 import { bindSleepExclusiveSlots, playExclusiveAnimation } from './petSpineSlots'
 
@@ -49,6 +49,7 @@ function ensureSharedApp() {
   view.setAttribute('aria-hidden', 'true')
   document.body.appendChild(view)
   sharedApp.ticker.add(renderAllSlots)
+  if (!Ticker.shared.started) Ticker.shared.start()
   return sharedApp
 }
 
@@ -68,16 +69,16 @@ function disposeSharedAppIfIdle() {
 function renderAllSlots() {
   if (!sharedApp || slots.size === 0) return
   const renderer = sharedApp.renderer
-  const source = sharedApp.view as HTMLCanvasElement
 
   for (const slot of slots.values()) {
     const pixel = Math.round(slot.size * slot.resolution)
     if (renderer.width !== pixel || renderer.height !== pixel) {
       renderer.resize(pixel, pixel)
     }
-    renderer.render(slot.spine)
+    // 用 extract 离屏渲染，避免 WebGL 默认缓冲在 drawImage 时已被清空导致空白预览
+    const extracted = renderer.extract.canvas(slot.spine)
     slot.ctx.clearRect(0, 0, pixel, pixel)
-    slot.ctx.drawImage(source, 0, 0, pixel, pixel)
+    slot.ctx.drawImage(extracted as CanvasImageSource, 0, 0, pixel, pixel)
   }
 }
 

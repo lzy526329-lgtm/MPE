@@ -3,8 +3,9 @@ import type { CropId, FarmState } from '../farm/farmTypes'
 import { mergeLegacyProduce, mergeLegacySeeds, plotUnlockRequirement } from '../farm/farmCatalog'
 import { farmLevelFromTotalXp, grantFarmExperience } from '../farm/farmLevel'
 import { UNLOCK_PLOT_XP } from '../farm/farmLevelCatalog'
-import { INITIAL_COINS, PRODUCE_OFFERS, SEED_OFFERS, FOOD_OFFERS, SUPPLY_OFFERS, normalizeItemCount, seedCounts, foodCounts, supplyCounts } from './gameCatalog'
-import type { FoodId, SupplyId } from './gameTypes'
+import { INITIAL_COINS, PRODUCE_OFFERS, SEED_OFFERS, FOOD_OFFERS, SUPPLY_OFFERS, DECOR_OFFERS, normalizeItemCount, seedCounts, foodCounts, supplyCounts, decorCounts } from './gameCatalog'
+import type { FoodId, SupplyId, DecorId } from './gameTypes'
+import { buyDecor as buyDecorMutation } from '../farm/decorEngine'
 import type {
   FarmCoreState,
   FarmGameMutationResult,
@@ -31,6 +32,7 @@ function cloneInventory(inventory: InventoryState): InventoryState {
     supplies: cloneRecord(inventory.supplies),
     seeds: { ...inventory.seeds },
     produce: cloneRecord(inventory.produce),
+    decors: { ...inventory.decors },
   }
 }
 
@@ -38,6 +40,7 @@ function cloneFarmCore(farm: FarmCoreState): FarmCoreState {
   return {
     ...farm,
     plots: farm.plots.map((plot) => ({ ...plot })),
+    placedDecors: farm.placedDecors.map((decor) => ({ ...decor })),
   }
 }
 
@@ -81,6 +84,7 @@ export function createDefaultGameState(now: number): GameState {
       supplies: supplyCounts(),
       seeds,
       produce,
+      decors: decorCounts(),
     },
     farm: farmCore,
     migrations: {
@@ -104,6 +108,7 @@ export function migrateLegacyGameState(input: LegacyGameInput): GameState {
       supplies: supplyCounts(),
       seeds,
       produce,
+      decors: decorCounts(),
     },
     farm: farmCore,
     migrations: {
@@ -122,6 +127,7 @@ export function toGameViewState(state: GameState): GameViewState {
     produceOffers: PRODUCE_OFFERS.map((offer) => ({ ...offer })),
     foodOffers: FOOD_OFFERS.map((offer) => ({ ...offer })),
     supplyOffers: SUPPLY_OFFERS.map((offer) => ({ ...offer })),
+    decorOffers: DECOR_OFFERS.map((offer) => ({ ...offer })),
   }
 }
 
@@ -132,11 +138,18 @@ export function toGameViewState(state: GameState): GameViewState {
 export function emptyGameViewState(): GameViewState {
   return {
     wallet: { coins: 0 },
-    inventory: { food: foodCounts(), supplies: supplyCounts(), seeds: seedCounts(), produce: {} },
+    inventory: {
+      food: foodCounts(),
+      supplies: supplyCounts(),
+      seeds: seedCounts(),
+      produce: {},
+      decors: decorCounts(),
+    },
     seedOffers: SEED_OFFERS.map((offer) => ({ ...offer })),
     produceOffers: PRODUCE_OFFERS.map((offer) => ({ ...offer })),
     foodOffers: FOOD_OFFERS.map((offer) => ({ ...offer })),
     supplyOffers: SUPPLY_OFFERS.map((offer) => ({ ...offer })),
+    decorOffers: DECOR_OFFERS.map((offer) => ({ ...offer })),
   }
 }
 
@@ -516,6 +529,12 @@ export function useSupply(state: GameState, supplyId: string): GameMutationResul
     game,
     state: toGameViewState(game),
   }
+}
+
+export function buyDecor(state: GameState, decorId: string): GameMutationResult {
+  const result = buyDecorMutation(state, decorId, toGameViewState(state))
+  if (!result.ok) return result
+  return { ok: true, game: result.game, state: toGameViewState(result.game) }
 }
 
 export function toGameActionResult(result: GameMutationResult): GameActionResult {

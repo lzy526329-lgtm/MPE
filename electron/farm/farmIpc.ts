@@ -28,12 +28,22 @@ import {
   PLANT_XP,
   harvestXpForCrop,
 } from './farmLevelCatalog'
-import type { CropId, FarmPageContext, FarmState } from './farmTypes'
+import type { CropId, FarmPageContext, FarmState, PlacedDecor } from './farmTypes'
+import {
+  placeDecor,
+  removePlacedDecor,
+  savePlacedDecors,
+} from './decorEngine'
+import type { DecorId } from '../game/gameTypes'
 
 export const FARM_PERSISTENCE_ERROR = '保存失败，请重试'
 
 export type PlotRequest = { plotIndex: number }
 export type PlantRequest = { plotIndex: number; cropId: CropId }
+
+export type PlaceDecorRequest = { decorId: DecorId }
+export type RemoveDecorRequest = { instanceId: string }
+export type SavePlacedDecorsRequest = { placedDecors: PlacedDecor[] }
 
 export type FarmHandlers = {
   getState: () => Promise<FarmActionResult>
@@ -45,6 +55,9 @@ export type FarmHandlers = {
   claimDailySeeds: () => Promise<FarmActionResult>
   waterAll: () => Promise<FarmActionResult>
   harvestAll: () => Promise<FarmActionResult>
+  placeDecor: (request: PlaceDecorRequest) => Promise<FarmActionResult>
+  removeDecor: (request: RemoveDecorRequest) => Promise<FarmActionResult>
+  savePlacedDecors: (request: SavePlacedDecorsRequest) => Promise<FarmActionResult>
 }
 
 export type FarmHandlerName = keyof FarmHandlers
@@ -74,6 +87,7 @@ function buildFarmContext(game: GameState, levelUpMessage?: string): FarmPageCon
       required: progress.required,
       isMaxLevel: progress.isMaxLevel,
     },
+    ownedDecors: { ...game.inventory.decors },
     ...(levelUpMessage ? { levelUpMessage } : {}),
   }
 }
@@ -192,6 +206,49 @@ export function createFarmHandlers(options: FarmHandlerOptions): FarmHandlers {
     return attachContext(mutation.farm, context)
   }
 
+  const runDecor = async (
+    action: (game: GameState) => { ok: boolean; message?: string; game: GameState },
+  ): Promise<FarmActionResult> => {
+    const now = options.now()
+    const userDataPath = options.userDataPath()
+
+    try {
+      const mutation = await withGame(
+        userDataPath,
+        now,
+        (game) => {
+          const result = action(game)
+          if (!result.ok) {
+            return { ok: false, game: result.game, error: result.message ?? '操作失败' }
+          }
+          return { ok: true, game: result.game }
+        },
+        fileOps,
+      )
+
+      const context = buildFarmContext(mutation.game)
+      if (!mutation.ok) {
+        return attachContext(
+          {
+            ok: false,
+            error: 'error' in mutation ? String(mutation.error) : '操作失败',
+            state: toCompatFarmState(mutation.game),
+          },
+          context,
+        )
+      }
+
+      options.publish(toGameViewState(mutation.game))
+      return attachContext({ ok: true, state: toCompatFarmState(mutation.game) }, context)
+    } catch (error) {
+      console.error('[farm] failed to persist decor action', error)
+      return attachContext(
+        { ok: false, error: FARM_PERSISTENCE_ERROR, state: fallbackFarm(userDataPath, now) },
+        fallbackContext(userDataPath, now),
+      )
+    }
+  }
+
   return {
     getState: () => run((farm, now) => ({ ok: true, state: rollOpenEvents(farm, now) })),
     plant: (request) =>
@@ -226,6 +283,30 @@ export function createFarmHandlers(options: FarmHandlerOptions): FarmHandlers {
             return sum + harvestXpForCrop(plot.cropId)
           }, 0),
       ),
+    placeDecor: (request) =>
+      runDecor((game) => {
+        const view = toGameViewState(game)
+        const result = placeDecor(game, request.decorId, view)
+        return result.ok
+          ? { ok: true, game: result.game }
+          : { ok: false, message: result.message, game: result.game }
+      }),
+    removeDecor: (request) =>
+      runDecor((game) => {
+        const view = toGameViewState(game)
+        const result = removePlacedDecor(game, request.instanceId, view)
+        return result.ok
+          ? { ok: true, game: result.game }
+          : { ok: false, message: result.message, game: result.game }
+      }),
+    savePlacedDecors: (request) =>
+      runDecor((game) => {
+        const view = toGameViewState(game)
+        const result = savePlacedDecors(game, request.placedDecors, view)
+        return result.ok
+          ? { ok: true, game: result.game }
+          : { ok: false, message: result.message, game: result.game }
+      }),
   }
 }
 
@@ -246,4 +327,9 @@ export function registerFarmIpc(getMain: () => BrowserWindow | null): void {
   ipcMain.handle('farm:claim-daily-seeds', () => handlers.claimDailySeeds())
   ipcMain.handle('farm:water-all', () => handlers.waterAll())
   ipcMain.handle('farm:harvest-all', () => handlers.harvestAll())
+  ipcMain.handle('farm:place-decor', (_event, request: PlaceDecorRequest) => handlers.placeDecor(request))
+  ipcMain.handle('farm:remove-decor', (_event, request: RemoveDecorRequest) => handlers.removeDecor(request))
+  ipcMain.handle('farm:save-placed-decors', (_event, request: SavePlacedDecorsRequest) =>
+    handlers.savePlacedDecors(request),
+  )
 }

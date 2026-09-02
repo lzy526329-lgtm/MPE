@@ -3,6 +3,7 @@ import type { GameViewState } from '../electron/game/gameTypes'
 import { ownedFoodOffers, renderFeedFoodPicker } from './feedFoodPicker'
 
 import { withSupplyCounts } from '../electron/game/supplyCatalog'
+import { withDecorCounts } from '../electron/game/decorCatalog'
 
 const state: GameViewState = {
   wallet: { coins: 100 },
@@ -11,6 +12,7 @@ const state: GameViewState = {
     supplies: withSupplyCounts({}),
     seeds: { wheat: 0, banana: 0, apple: 0, corn: 0, durian: 0 },
     produce: {},
+    decors: withDecorCounts({}),
   },
   seedOffers: [],
   produceOffers: [],
@@ -19,6 +21,7 @@ const state: GameViewState = {
     { foodId: 'chocolate', name: '巧克力', price: 5, satiety: 18 },
   ],
   supplyOffers: [],
+  decorOffers: [],
 }
 
 describe('feed food picker', () => {

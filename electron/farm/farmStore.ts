@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { CROPS, mergeLegacyProduce, mergeLegacySeeds, normalizeLegacyCropId, PLOT_COUNT } from './farmCatalog'
+import { parsePlacedDecors } from './decorEngine'
 import { createDefaultFarm, migratePlotLocks, settle, type FarmActionResult } from './farmEngine'
 import type { CropId, FarmState, PlotState } from './farmTypes'
 
@@ -93,6 +94,7 @@ function normalizeFarmPayload(value: unknown, plotCount: number): FarmState | nu
         : 0,
     ...(value.lastDailySeedClaimAt ? { lastDailySeedClaimAt: value.lastDailySeedClaimAt } : {}),
     ...(value.lastWeatherRollAt !== undefined ? { lastWeatherRollAt: value.lastWeatherRollAt } : {}),
+    placedDecors: parsePlacedDecors(value.placedDecors),
   }
 }
 
