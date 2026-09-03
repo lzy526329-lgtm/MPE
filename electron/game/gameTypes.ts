@@ -34,6 +34,8 @@ export type ProduceOffer = { produceId: string; name: string; price: number }
 export type GameViewState = {
   wallet: WalletState
   inventory: InventoryState
+  /** 已摆放装饰数量（按类型），用于商店上限展示 */
+  placedDecorCounts: Record<DecorId, number>
   seedOffers: SeedOffer[]
   produceOffers: ProduceOffer[]
   foodOffers: FoodOffer[]

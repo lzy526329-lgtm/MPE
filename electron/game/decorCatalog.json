@@ -23,7 +23,12 @@
       "name": "小屋",
       "price": 150,
       "src": "room-cutout.png",
-      "defaultWidth": 28
+      "defaultWidth": 28,
+      "max": 1,
+      "farmClick": {
+        "action": "toast",
+        "message": "暂未开放"
+      }
     },
     "tree": {
       "name": "树",
@@ -41,13 +46,71 @@
       "name": "货物",
       "price": 45,
       "src": "goods.png",
-      "defaultWidth": 12
+      "defaultWidth": 12,
+      "max": 1,
+      "farmClick": {
+        "action": "openShop"
+      }
     },
     "light": {
       "name": "灯光",
       "price": 30,
       "src": "light.png",
       "defaultWidth": 10
+    },
+    "carpet": {
+      "name": "地毯",
+      "price": 50,
+      "src": "地毯-cutout.png",
+      "defaultWidth": 22
+    },
+    "windmill": {
+      "name": "大风车",
+      "price": 120,
+      "src": "大风车-cutout.png",
+      "defaultWidth": 18
+    },
+    "stool": {
+      "name": "板凳",
+      "price": 25,
+      "src": "板凳-cutout.png",
+      "defaultWidth": 10
+    },
+    "scarecrow": {
+      "name": "稻草人",
+      "price": 55,
+      "src": "稻草人-cutout.png",
+      "defaultWidth": 12
+    },
+    "flowers": {
+      "name": "花丛",
+      "price": 40,
+      "src": "花丛1-cutout.png",
+      "defaultWidth": 14
+    },
+    "flowerpot": {
+      "name": "花盆",
+      "price": 28,
+      "src": "花盆-cutout.png",
+      "defaultWidth": 8
+    },
+    "mushroom": {
+      "name": "蘑菇",
+      "price": 22,
+      "src": "蘑菇-cutout.png",
+      "defaultWidth": 8
+    },
+    "mailbox": {
+      "name": "邮箱",
+      "price": 35,
+      "src": "邮箱-cutout.png",
+      "defaultWidth": 8
+    },
+    "bench": {
+      "name": "长椅",
+      "price": 45,
+      "src": "长椅-cutout.png",
+      "defaultWidth": 16
     }
   }
 }

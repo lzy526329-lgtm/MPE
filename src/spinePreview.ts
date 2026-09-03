@@ -1,6 +1,6 @@
 import '@pixi/unsafe-eval'
 import 'pixi-spine'
-import { Application, Assets, Ticker } from 'pixi.js'
+import { Application, Assets, RenderTexture, Ticker } from 'pixi.js'
 import { Spine } from 'pixi-spine'
 import { bindSleepExclusiveSlots, playExclusiveAnimation } from './petSpineSlots'
 
@@ -25,6 +25,7 @@ const spineDataCache = new Map<string, unknown>()
 const spineDataInflight = new Map<string, Promise<unknown>>()
 
 let sharedApp: Application | null = null
+let sharedExtractRt: RenderTexture | null = null
 let nextSlotId = 1
 const slots = new Map<number, PreviewSlot>()
 
@@ -53,10 +54,17 @@ function ensureSharedApp() {
   return sharedApp
 }
 
+function disposeSharedExtractRt() {
+  if (!sharedExtractRt) return
+  sharedExtractRt.destroy(true)
+  sharedExtractRt = null
+}
+
 function disposeSharedAppIfIdle() {
   if (!sharedApp || slots.size > 0) return
   sharedApp.ticker.remove(renderAllSlots)
   const view = sharedApp.view as HTMLCanvasElement
+  disposeSharedExtractRt()
   sharedApp.destroy(true, {
     children: true,
     texture: false,
@@ -64,6 +72,15 @@ function disposeSharedAppIfIdle() {
   })
   sharedApp = null
   view.remove()
+}
+
+function ensureExtractRt(pixel: number): RenderTexture {
+  if (sharedExtractRt && sharedExtractRt.width === pixel && sharedExtractRt.height === pixel) {
+    return sharedExtractRt
+  }
+  disposeSharedExtractRt()
+  sharedExtractRt = RenderTexture.create({ width: pixel, height: pixel })
+  return sharedExtractRt
 }
 
 function renderAllSlots() {
@@ -75,8 +92,10 @@ function renderAllSlots() {
     if (renderer.width !== pixel || renderer.height !== pixel) {
       renderer.resize(pixel, pixel)
     }
-    // 用 extract 离屏渲染，避免 WebGL 默认缓冲在 drawImage 时已被清空导致空白预览
-    const extracted = renderer.extract.canvas(slot.spine)
+    // 固定尺寸 RT 再 extract，保留 fit 后的留白；避免直接 extract(spine) 按内容裁切再拉伸导致大小乱跳
+    const rt = ensureExtractRt(pixel)
+    renderer.render(slot.spine, { renderTexture: rt, clear: true })
+    const extracted = renderer.extract.canvas(rt)
     slot.ctx.clearRect(0, 0, pixel, pixel)
     slot.ctx.drawImage(extracted as CanvasImageSource, 0, 0, pixel, pixel)
   }
@@ -125,13 +144,13 @@ function fitSpineToBox(character: Spine, viewSize: number, animation?: string) {
   character.pivot.set(0, 0)
   character.skeleton.setToSetupPose()
 
+  // 以 idle 为主定缩放（和早期预览一致，大小刚好）；非 idle 再并入自身框，避免挤出
   const idle = preferredIdle(character)
   const target = animation || idle
-  let box = target ? sampleAnimationBounds(character, target) : null
-  // 用 idle 框兜底，避免 die/down 等动画把角色挤出画布
-  if (idle && idle !== target) {
-    const idleBox = sampleAnimationBounds(character, idle)
-    if (idleBox) box = box ? unionBounds(box, idleBox) : idleBox
+  let box = idle ? sampleAnimationBounds(character, idle) : null
+  if (target && target !== idle) {
+    const targetBox = sampleAnimationBounds(character, target)
+    if (targetBox) box = box ? unionBounds(box, targetBox) : targetBox
   }
   if (!box || box.width < 1 || box.height < 1) {
     character.autoUpdate = true
@@ -147,7 +166,12 @@ function fitSpineToBox(character: Spine, viewSize: number, animation?: string) {
   character.autoUpdate = true
 }
 
-function applyPixelFit(character: Spine, logicalSize: number, resolution: number, animation?: string) {
+function applyPixelFit(
+  character: Spine,
+  logicalSize: number,
+  resolution: number,
+  animation?: string,
+) {
   fitSpineToBox(character, logicalSize, animation)
   character.scale.x *= resolution
   character.scale.y *= resolution

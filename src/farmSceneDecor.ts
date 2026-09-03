@@ -1,4 +1,5 @@
 import { resolveFarmAssetUrl } from './farmAssets'
+import { getDecorFarmClick } from '../electron/game/decorCatalog'
 
 import type { PlacedDecor } from '../electron/farm/farmTypes'
 
@@ -34,6 +35,15 @@ export const FARM_DECOR_CATALOG: FarmDecorCatalogItem[] = [
   { id: 'hay', label: '草垛', src: 'caoduo-cutout.png' },
   { id: 'goods', label: '货物', src: 'goods.png' },
   { id: 'light', label: '灯光', src: 'light.png' },
+  { id: 'carpet', label: '地毯', src: '地毯-cutout.png' },
+  { id: 'windmill', label: '大风车', src: '大风车-cutout.png' },
+  { id: 'stool', label: '板凳', src: '板凳-cutout.png' },
+  { id: 'scarecrow', label: '稻草人', src: '稻草人-cutout.png' },
+  { id: 'flowers', label: '花丛', src: '花丛1-cutout.png' },
+  { id: 'flowerpot', label: '花盆', src: '花盆-cutout.png' },
+  { id: 'mushroom', label: '蘑菇', src: '蘑菇-cutout.png' },
+  { id: 'mailbox', label: '邮箱', src: '邮箱-cutout.png' },
+  { id: 'bench', label: '长椅', src: '长椅-cutout.png' },
 ]
 
 export const DEFAULT_FARM_DECORS: FarmDecorDef[] = []
@@ -122,17 +132,19 @@ export function farmDecorInlineStyle(decor: FarmDecorDef): string {
 export function renderFarmDecorHtml(decors: FarmDecorDef[]): string {
   if (decors.length === 0) return ''
   const items = decors
-    .map(
-      (decor) => `
+    .map((decor) => {
+      const interactive = getDecorFarmClick(decor.decorId) ? ' farm-decor--interactive' : ''
+      return `
         <img
-          class="farm-decor"
+          class="farm-decor${interactive}"
           data-decor-id="${decor.id}"
+          data-decor-type="${decor.decorId}"
           src="${resolveFarmAssetUrl(decor.src)}"
           alt=""
           draggable="false"
           style="${farmDecorInlineStyle(decor)}"
-        />`,
-    )
+        />`
+    })
     .join('')
   return `<div class="farm-decor-layer" aria-hidden="true">${items}</div>`
 }
@@ -160,14 +172,16 @@ export function syncFarmDecorDom(stage: HTMLElement, decors: FarmDecorDef[]): vo
     if (!img) {
       layer.insertAdjacentHTML(
         'beforeend',
-        `<img class="farm-decor" data-decor-id="${decor.id}" src="${resolveFarmAssetUrl(decor.src)}" alt="" draggable="false" />`,
+        `<img class="farm-decor" data-decor-id="${decor.id}" data-decor-type="${decor.decorId}" src="${resolveFarmAssetUrl(decor.src)}" alt="" draggable="false" />`,
       )
       img = layer.querySelector<HTMLImageElement>(`.farm-decor[data-decor-id="${decor.id}"]`)!
     }
     img.src = resolveFarmAssetUrl(decor.src)
+    img.dataset.decorType = decor.decorId
     img.setAttribute('style', farmDecorInlineStyle(decor))
     img.classList.toggle('farm-decor--flip-x', Boolean(decor.flipX))
     img.classList.toggle('farm-decor--locked', Boolean(decor.locked))
+    img.classList.toggle('farm-decor--interactive', Boolean(getDecorFarmClick(decor.decorId)))
     existing.delete(decor.id)
   }
 

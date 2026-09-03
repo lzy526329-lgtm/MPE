@@ -1,4 +1,5 @@
 import {
+  countOwnedDecor,
   getDecorCatalogEntry,
   getDecorIds,
   type DecorId,
@@ -97,6 +98,19 @@ export function buyDecor(state: GameState, decorId: string, view: GameMutationRe
   }
 
   const offer = getDecorCatalogEntry(decorId)
+  if (offer.max !== undefined) {
+    const owned = countOwnedDecor(state, decorId)
+    if (owned >= offer.max) {
+      return {
+        ok: false,
+        code: 'INVALID_STATE',
+        message: `最多购买 ${offer.max} 个`,
+        game: cloneGame(state),
+        state: view,
+      }
+    }
+  }
+
   if (state.wallet.coins < offer.price) {
     return {
       ok: false,

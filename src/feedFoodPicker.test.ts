@@ -14,6 +14,7 @@ const state: GameViewState = {
     produce: {},
     decors: withDecorCounts({}),
   },
+  placedDecorCounts: withDecorCounts({}),
   seedOffers: [],
   produceOffers: [],
   foodOffers: [

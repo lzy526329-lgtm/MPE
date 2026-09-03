@@ -28,6 +28,7 @@ const state: GameViewState = {
     produce: {},
     decors: withDecorCounts({}),
   },
+  placedDecorCounts: withDecorCounts({}),
   seedOffers: [{ cropId: 'wheat', name: '小麦种子', price: 5 }],
   produceOffers: [{ produceId: 'wheat', name: '小麦', price: 4 }],
   foodOffers: [{ foodId: 'cookie', name: '饼干', price: 3, satiety: 12 }],

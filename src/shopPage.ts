@@ -57,10 +57,15 @@ function renderDecorOffer(
   busyDecorId: string | null,
 ): string {
   const buying = busyDecorId === offer.decorId
+  const bag = state.inventory.decors[offer.decorId] ?? 0
+  const placed = state.placedDecorCounts[offer.decorId] ?? 0
+  const owned = bag + placed
+  const atMax = offer.max !== undefined && owned >= offer.max
   const affordable = canBuySeed(state.wallet.coins, offer.price)
-  const disabled = busyDecorId !== null || !affordable
-  const owned = state.inventory.decors[offer.decorId] ?? 0
+  const disabled = busyDecorId !== null || !affordable || atMax
   const shopIcon = decorCatalogIconHtml(offer.src, 'shop-offer-icon')
+  const ownedLabel =
+    offer.max !== undefined ? `拥有 ${owned}/${offer.max}` : `拥有 ${owned}`
 
   return `
     <article class="shop-offer-card">
@@ -69,17 +74,18 @@ function renderDecorOffer(
         <div>
           <h2>${escapeHtml(offer.name)}</h2>
           <p class="shop-offer-grow">农场装饰</p>
-          <p>拥有 ${owned}</p>
+          <p>${ownedLabel}</p>
         </div>
       </div>
       <div class="shop-offer-action">
         <strong>${offer.price} 金币</strong>
-        ${!affordable ? '<span class="shop-offer-warning">金币不足</span>' : ''}
+        ${atMax ? '<span class="shop-offer-warning">已达上限</span>' : ''}
+        ${!atMax && !affordable ? '<span class="shop-offer-warning">金币不足</span>' : ''}
         <button
           class="primary-button shop-buy-button"
           type="button"
           data-buy-decor="${escapeHtml(offer.decorId)}"${disabled ? ' disabled' : ''}
-        >${buying ? '购买中…' : '购买 1 件'}</button>
+        >${buying ? '购买中…' : atMax ? '已满' : '购买 1 件'}</button>
       </div>
     </article>
   `
@@ -398,6 +404,9 @@ export function mountShopPage(): void {
     if (!state || busyDecorId !== null) return
     const offer = state.decorOffers.find((item) => item.decorId === decorId)
     if (!offer || !canBuySeed(state.wallet.coins, offer.price)) return
+    const owned =
+      (state.inventory.decors[decorId] ?? 0) + (state.placedDecorCounts[decorId] ?? 0)
+    if (offer.max !== undefined && owned >= offer.max) return
 
     busyDecorId = decorId
     error = null
@@ -405,7 +414,7 @@ export function mountShopPage(): void {
     try {
       const result = await window.electronAPI.gameBuyDecor(decorId)
       state = result.state
-      if (!result.ok) error = gameErrorMessage(result.code)
+      if (!result.ok) error = result.message || gameErrorMessage(result.code)
     } catch {
       error = '购买失败，请重试。'
     } finally {

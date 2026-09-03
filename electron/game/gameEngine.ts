@@ -4,6 +4,7 @@ import { mergeLegacyProduce, mergeLegacySeeds, plotUnlockRequirement } from '../
 import { farmLevelFromTotalXp, grantFarmExperience } from '../farm/farmLevel'
 import { UNLOCK_PLOT_XP } from '../farm/farmLevelCatalog'
 import { INITIAL_COINS, PRODUCE_OFFERS, SEED_OFFERS, FOOD_OFFERS, SUPPLY_OFFERS, DECOR_OFFERS, normalizeItemCount, seedCounts, foodCounts, supplyCounts, decorCounts } from './gameCatalog'
+import { buildEmptyDecorCounts } from './decorCatalog'
 import type { FoodId, SupplyId, DecorId } from './gameTypes'
 import { buyDecor as buyDecorMutation } from '../farm/decorEngine'
 import type {
@@ -119,10 +120,21 @@ export function migrateLegacyGameState(input: LegacyGameInput): GameState {
   }
 }
 
+function countPlacedDecors(state: GameState): Record<DecorId, number> {
+  const counts = buildEmptyDecorCounts()
+  for (const item of state.farm.placedDecors) {
+    if (item.decorId in counts) {
+      counts[item.decorId as DecorId] += 1
+    }
+  }
+  return counts
+}
+
 export function toGameViewState(state: GameState): GameViewState {
   return {
     wallet: { ...state.wallet },
     inventory: cloneInventory(state.inventory),
+    placedDecorCounts: countPlacedDecors(state),
     seedOffers: SEED_OFFERS.map((offer) => ({ ...offer })),
     produceOffers: PRODUCE_OFFERS.map((offer) => ({ ...offer })),
     foodOffers: FOOD_OFFERS.map((offer) => ({ ...offer })),
@@ -145,6 +157,7 @@ export function emptyGameViewState(): GameViewState {
       produce: {},
       decors: decorCounts(),
     },
+    placedDecorCounts: buildEmptyDecorCounts(),
     seedOffers: SEED_OFFERS.map((offer) => ({ ...offer })),
     produceOffers: PRODUCE_OFFERS.map((offer) => ({ ...offer })),
     foodOffers: FOOD_OFFERS.map((offer) => ({ ...offer })),

@@ -11,9 +11,10 @@ import {
   plotSoilSrc,
   syncFarmPlotLayout,
 } from './farmAssets'
-import { onPageChange } from './appNavigation'
+import { navigateToPage, onPageChange } from './appNavigation'
 import { openFarmLevelGuide } from './farmLevelGuide'
 import type { DecorId } from '../electron/game/gameTypes'
+import { getDecorFarmClick } from '../electron/game/decorCatalog'
 import { playFarmPesticideEffect, playFarmWaterEffect, preloadFarmPlotEffect } from './farmPlotWaterEffect'
 import { placedDecorsToFarmDecors, farmDecorsToPlaced, renderFarmDecorHtml, syncFarmDecorDom, type FarmDecorDef } from './farmSceneDecor'
 import { mountFarmSceneEditor, type FarmSceneEditorHandle } from './farmSceneEditor'
@@ -524,9 +525,26 @@ function setupFarmPage(farmRoot: HTMLElement) {
     stage?.addEventListener('click', (event) => {
       if (!stage) return
       if (sceneEditor?.isActive()) return
+
+      // 地块优先：小屋/货物大图透明区域会盖住地块，不能抢点击
       const plotIndex = findPlotIndexAtClientPoint(stage, event.clientX, event.clientY)
-      if (plotIndex === null) return
-      handlePlotClick(plotIndex)
+      if (plotIndex !== null) {
+        handlePlotClick(plotIndex)
+        return
+      }
+
+      const decorEl = (event.target as Element | null)?.closest?.('.farm-decor') as HTMLElement | null
+      if (decorEl?.dataset.decorType) {
+        const farmClick = getDecorFarmClick(decorEl.dataset.decorType)
+        if (farmClick?.action === 'toast') {
+          showToast(farmClick.message)
+          return
+        }
+        if (farmClick?.action === 'openShop') {
+          navigateToPage('shop-page')
+          return
+        }
+      }
     })
 
     farmRoot.querySelectorAll<HTMLButtonElement>('.farm-seed-card').forEach((btn) => {

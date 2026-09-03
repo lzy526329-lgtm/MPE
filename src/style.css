@@ -2962,9 +2962,19 @@ input[type="range"] {
   position: absolute;
   height: auto;
   object-fit: contain;
-  pointer-events: auto;
+  pointer-events: none;
   user-select: none;
   touch-action: none;
+}
+
+/* 非编辑：仅带交互的装饰可点；编辑模式全部可拖 */
+.farm-stage:not(.farm-stage--editing) .farm-decor--interactive {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.farm-stage--editing .farm-decor {
+  pointer-events: auto;
 }
 
 .farm-decor--flip-x {

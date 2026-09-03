@@ -1,11 +1,19 @@
 import catalog from './decorCatalog.json'
 
+export type DecorFarmClick =
+  | { action: 'toast'; message: string }
+  | { action: 'openShop' }
+
 export type DecorCatalogEntry = {
   name: string
   price: number
   /** public/farm/ 下的文件名 */
   src: string
   defaultWidth: number
+  /** 最多可拥有数量（背包未摆 + 已摆放）；省略表示不限 */
+  max?: number
+  /** 农场非编辑模式下点击已摆放装饰的行为 */
+  farmClick?: DecorFarmClick
 }
 
 export type DecorCatalogFile = {
@@ -23,6 +31,22 @@ export type DecorOffer = {
   price: number
   src: string
   defaultWidth: number
+  max?: number
+}
+
+function assertFarmClick(id: string, value: unknown): asserts value is DecorFarmClick {
+  if (!value || typeof value !== 'object') {
+    throw new Error(`decorCatalog: ${id}.farmClick must be an object`)
+  }
+  const click = value as Record<string, unknown>
+  if (click.action === 'toast') {
+    if (typeof click.message !== 'string' || click.message.trim().length === 0) {
+      throw new Error(`decorCatalog: ${id}.farmClick.message must be a non-empty string`)
+    }
+    return
+  }
+  if (click.action === 'openShop') return
+  throw new Error(`decorCatalog: ${id}.farmClick.action must be toast or openShop`)
 }
 
 function assertDecorEntry(id: string, entry: DecorCatalogEntry): void {
@@ -41,6 +65,12 @@ function assertDecorEntry(id: string, entry: DecorCatalogEntry): void {
   if (entry.defaultWidth <= 0 || entry.defaultWidth > 60) {
     throw new Error(`decorCatalog: ${id}.defaultWidth must be between 1 and 60`)
   }
+  if (entry.max !== undefined) {
+    if (typeof entry.max !== 'number' || !Number.isInteger(entry.max) || entry.max < 1) {
+      throw new Error(`decorCatalog: ${id}.max must be a positive integer`)
+    }
+  }
+  if (entry.farmClick !== undefined) assertFarmClick(id, entry.farmClick)
 }
 
 function decorEntries(): [DecorId, DecorCatalogEntry][] {
@@ -72,6 +102,20 @@ export function getDecorAssetPath(decorId: DecorId): string {
   return getDecorCatalogEntry(decorId).src
 }
 
+export function getDecorFarmClick(decorId: string): DecorFarmClick | null {
+  if (!getDecorIds().includes(decorId as DecorId)) return null
+  return getDecorCatalogEntry(decorId as DecorId).farmClick ?? null
+}
+
+export function countOwnedDecor(state: {
+  inventory: { decors: Record<string, number> }
+  farm: { placedDecors: { decorId: string }[] }
+}, decorId: DecorId): number {
+  const bag = state.inventory.decors[decorId] ?? 0
+  const placed = state.farm.placedDecors.filter((item) => item.decorId === decorId).length
+  return bag + placed
+}
+
 export function buildDecorOffers(): readonly DecorOffer[] {
   return decorEntries().map(([decorId, entry]) => ({
     decorId,
@@ -79,6 +123,7 @@ export function buildDecorOffers(): readonly DecorOffer[] {
     price: entry.price,
     src: entry.src,
     defaultWidth: entry.defaultWidth,
+    ...(entry.max !== undefined ? { max: entry.max } : {}),
   }))
 }
 
