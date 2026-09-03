@@ -11,11 +11,12 @@ import {
   plotSoilSrc,
   syncFarmPlotLayout,
 } from './farmAssets'
-import { navigateToPage, onPageChange } from './appNavigation'
+import { navigateToPage, onPageChange, getCurrentPage } from './appNavigation'
 import { openFarmLevelGuide } from './farmLevelGuide'
 import type { DecorId } from '../electron/game/gameTypes'
 import { getDecorFarmClick } from '../electron/game/decorCatalog'
 import { playFarmPesticideEffect, playFarmWaterEffect, preloadFarmPlotEffect } from './farmPlotWaterEffect'
+import { createFarmPollen, type FarmPollenHandle } from './farmPollenEffect'
 import { placedDecorsToFarmDecors, farmDecorsToPlaced, renderFarmDecorHtml, syncFarmDecorDom, type FarmDecorDef } from './farmSceneDecor'
 import { mountFarmSceneEditor, type FarmSceneEditorHandle } from './farmSceneEditor'
 
@@ -209,6 +210,7 @@ function setupFarmPage(farmRoot: HTMLElement) {
   let closeLevelGuide: (() => void) | undefined
   let farmDecors: FarmDecorDef[] = []
   let sceneEditor: FarmSceneEditorHandle | undefined
+  const pollen: FarmPollenHandle = createFarmPollen()
 
   function syncDecorsFromState(state: FarmState) {
     farmDecors = placedDecorsToFarmDecors(state.placedDecors ?? [])
@@ -343,6 +345,11 @@ function setupFarmPage(farmRoot: HTMLElement) {
     syncPlotLayout()
     ensurePlotLayoutResizeObserver()
     ensureSceneEditor()
+    const stage = farmRoot.querySelector<HTMLElement>('.farm-stage')
+    if (stage) {
+      pollen.attach(stage)
+      pollen.setWeather(farmState.weather)
+    }
   }
 
   function ensureSceneEditor() {
@@ -568,9 +575,12 @@ function setupFarmPage(farmRoot: HTMLElement) {
   onPageChange((pageId) => {
     closeLevelGuide?.()
     closeLevelGuide = undefined
-    if (pageId === 'farm-page') void refresh()
+    const onFarm = pageId === 'farm-page'
+    pollen.setActive(onFarm)
+    if (onFarm) void refresh()
   })
 
+  pollen.setActive(getCurrentPage() === 'farm-page')
   void refresh()
   void preloadFarmPlotEffect('water')
   void preloadFarmPlotEffect('pesticide')
