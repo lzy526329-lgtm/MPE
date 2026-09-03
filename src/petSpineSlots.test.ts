@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyExclusiveSlots,
+  bindSleepExclusiveSlots,
   buildExclusiveSlotPlan,
+  playExclusiveAnimation,
   type ExclusiveSlotSnapshot,
 } from './petSpineSlots'
 
@@ -50,6 +52,11 @@ function createSkeleton(planSlots: ExclusiveSlotSnapshot['slots']) {
     setAttachment(slotName: string, attachmentName?: string | null) {
       attachments.set(slotName, attachmentName ?? null)
     },
+    setSlotsToSetupPose() {
+      for (const slot of slots) {
+        attachments.set(slot.data.name, slot.data.attachmentName ?? null)
+      }
+    },
   }
 }
 
@@ -90,5 +97,129 @@ describe('exclusive animation slots', () => {
     expect(skeleton.attachments.get('food')).toBe('food')
     expect(skeleton.attachments.get('zhentou')).toBeNull()
     expect(skeleton.attachments.get('body_1')).toBeNull()
+  })
+
+  it('re-syncs visuals after exclusive slots so shuijiao is not left standing', () => {
+    const skeleton = createSkeleton(cupidLike.slots)
+    let synced: Record<string, string | null> = {}
+    const character = {
+      spineData: {
+        bones: cupidLike.bones.map((bone) => ({
+          name: bone.name,
+          parent: bone.parent ? { name: bone.parent } : null,
+        })),
+        slots: cupidLike.slots.map((slot) => ({
+          name: slot.name,
+          attachmentName: slot.attachmentName,
+          boneData: { name: slot.bone },
+        })),
+        animations: Object.entries(cupidLike.animationBones).map(([name, boneNames]) => ({
+          name,
+          timelines: boneNames.map((boneName) => ({
+            boneIndex: cupidLike.bones.findIndex((bone) => bone.name === boneName),
+          })),
+        })),
+      },
+      skeleton,
+      state: {
+        current: 'shuijiao' as string | null,
+        setAnimation(_track: number, name: string) {
+          this.current = name
+        },
+        getCurrent() {
+          return this.current ? { animation: { name: this.current } } : null
+        },
+      },
+      // Mimic pixi-spine: sync draw state from attachments inside update, before callers can patch slots.
+      update(_delta: number) {
+        synced = {
+          body_1: skeleton.attachments.get('body_1') ?? null,
+          zhentou: skeleton.attachments.get('zhentou') ?? null,
+          tou: skeleton.attachments.get('tou') ?? null,
+        }
+      },
+    }
+
+    bindSleepExclusiveSlots(character as never)
+    playExclusiveAnimation(character, 'shuijiao', true)
+
+    expect(synced.body_1).toBeNull()
+    expect(synced.zhentou).toBe('zhentou')
+    expect(synced.tou).toBe('tou')
+  })
+
+  it('keeps shuijiao exclusive plan after a prior preview mutes shared SlotData', () => {
+    const sharedSlotData = cupidLike.slots.map((slot) => ({
+      name: slot.name,
+      attachmentName: slot.attachmentName ?? null,
+      boneData: { name: slot.bone },
+    }))
+    const sharedSpineData = {
+      bones: cupidLike.bones.map((bone) => ({
+        name: bone.name,
+        parent: bone.parent ? { name: bone.parent } : null,
+      })),
+      slots: sharedSlotData,
+      animations: Object.entries(cupidLike.animationBones).map(([name, boneNames]) => ({
+        name,
+        timelines: boneNames.map((boneName) => ({
+          boneIndex: cupidLike.bones.findIndex((bone) => bone.name === boneName),
+        })),
+      })),
+    }
+
+    function makeCharacter(animation: string) {
+      const attachments = new Map<string, string | null>()
+      const slots = sharedSlotData.map((data) => {
+        attachments.set(data.name, data.attachmentName)
+        return { data }
+      })
+      const skeleton = {
+        slots,
+        attachments,
+        data: sharedSpineData,
+        setAttachment(slotName: string, attachmentName?: string | null) {
+          attachments.set(slotName, attachmentName ?? null)
+        },
+        setSlotsToSetupPose() {
+          for (const slot of slots) {
+            attachments.set(slot.data.name, slot.data.attachmentName ?? null)
+          }
+        },
+      }
+      let synced: Record<string, string | null> = {}
+      const character = {
+        spineData: sharedSpineData,
+        skeleton,
+        state: {
+          current: animation as string | null,
+          setAnimation(_track: number, name: string) {
+            this.current = name
+          },
+          getCurrent() {
+            return this.current ? { animation: { name: this.current } } : null
+          },
+        },
+        update(_delta: number) {
+          synced = {
+            body_1: attachments.get('body_1') ?? null,
+            zhentou: attachments.get('zhentou') ?? null,
+          }
+        },
+        getSynced: () => synced,
+      }
+      return character
+    }
+
+    const idlePreview = makeCharacter('idle')
+    bindSleepExclusiveSlots(idlePreview as never)
+    playExclusiveAnimation(idlePreview, 'idle', true)
+
+    const sleepPreview = makeCharacter('shuijiao')
+    bindSleepExclusiveSlots(sleepPreview as never)
+    playExclusiveAnimation(sleepPreview, 'shuijiao', true)
+
+    expect(sleepPreview.getSynced().body_1).toBeNull()
+    expect(sleepPreview.getSynced().zhentou).toBe('zhentou')
   })
 })

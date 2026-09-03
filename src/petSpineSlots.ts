@@ -157,12 +157,20 @@ export function snapshotFromSpineData(spineData: {
   }
 }
 
-function muteExclusiveSetupPose(skeleton: ExclusiveSkeleton, plan: ExclusiveSlotPlan) {
-  for (const slot of skeleton.slots) {
-    if (plan.exclusiveSlots.some((item) => item.slotName === slot.data.name)) {
-      slot.data.attachmentName = null
-    }
+function clearExclusiveAttachments(skeleton: ExclusiveSkeleton, plan: ExclusiveSlotPlan) {
+  for (const slot of plan.exclusiveSlots) {
+    skeleton.setAttachment(slot.slotName, null)
   }
+}
+
+const exclusivePlanBySpineData = new WeakMap<object, ExclusiveSlotPlan>()
+
+function exclusivePlanFor(spineData: Parameters<typeof snapshotFromSpineData>[0]) {
+  const cached = exclusivePlanBySpineData.get(spineData)
+  if (cached) return cached
+  const plan = buildExclusiveSlotPlan(snapshotFromSpineData(spineData))
+  exclusivePlanBySpineData.set(spineData, plan)
+  return plan
 }
 
 export function bindSleepExclusiveSlots(character: {
@@ -177,14 +185,25 @@ export function bindSleepExclusiveSlots(character: {
 }) {
   const spineData = character.spineData ?? character.skeleton.data
   if (!spineData) return
-  const plan = buildExclusiveSlotPlan(snapshotFromSpineData(spineData))
-  muteExclusiveSetupPose(character.skeleton, plan)
+  const plan = exclusivePlanFor(spineData)
+  // Clear instance attachments only — never mutate shared SlotData (many previews share one spineData).
+  clearExclusiveAttachments(character.skeleton, plan)
   if (character.__sleepExclusiveBound || !character.update) return
   const originalUpdate = character.update.bind(character)
+  const originalSetSlotsToSetupPose = character.skeleton.setSlotsToSetupPose?.bind(character.skeleton)
+  if (originalSetSlotsToSetupPose) {
+    character.skeleton.setSlotsToSetupPose = () => {
+      originalSetSlotsToSetupPose()
+      clearExclusiveAttachments(character.skeleton, plan)
+    }
+  }
   character.update = (delta: number) => {
     originalUpdate(delta)
     const name = character.state.getCurrent?.(0)?.animation?.name
     applyExclusiveSlots(character.skeleton, plan, name)
+    // pixi-spine syncs slot visuals inside update(); re-run once so exclusive
+    // attachment changes are visible in the same frame (preview + pet).
+    originalUpdate(0)
   }
   character.__sleepExclusiveBound = true
 }
