@@ -21,6 +21,8 @@
     "package:win": "npm run build:app && electron-builder --win --publish never",
     "package:linux": "npm run build:app && electron-builder --linux --publish never",
     "preview": "node scripts/run.mjs vite preview",
+    "site": "python3 -m http.server 4177 --directory website",
+    "site:bundle-pet": "esbuild website/pet-player.mjs --bundle --minify --format=esm --outfile=website/pet-player.bundle.js --platform=browser --target=es2020",
     "test": "vitest run",
     "generate:crop-catalog": "node scripts/generate-crop-catalog.mjs",
     "generate:food-catalog": "node scripts/generate-food-catalog.mjs"

@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MPT · 它住在你的桌面上</title>
+    <meta
+      name="description"
+      content="MPT 是一只桌面宠物：照顾、种田、对话；图片压缩和 PDF 都在本机完成。支持 Mac / Windows / Linux。"
+    />
+    <link rel="icon" href="./assets/icon.png" type="image/png" />
+    <link rel="apple-touch-icon" href="./assets/icon.png" />
+    <meta property="og:title" content="MPT · MY PET" />
+    <meta property="og:description" content="一只住在桌面上的宠物。照顾它，和它种田，文件处理全部本地完成。" />
+    <meta property="og:image" content="https://lzy526329-lgtm.github.io/MPE/assets/farm-bg.webp" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Noto+Sans+SC:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css?v=10" />
+  </head>
+  <body>
+    <canvas id="pollen" aria-hidden="true"></canvas>
+
+    <header class="nav" id="nav">
+      <a class="nav-brand" href="#top">
+        <img src="./assets/icon.png" alt="" width="28" height="28" />
+        <span>MPT</span>
+      </a>
+      <nav class="nav-links">
+        <a href="#play">玩法</a>
+        <a href="#log">更新</a>
+        <a class="nav-cta" href="#download">下载</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero" id="top">
+        <div class="hero-field" data-parallax>
+          <img class="hero-bg" src="./assets/farm-bg.webp" alt="" />
+          <div class="hero-veil" aria-hidden="true"></div>
+          <div class="sun" aria-hidden="true"></div>
+        </div>
+
+        <div class="hero-copy">
+          <p class="eyebrow">MY PET · 本地工具箱</p>
+          <h1 class="brand">MPT</h1>
+          <p class="headline">它住在你的桌面上</p>
+          <p class="lede">照顾、种田、说话。图片压缩和 PDF 都在本机完成，不上传。</p>
+          <div class="cta dl-row" id="download">
+            <a class="btn btn-platform" data-dl="win" href="#">
+              <span class="btn-os">Windows</span>
+              <span class="btn-file">.exe</span>
+            </a>
+            <a class="btn btn-platform" data-dl="mac" href="#">
+              <span class="btn-os">macOS</span>
+              <span class="btn-file">.dmg</span>
+            </a>
+            <a class="btn btn-platform" data-dl="linux" href="#">
+              <span class="btn-os">Linux</span>
+              <span class="btn-file">AppImage</span>
+            </a>
+          </div>
+          <p class="dl-meta" id="dl-meta">正在读取最新版本…</p>
+          <p class="dl-hint" id="mac-hint" hidden>
+            Mac 未签名。若提示已损坏，把 App 拖进「应用程序」后执行
+            <code>sudo xattr -cr /Applications/MPT.app</code>
+          </p>
+        </div>
+
+        <div class="walker" aria-hidden="true">
+          <div class="pet-host pet-host--hero" data-pet="walk" aria-label="丘比特"></div>
+        </div>
+      </section>
+
+      <section class="play" id="play">
+        <div class="play-inner">
+          <header class="section-head">
+            <p class="eyebrow">Gameplay</p>
+            <h2>先看它怎么玩</h2>
+            <p>农场、喂食、桌宠。点地块会浇一下水。</p>
+          </header>
+
+          <div class="scene-switch" role="tablist" aria-label="玩法展示">
+            <button type="button" class="is-on" role="tab" aria-selected="true" data-scene="farm">农场</button>
+            <button type="button" role="tab" aria-selected="false" data-scene="care">照顾</button>
+            <button type="button" role="tab" aria-selected="false" data-scene="desk">桌宠</button>
+          </div>
+
+          <div class="stage">
+            <div class="scenes">
+              <article class="scene is-on" id="scene-farm" data-scene="farm">
+                <div class="shot shot-farm">
+                  <img class="shot-bg" src="./assets/farm-bg.webp" alt="农场草地" />
+                  <img class="prop prop-room" src="./assets/room.webp" alt="" />
+                  <img class="prop prop-windmill" src="./assets/windmill.webp" alt="" />
+                  <img class="prop prop-scarecrow" src="./assets/scarecrow.webp" alt="" />
+                  <img class="prop prop-pond" src="./assets/pond.webp" alt="" />
+                  <img class="prop prop-flowers" src="./assets/flowers.webp" alt="" />
+                  <img class="prop prop-hay" src="./assets/hay.webp" alt="" />
+                  <img class="prop prop-mailbox" src="./assets/mailbox.webp" alt="" />
+                  <img class="prop prop-bench" src="./assets/bench.webp" alt="" />
+                  <img class="prop prop-mushroom" src="./assets/mushroom.webp" alt="" />
+
+                  <button class="plot" type="button" style="left: 43%; top: 34%" aria-label="浇水">
+                    <img src="./assets/plot.webp" alt="" />
+                    <img class="crop" src="./assets/wheat.webp" alt="" />
+                  </button>
+                  <button class="plot" type="button" style="left: 50%; top: 39%" aria-label="浇水">
+                    <img src="./assets/plot.webp" alt="" />
+                    <img class="crop" src="./assets/apple.webp" alt="" />
+                  </button>
+                  <button class="plot" type="button" style="left: 36%; top: 40%" aria-label="浇水">
+                    <img src="./assets/plot.webp" alt="" />
+                    <img class="crop" src="./assets/corn.webp" alt="" />
+                  </button>
+                  <button class="plot" type="button" style="left: 57%; top: 44%" aria-label="浇水">
+                    <img src="./assets/plot.webp" alt="" />
+                    <img class="crop" src="./assets/banana.webp" alt="" />
+                  </button>
+                  <button class="plot" type="button" style="left: 43%; top: 46%" aria-label="浇水">
+                    <img src="./assets/plot.webp" alt="" />
+                    <img class="crop" src="./assets/wheat.webp" alt="" />
+                  </button>
+                  <button class="plot" type="button" style="left: 50%; top: 51%" aria-label="浇水">
+                    <img src="./assets/plot.webp" alt="" />
+                  </button>
+                </div>
+                <p class="scene-cap">二十四格等距田：播种、浇水、赶虫、收割。人走开，庄稼还在长。</p>
+              </article>
+
+              <article class="scene" id="scene-care" hidden data-scene="care">
+                <div class="shot shot-care">
+                  <div class="picnic">
+                    <div class="pet-host pet-host--care" data-pet="idle" aria-label="丘比特"></div>
+                    <img class="food f1" src="./assets/food-milk.webp" alt="草莓牛奶" />
+                    <img class="food f2" src="./assets/food-bread.webp" alt="奶油面包" />
+                    <img class="food f3" src="./assets/food-cookie.webp" alt="饼干" />
+                    <img class="food f4" src="./assets/food-choco.webp" alt="巧克力" />
+                    <img class="tool t1" src="./assets/can.webp" alt="水壶" />
+                    <img class="tool t2" src="./assets/seeds.webp" alt="种子袋" />
+                    <img class="tool t3" src="./assets/sickle.webp" alt="镰刀" />
+                  </div>
+                </div>
+                <p class="scene-cap">饱食、卫生、心情会随时间掉。喂食、清洁、休息；亲密度会慢慢涨。</p>
+              </article>
+
+              <article class="scene" hidden id="scene-desk" data-scene="desk">
+                <div class="shot shot-desk">
+                  <img class="desk-window" src="./assets/farm-bg.webp" alt="" />
+                  <div class="desk-sill">
+                    <div class="pet-host pet-host--desk" data-pet="walk" aria-label="丘比特"></div>
+                  </div>
+                </div>
+                <p class="scene-cap">透明置顶小窗，可拖、会走。连续工作约半小时，它会叫你起来歇一下。</p>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="log" id="log">
+        <div class="log-inner">
+          <header class="section-head">
+            <p class="eyebrow">Changelog</p>
+            <h2>最近在长什么</h2>
+            <p>正式版更新记在这里。</p>
+          </header>
+          <ol class="log-list" id="log-list"></ol>
+        </div>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <span>MPT · MY PET</span>
+    </footer>
+
+    <script src="./app.js?v=10" type="module"></script>
+  </body>
+</html>
