@@ -1,6 +1,7 @@
 import type {
   BallHitMinigameConfig,
   HeartRallyMinigameConfig,
+  JumpRunMinigameConfig,
   PetCharacter,
   PetSkillConfig,
 } from '../electron/petCharacters'
@@ -35,6 +36,15 @@ export type ResolvedHeartRallyConfig = {
   clickRadius: number
   hopPx: number
   bodyHitReach: number
+}
+
+export type ResolvedJumpRunConfig = {
+  gravity: number
+  jumpVelocity: number
+  scrollSpeed: number
+  spawnMinMs: number
+  spawnMaxMs: number
+  bodyPad: number
 }
 
 export const DEFAULT_BASIC_ATTACK: ResolvedPetSkill = {
@@ -77,6 +87,15 @@ export const DEFAULT_HEART_RALLY: Omit<ResolvedHeartRallyConfig, 'skill'> = {
   clickRadius: 40,
   hopPx: 28,
   bodyHitReach: 36,
+}
+
+export const DEFAULT_JUMP_RUN: ResolvedJumpRunConfig = {
+  gravity: 2400,
+  jumpVelocity: -780,
+  scrollSpeed: 340,
+  spawnMinMs: 900,
+  spawnMaxMs: 1800,
+  bodyPad: 10,
 }
 
 function mergeSkill(
@@ -160,4 +179,24 @@ export function resolveHeartRallyConfig(
     skill: mergeSkill(skillId, fromMeta, { ...fallbackSkill, id: skillId }),
     ...mergeHeartRallyRules(heartRally),
   }
+}
+
+function mergeJumpRunRules(partial: JumpRunMinigameConfig | undefined): ResolvedJumpRunConfig {
+  const spawnMinMs = partial?.spawnMinMs ?? DEFAULT_JUMP_RUN.spawnMinMs
+  const spawnMaxMs = partial?.spawnMaxMs ?? DEFAULT_JUMP_RUN.spawnMaxMs
+  return {
+    gravity: partial?.gravity ?? DEFAULT_JUMP_RUN.gravity,
+    jumpVelocity: partial?.jumpVelocity ?? DEFAULT_JUMP_RUN.jumpVelocity,
+    scrollSpeed: partial?.scrollSpeed ?? DEFAULT_JUMP_RUN.scrollSpeed,
+    spawnMinMs,
+    spawnMaxMs: Math.max(spawnMinMs, spawnMaxMs),
+    bodyPad: partial?.bodyPad ?? DEFAULT_JUMP_RUN.bodyPad,
+  }
+}
+
+/** 合并角色 meta 与默认值，供跳跃跑酷使用 */
+export function resolveJumpRunConfig(
+  character?: Pick<PetCharacter, 'skills' | 'minigames'> | null,
+): ResolvedJumpRunConfig {
+  return mergeJumpRunRules(character?.minigames?.jumpRun)
 }

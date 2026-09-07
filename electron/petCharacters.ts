@@ -38,6 +38,16 @@ export type HeartRallyMinigameConfig = {
   bodyHitReach?: number
 }
 
+/** 跳跃跑酷：障碍从正面滚来，空格/点击起跳 */
+export type JumpRunMinigameConfig = {
+  gravity?: number
+  jumpVelocity?: number
+  scrollSpeed?: number
+  spawnMinMs?: number
+  spawnMaxMs?: number
+  bodyPad?: number
+}
+
 export type PetCharacterMeta = {
   name?: string
   description?: string
@@ -45,6 +55,7 @@ export type PetCharacterMeta = {
   minigames?: {
     ballHit?: BallHitMinigameConfig
     heartRally?: HeartRallyMinigameConfig
+    jumpRun?: JumpRunMinigameConfig
   }
 }
 
@@ -60,6 +71,7 @@ export type PetCharacter = {
   minigames?: {
     ballHit?: BallHitMinigameConfig
     heartRally?: HeartRallyMinigameConfig
+    jumpRun?: JumpRunMinigameConfig
   }
 }
 
@@ -169,6 +181,25 @@ function sanitizeHeartRally(raw: unknown): HeartRallyMinigameConfig | undefined 
   return Object.keys(config).length > 0 ? config : undefined
 }
 
+function sanitizeJumpRun(raw: unknown): JumpRunMinigameConfig | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const source = raw as Record<string, unknown>
+  const config: JumpRunMinigameConfig = {}
+  const gravity = clampNumber(source.gravity, 400, 6000)
+  const jumpVelocity = clampNumber(source.jumpVelocity, -2000, -200)
+  const scrollSpeed = clampNumber(source.scrollSpeed, 80, 900)
+  const spawnMinMs = clampNumber(source.spawnMinMs, 300, 8000)
+  const spawnMaxMs = clampNumber(source.spawnMaxMs, 400, 12_000)
+  const bodyPad = clampNumber(source.bodyPad, 0, 40)
+  if (gravity !== undefined) config.gravity = gravity
+  if (jumpVelocity !== undefined) config.jumpVelocity = jumpVelocity
+  if (scrollSpeed !== undefined) config.scrollSpeed = scrollSpeed
+  if (spawnMinMs !== undefined) config.spawnMinMs = spawnMinMs
+  if (spawnMaxMs !== undefined) config.spawnMaxMs = spawnMaxMs
+  if (bodyPad !== undefined) config.bodyPad = bodyPad
+  return Object.keys(config).length > 0 ? config : undefined
+}
+
 function readMeta(dir: string): PetCharacterMeta {
   try {
     return JSON.parse(fs.readFileSync(path.join(dir, 'meta.json'), 'utf8')) as PetCharacterMeta
@@ -194,6 +225,7 @@ export function scanPetCharacters(root: string): PetCharacter[] {
       const skills = sanitizeSkills(meta.skills)
       const ballHit = sanitizeBallHit(meta.minigames?.ballHit)
       const heartRally = sanitizeHeartRally(meta.minigames?.heartRally)
+      const jumpRun = sanitizeJumpRun(meta.minigames?.jumpRun)
       const character: PetCharacter = {
         id,
         name: meta.name?.trim() || id,
@@ -204,10 +236,11 @@ export function scanPetCharacters(root: string): PetCharacter[] {
         previewUrl: `${PET_CHARACTERS_URL}/${id}/${previewFile}`,
       }
       if (skills) character.skills = skills
-      if (ballHit || heartRally) {
+      if (ballHit || heartRally || jumpRun) {
         character.minigames = {
           ...(ballHit ? { ballHit } : {}),
           ...(heartRally ? { heartRally } : {}),
+          ...(jumpRun ? { jumpRun } : {}),
         }
       }
       return character

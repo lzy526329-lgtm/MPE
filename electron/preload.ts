@@ -137,11 +137,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   petPopupMenu: (): Promise<void> => ipcRenderer.invoke('pet:popup-menu'),
   onPetMinigame: (
-    callback: (event: { action: 'start'; id: 'ball-hit' | 'heart-rally' } | { action: 'stop' }) => void,
+    callback: (event: {
+      action: 'start'
+      id: 'ball-hit' | 'heart-rally' | 'jump-run'
+    } | { action: 'stop' }) => void,
   ) => {
     const listener = (
       _event: unknown,
-      payload: { action: 'start'; id: 'ball-hit' | 'heart-rally' } | { action: 'stop' },
+      payload: {
+        action: 'start'
+        id: 'ball-hit' | 'heart-rally' | 'jump-run'
+      } | { action: 'stop' },
     ) => callback(payload)
     ipcRenderer.on('pet:minigame', listener)
     return () => ipcRenderer.removeListener('pet:minigame', listener)

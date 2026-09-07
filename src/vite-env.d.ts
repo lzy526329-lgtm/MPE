@@ -97,7 +97,10 @@ declare global {
       ) => () => void
       petPopupMenu: () => Promise<void>
       onPetMinigame: (
-        callback: (event: { action: 'start'; id: 'ball-hit' | 'heart-rally' } | { action: 'stop' }) => void,
+        callback: (event: {
+          action: 'start'
+          id: 'ball-hit' | 'heart-rally' | 'jump-run'
+        } | { action: 'stop' }) => void,
       ) => () => void
       notifyPetMinigameEnded: (payload?: { completed?: boolean }) => Promise<void>
       getPetStatus: () => Promise<PetStatus>

@@ -6,7 +6,8 @@ import type { PetBounds, PetChatMessage, PetStatus, PetViewportAnchor } from '..
 import type { PetElement } from '../electron/petProfile'
 import { createBallHitGame } from './petBallGame'
 import { createHeartRallyGame } from './petHeartGame'
-import { resolveBallHitConfig, resolveHeartRallyConfig } from './petSkillDefaults'
+import { createJumpRunGame } from './petJumpGame'
+import { resolveBallHitConfig, resolveHeartRallyConfig, resolveJumpRunConfig } from './petSkillDefaults'
 import { pickAnimationName, preferredSleepAnimation } from './petAnimationNames'
 import { bindSleepExclusiveSlots, playExclusiveAnimation } from './petSpineSlots'
 import type { PetCharacter } from '../electron/petCharacters'
@@ -835,7 +836,7 @@ function directionFromDelta(dx: number): WalkDir {
 }
 
 async function wander(now: number) {
-  if (ballGame.isActive() || heartGame.isActive()) {
+  if (ballGame.isActive() || heartGame.isActive() || jumpGame.isActive()) {
     stopWalk()
     return
   }
@@ -934,11 +935,12 @@ async function wander(now: number) {
 function tick(now: number) {
   ballGame.tick(now)
   heartGame.tick(now)
+  jumpGame.tick(now)
   const playingDie = Boolean(spine && preferredDie(spine) === currentAnimationName())
   if (!playingDie && (anim === 'click' || anim === 'victory') && now >= clickLockUntil) {
     if (!petResting) setAnim('idle')
   }
-  if (!ballGame.isActive() && !heartGame.isActive() && !dragging) void wander(now)
+  if (!ballGame.isActive() && !heartGame.isActive() && !jumpGame.isActive() && !dragging) void wander(now)
   requestAnimationFrame(tick)
 }
 
@@ -970,6 +972,25 @@ function stopHeartGame(finalScore?: number, reason: 'timeup' | 'miss' | 'stop' =
   if (typeof finalScore === 'number') {
     if (reason === 'miss') showAiBubble(`掉球了…本局连击 ${finalScore}`)
     else showAiBubble(`时间到！本局连击 ${finalScore}`)
+  }
+  if (spine) {
+    fitSpineToView(spine)
+    setFacing(facing)
+    playIdle()
+  } else {
+    syncPetViewport(contentSize)
+  }
+}
+
+function stopJumpGame(finalScore?: number, reason: 'crash' | 'stop' = 'stop') {
+  if (!jumpGame.isActive() && finalScore === undefined) return
+  if (jumpGame.isActive()) jumpGame.stop()
+  jumpBaseSpineY = null
+  void window.electronAPI?.notifyPetMinigameEnded?.({
+    completed: false,
+  })
+  if (typeof finalScore === 'number') {
+    showAiBubble(reason === 'crash' ? `撞到了…本局得分 ${finalScore}` : `本局得分 ${finalScore}`)
   }
   if (spine) {
     fitSpineToView(spine)
@@ -1013,6 +1034,7 @@ async function prepareMinigameStart(desired: number | { width: number; height: n
 
 function startBallGame() {
   if (heartGame.isActive()) heartGame.stop()
+  if (jumpGame.isActive()) jumpGame.stop()
   clearWalkTarget()
   dragging = false
   if (anim === 'walk' || anim === 'drag') setAnim('idle')
@@ -1027,6 +1049,7 @@ function startBallGame() {
 
 function startHeartGame() {
   if (ballGame.isActive()) ballGame.stop()
+  if (jumpGame.isActive()) jumpGame.stop()
   clearWalkTarget()
   dragging = false
   if (anim === 'walk' || anim === 'drag') setAnim('idle')
@@ -1039,7 +1062,25 @@ function startHeartGame() {
   })
 }
 
+function startJumpGame() {
+  if (ballGame.isActive()) ballGame.stop()
+  if (heartGame.isActive()) heartGame.stop()
+  clearWalkTarget()
+  dragging = false
+  jumpBaseSpineY = null
+  if (anim === 'walk' || anim === 'drag') setAnim('idle')
+  hideChatMessage()
+  void refreshMinigameCharacter().then(async () => {
+    await prepareMinigameStart(jumpGame.getDesiredView(contentSize))
+    if (spine) jumpBaseSpineY = spine.y
+    jumpGame.start()
+    ignoreMouse = false
+    void window.electronAPI?.petIgnoreMouse?.(false)
+  })
+}
+
 let minigameCharacter: PetCharacter | null = null
+let jumpBaseSpineY: number | null = null
 
 async function refreshMinigameCharacter() {
   try {
@@ -1096,6 +1137,29 @@ const heartGame = createHeartRallyGame({
   },
 })
 
+const jumpGame = createJumpRunGame({
+  app,
+  root,
+  getHitCenter: () => ({ x: hitCenterX, y: hitCenterY }),
+  getFootY: () => hitCenterY + contentSize * 0.42,
+  getViewSize: () => viewWidth,
+  getViewHeight: () => viewHeight,
+  getFacing: () => facing,
+  getConfig: () => resolveJumpRunConfig(minigameCharacter),
+  playHurt,
+  onJumpOffset: (offsetY) => {
+    if (!spine) return
+    if (jumpBaseSpineY === null) jumpBaseSpineY = spine.y
+    spine.y = jumpBaseSpineY + offsetY
+  },
+  onActiveChange: (active) => {
+    canvas.classList.toggle('pet-jump-mode', active)
+  },
+  onCrash: (score) => {
+    stopJumpGame(score, 'crash')
+  },
+})
+
 canvas.addEventListener('contextmenu', (event) => {
   event.preventDefault()
   if (hasPetApi) void window.electronAPI.petPopupMenu()
@@ -1109,6 +1173,10 @@ canvas.addEventListener('mousedown', async (event) => {
   }
   if (heartGame.isActive()) {
     heartGame.handleClick(event.clientX, event.clientY)
+    return
+  }
+  if (jumpGame.isActive()) {
+    jumpGame.handleJump()
     return
   }
   const info = await bounds()
@@ -1134,7 +1202,7 @@ canvas.addEventListener('mousedown', async (event) => {
 })
 
 window.addEventListener('mousemove', async (event) => {
-  if (ballGame.isActive() || heartGame.isActive()) {
+  if (ballGame.isActive() || heartGame.isActive() || jumpGame.isActive()) {
     if (ignoreMouse && hasPetApi) {
       ignoreMouse = false
       await window.electronAPI.petIgnoreMouse(false)
@@ -1164,7 +1232,7 @@ window.addEventListener('mousemove', async (event) => {
 })
 
 window.addEventListener('mouseup', (event) => {
-  if (ballGame.isActive() || heartGame.isActive()) return
+  if (ballGame.isActive() || heartGame.isActive() || jumpGame.isActive()) return
   if (!dragging || event.button !== 0) return
   dragging = false
   dragWorkArea = null
@@ -1220,9 +1288,14 @@ window.electronAPI?.onPetMinigame?.((event) => {
     startHeartGame()
     return
   }
+  if (event.action === 'start' && event.id === 'jump-run') {
+    startJumpGame()
+    return
+  }
   if (event.action === 'stop') {
     stopBallGame()
     stopHeartGame()
+    stopJumpGame()
   }
 })
 

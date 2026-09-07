@@ -138,3 +138,15 @@ canvas.pet-heart-mode:active {
   cursor: pointer;
 }
 
+.pet-jump-hud {
+  top: 6px;
+}
+
+canvas.pet-jump-mode {
+  cursor: pointer;
+}
+
+canvas.pet-jump-mode:active {
+  cursor: pointer;
+}
+

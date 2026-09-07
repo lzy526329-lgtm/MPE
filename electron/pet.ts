@@ -209,7 +209,7 @@ const PLAY_HYGIENE_COST = 3
 const PLAY_MOOD_GAIN = 20
 
 export type PetMinigameEvent =
-  | { action: 'start'; id: 'ball-hit' | 'heart-rally' }
+  | { action: 'start'; id: 'ball-hit' | 'heart-rally' | 'jump-run' }
   | { action: 'stop' }
 
 function settingsFile() {
@@ -1425,7 +1425,7 @@ function emitPetMinigame(event: PetMinigameEvent) {
   }
 }
 
-function startPetMinigame(id: 'ball-hit' | 'heart-rally') {
+function startPetMinigame(id: 'ball-hit' | 'heart-rally' | 'jump-run') {
   if (isCurrentlyResting()) return
   if (!isPetOpen()) createPetWindow()
   if (activeMinigameId) return
@@ -1445,6 +1445,7 @@ function buildPetMenu() {
   const pending = findPendingReminder(reminders)
   const ballHitActive = activeMinigameId === 'ball-hit'
   const heartRallyActive = activeMinigameId === 'heart-rally'
+  const jumpRunActive = activeMinigameId === 'jump-run'
   const anyMinigameActive = Boolean(activeMinigameId)
   return Menu.buildFromTemplate([
     { label: '宠物设置', click: () => openMainPage(APP_HOME_PAGE) },
@@ -1485,6 +1486,11 @@ function buildPetMenu() {
           label: heartRallyActive ? '弹爱心（进行中）' : '弹爱心',
           enabled: !anyMinigameActive && !isCurrentlyResting(),
           click: () => startPetMinigame('heart-rally'),
+        },
+        {
+          label: jumpRunActive ? '跳跃（进行中）' : '跳跃',
+          enabled: !anyMinigameActive && !isCurrentlyResting(),
+          click: () => startPetMinigame('jump-run'),
         },
       ],
     },
