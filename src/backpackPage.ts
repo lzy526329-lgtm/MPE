@@ -3,7 +3,7 @@ import type { CropId } from '../electron/farm/farmTypes'
 import { getCropShopImgPath } from '../electron/farm/cropCatalog'
 import { getFoodImagePath } from '../electron/game/foodCatalog'
 import { getSupplyImagePath } from '../electron/game/supplyCatalog'
-import { getCurrentPage, onPageChange } from './appNavigation'
+import { getCurrentPage, navigateToPage, onPageChange } from './appNavigation'
 import { farmCatalogIconHtml } from './farmAssets'
 import { foodCatalogIconHtml, formatFoodSatietyLabel } from './foodAssets'
 import { supplyCatalogIconHtml, formatSupplyHygieneLabel } from './supplyAssets'
@@ -30,6 +30,13 @@ export type BackpackRenderOptions = {
 
 export function isBackpackTab(value: string | undefined): value is BackpackTab {
   return value === 'food' || value === 'seeds' || value === 'produce' || value === 'supplies' || value === 'decors' || value === 'fish'
+}
+
+let requestedBackpackTab: BackpackTab | null = null
+
+export function openBackpackTab(tab: BackpackTab): void {
+  requestedBackpackTab = tab
+  navigateToPage('backpack-page')
 }
 
 export function canSellProduce(owned: number): boolean {
@@ -543,7 +550,13 @@ export function mountBackpackPage(): void {
 
   onPageChange((pageId) => {
     visible = pageId === 'backpack-page'
-    if (visible) void refresh()
+    if (visible) {
+      if (requestedBackpackTab) {
+        activeTab = requestedBackpackTab
+        requestedBackpackTab = null
+      }
+      void refresh()
+    }
   })
 
   window.electronAPI.onGameStateChanged((nextState) => {

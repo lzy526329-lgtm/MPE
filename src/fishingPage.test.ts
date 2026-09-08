@@ -11,6 +11,7 @@ describe('fishing page', () => {
     const html = renderFishingPage(view, { phase: 'idle' }, 'basic', '')
     expect(html).toContain('普通鱼饵')
     expect(html).toContain('data-fishing-cast')
+    expect(html).toContain('data-fishing-backpack-open')
     expect(html).toContain('图鉴 0 / 5')
     expect(html).toContain('×2')
   })

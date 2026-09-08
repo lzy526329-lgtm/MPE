@@ -12,10 +12,12 @@ import {
 
 const navigation = vi.hoisted(() => ({
   pageListener: null as ((pageId: string) => void) | null,
+  navigateToPage: vi.fn(),
 }))
 
 vi.mock('./appNavigation', () => ({
   getCurrentPage: () => 'pet-settings-page',
+  navigateToPage: navigation.navigateToPage,
   onPageChange: (listener: (pageId: string) => void) => {
     navigation.pageListener = listener
     return () => undefined
@@ -205,6 +207,7 @@ describe('backpack inventory rules', () => {
 describe('backpack live synchronization', () => {
   beforeEach(() => {
     vi.resetModules()
+    navigation.navigateToPage.mockClear()
   })
 
   afterEach(() => {
@@ -266,6 +269,29 @@ describe('backpack live synchronization', () => {
     expect(root.innerHTML).not.toContain('加载失败')
     expect(root.innerHTML).not.toContain('重试')
     expect(root.innerHTML).toContain('data-backpack-idle')
+  })
+
+  it('opens the backpack directly on the requested fish tab', async () => {
+    const root = { innerHTML: '', addEventListener: vi.fn() }
+    vi.stubGlobal('document', {
+      querySelector: (selector: string) => (selector === '#backpack-root' ? root : null),
+    })
+    vi.stubGlobal('window', {
+      electronAPI: {
+        gameGetState: vi.fn().mockResolvedValue(state),
+        onGameStateChanged: () => () => undefined,
+      },
+    })
+
+    const { mountBackpackPage, openBackpackTab } = await import('./backpackPage')
+    mountBackpackPage()
+    openBackpackTab('fish')
+
+    expect(navigation.navigateToPage).toHaveBeenCalledWith('backpack-page')
+    navigation.pageListener?.('backpack-page')
+    await vi.waitFor(() => {
+      expect(root.innerHTML).toContain('aria-selected="true" data-game-tab="fish"')
+    })
   })
 
   it('keeps a visible broadcast when an older state request resolves later', async () => {

@@ -3,6 +3,7 @@ import { getFishCatalogEntry, getFishIds } from '../electron/fishing/fishCatalog
 import type { BaitId } from '../electron/fishing/fishingTypes'
 import type { GameViewState } from '../electron/game/gameTypes'
 import { getCurrentPage, onPageChange } from './appNavigation'
+import { openBackpackTab } from './backpackPage'
 import { FISHING_ASSETS, getBaitImagePath, getFishImagePath } from './fishingAssets'
 import {
   reduceFishingState,
@@ -118,7 +119,7 @@ export function renderFishingPage(
     <div class="fishing-scene fishing-scene--${state.phase}">
       <div class="fishing-hud">
         <span>🪙 <strong>${view.wallet.coins}</strong></span>
-        <span>🎒 鱼获 <strong>${fishCount}/100</strong></span>
+        <button type="button" data-fishing-backpack-open>🎒 鱼获 <strong>${fishCount}/100</strong></button>
         <button type="button" data-fishing-catalog-open>📖 <strong>图鉴 ${discovered.size} / ${getFishIds().length}</strong></button>
       </div>
       <div class="fishing-pond" style="background-image:url('${FISHING_ASSETS.pond}')" data-fishing-pond>
@@ -277,6 +278,7 @@ export function mountFishingPage(): void {
     }
     if (target.closest('[data-fishing-cast]')) void cast()
     else if (target.closest('[data-fishing-reel]')) void reel()
+    else if (target.closest('[data-fishing-backpack-open]')) openBackpackTab('fish')
     else if (target.closest('[data-fishing-catalog-open]')) {
       catalogOpen = true
       paint()
