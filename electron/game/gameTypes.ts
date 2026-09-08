@@ -54,6 +54,7 @@ export type GameErrorCode =
   | 'INSUFFICIENT_COINS'
   | 'INSUFFICIENT_STOCK'
   | 'INVALID_STATE'
+  | 'FISH_BAG_FULL'
   | 'PERSISTENCE_FAILED'
 export type GameActionResult =
   | { ok: true; state: GameViewState }

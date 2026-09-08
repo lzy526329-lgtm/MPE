@@ -5,7 +5,7 @@ import { farmLevelFromTotalXp, grantFarmExperience } from '../farm/farmLevel'
 import { UNLOCK_PLOT_XP } from '../farm/farmLevelCatalog'
 import { INITIAL_COINS, PRODUCE_OFFERS, SEED_OFFERS, FOOD_OFFERS, SUPPLY_OFFERS, DECOR_OFFERS, BAIT_OFFERS, normalizeItemCount, seedCounts, foodCounts, supplyCounts, decorCounts, baitCounts } from './gameCatalog'
 import { buildEmptyDecorCounts } from './decorCatalog'
-import type { FoodId, SupplyId, DecorId } from './gameTypes'
+import type { BaitId, FishCatch, FoodId, SupplyId, DecorId } from './gameTypes'
 import { buyDecor as buyDecorMutation } from '../farm/decorEngine'
 import type {
   FarmCoreState,
@@ -402,6 +402,64 @@ export function sellAllFish(state: GameState): GameMutationResult {
   const game = cloneGameState(state)
   game.wallet.coins += game.inventory.fish.reduce((sum, item) => sum + item.sellPrice, 0)
   game.inventory.fish = []
+  return { ok: true, game, state: toGameViewState(game) }
+}
+
+export function consumeBaitForCast(state: GameState, baitId: string): GameMutationResult {
+  const view = toGameViewState(state)
+  if (!BAIT_OFFERS.some((item) => item.baitId === baitId)) {
+    return {
+      ok: false,
+      code: 'UNKNOWN_ITEM',
+      message: '未知鱼饵',
+      game: cloneGameState(state),
+      state: view,
+    }
+  }
+  if (state.inventory.fish.length >= 100) {
+    return {
+      ok: false,
+      code: 'FISH_BAG_FULL',
+      message: '鱼获背包已满',
+      game: cloneGameState(state),
+      state: view,
+    }
+  }
+  const owned = state.inventory.baits[baitId as BaitId] ?? 0
+  if (owned < 1) {
+    return {
+      ok: false,
+      code: 'INSUFFICIENT_STOCK',
+      message: '鱼饵不足',
+      game: cloneGameState(state),
+      state: view,
+    }
+  }
+  const game = cloneGameState(state)
+  game.inventory.baits[baitId as BaitId] = owned - 1
+  return { ok: true, game, state: toGameViewState(game) }
+}
+
+export function addCaughtFish(state: GameState, fishCatch: FishCatch): GameMutationResult {
+  const view = toGameViewState(state)
+  if (
+    state.inventory.fish.length >= 100 ||
+    state.inventory.fish.some((item) => item.id === fishCatch.id)
+  ) {
+    return {
+      ok: false,
+      code: 'FISH_BAG_FULL',
+      message: '无法保存鱼获',
+      game: cloneGameState(state),
+      state: view,
+    }
+  }
+  const game = cloneGameState(state)
+  game.inventory.fish.push({ ...fishCatch })
+  if (!game.fishing.discoveredFish.includes(fishCatch.fishId)) {
+    game.fishing.discoveredFish.push(fishCatch.fishId)
+  }
+  game.fishing.totalCaught += 1
   return { ok: true, game, state: toGameViewState(game) }
 }
 

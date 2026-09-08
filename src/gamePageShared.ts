@@ -10,6 +10,7 @@ export function gameErrorMessage(code: GameErrorCode): string {
     INSUFFICIENT_COINS: '金币不足，无法购买。',
     INSUFFICIENT_STOCK: '库存不足，无法出售。',
     INVALID_STATE: '游戏数据异常，请重试。',
+    FISH_BAG_FULL: '鱼获背包已满，请先出售鱼获。',
     PERSISTENCE_FAILED: '保存失败，请重试。',
   }
   return messages[code]
