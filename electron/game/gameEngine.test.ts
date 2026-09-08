@@ -6,12 +6,15 @@ import { totalXpForLevel } from '../farm/farmLevel'
 import type { FarmState } from '../farm/farmTypes'
 import {
   applyCompatFarmState,
+  buyBait,
   buyFood,
   buySeed,
   buySupply,
   createDefaultGameState,
   migrateLegacyGameState,
   runFarmAction,
+  sellAllFish,
+  sellFish,
   sellProduce,
   toCompatFarmState,
   toGameActionResult,
@@ -125,6 +128,51 @@ describe('buySeed', () => {
       ok: false,
       code: 'UNKNOWN_ITEM',
     })
+  })
+})
+
+describe('fishing economy', () => {
+  it('buys one basic bait with shared coins', () => {
+    const before = createDefaultGameState(1_000)
+    const result = buyBait(before, 'basic')
+    expect(result.ok).toBe(true)
+    expect(result.game.wallet.coins).toBe(98)
+    expect(result.game.inventory.baits.basic).toBe(1)
+    expect(before.inventory.baits.basic).toBe(0)
+  })
+
+  it('rejects bait purchases without enough coins', () => {
+    const before = { ...createDefaultGameState(1_000), wallet: { coins: 1 } }
+    expect(buyBait(before, 'basic')).toMatchObject({
+      ok: false,
+      code: 'INSUFFICIENT_COINS',
+    })
+  })
+
+  it('sells one catch by id and credits its stored price', () => {
+    const before = createDefaultGameState(1_000)
+    before.inventory.fish = [{
+      id: 'fish-1',
+      fishId: 'crucian',
+      weightKg: 0.4,
+      sellPrice: 4,
+      caughtAt: 1_000,
+    }]
+    const result = sellFish(before, 'fish-1')
+    expect(result.game.wallet.coins).toBe(104)
+    expect(result.game.inventory.fish).toEqual([])
+    expect(before.inventory.fish).toHaveLength(1)
+  })
+
+  it('sells all catches in one atomic mutation', () => {
+    const before = createDefaultGameState(1_000)
+    before.inventory.fish = [
+      { id: 'a', fishId: 'crucian', weightKg: 0.4, sellPrice: 4, caughtAt: 1 },
+      { id: 'b', fishId: 'mandarin', weightKg: 1, sellPrice: 15, caughtAt: 2 },
+    ]
+    const result = sellAllFish(before)
+    expect(result.game.wallet.coins).toBe(119)
+    expect(result.game.inventory.fish).toEqual([])
   })
 })
 

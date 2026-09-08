@@ -92,6 +92,8 @@ function cloneInventory(inventory: InventoryState): InventoryState {
     seeds: { ...inventory.seeds },
     produce: { ...inventory.produce },
     decors: { ...inventory.decors },
+    baits: { ...inventory.baits },
+    fish: inventory.fish.map((item) => ({ ...item })),
   }
 }
 

@@ -343,6 +343,68 @@ export function buySeed(state: GameState, cropId: string): GameMutationResult {
   }
 }
 
+export function buyBait(state: GameState, baitId: string): GameMutationResult {
+  const offer = BAIT_OFFERS.find((item) => item.baitId === baitId)
+  const view = toGameViewState(state)
+  if (!offer) {
+    return {
+      ok: false,
+      code: 'UNKNOWN_ITEM',
+      message: '未知商品',
+      game: cloneGameState(state),
+      state: view,
+    }
+  }
+  if (state.wallet.coins < offer.price) {
+    return {
+      ok: false,
+      code: 'INSUFFICIENT_COINS',
+      message: '金币不足',
+      game: cloneGameState(state),
+      state: view,
+    }
+  }
+  const game = cloneGameState(state)
+  game.wallet.coins -= offer.price
+  game.inventory.baits[offer.baitId] = (game.inventory.baits[offer.baitId] ?? 0) + 1
+  return { ok: true, game, state: toGameViewState(game) }
+}
+
+export function sellFish(state: GameState, catchId: string): GameMutationResult {
+  const index = state.inventory.fish.findIndex((item) => item.id === catchId)
+  const view = toGameViewState(state)
+  if (index < 0) {
+    return {
+      ok: false,
+      code: 'INSUFFICIENT_STOCK',
+      message: '鱼获不存在',
+      game: cloneGameState(state),
+      state: view,
+    }
+  }
+  const game = cloneGameState(state)
+  const [sold] = game.inventory.fish.splice(index, 1)
+  game.wallet.coins += sold.sellPrice
+  return { ok: true, game, state: toGameViewState(game) }
+}
+
+export function sellAllFish(state: GameState): GameMutationResult {
+  const view = toGameViewState(state)
+  if (state.inventory.fish.length === 0) {
+    return {
+      ok: false,
+      code: 'INSUFFICIENT_STOCK',
+      message: '暂无鱼获',
+      game: cloneGameState(state),
+      state: view,
+    }
+  }
+  const game = cloneGameState(state)
+  game.wallet.coins += game.inventory.fish.reduce((sum, item) => sum + item.sellPrice, 0)
+  game.inventory.fish = []
+  return { ok: true, game, state: toGameViewState(game) }
+}
+
 export function sellProduce(state: GameState, produceId: string): GameMutationResult {
   const offer = PRODUCE_OFFERS.find((item) => item.produceId === produceId)
   const view = toGameViewState(state)

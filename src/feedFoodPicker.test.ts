@@ -13,6 +13,8 @@ const state: GameViewState = {
     seeds: { wheat: 0, banana: 0, apple: 0, corn: 0, durian: 0 },
     produce: {},
     decors: withDecorCounts({}),
+    baits: { basic: 0, premium: 0 },
+    fish: [],
   },
   placedDecorCounts: withDecorCounts({}),
   seedOffers: [],
@@ -23,6 +25,8 @@ const state: GameViewState = {
   ],
   supplyOffers: [],
   decorOffers: [],
+  baitOffers: [],
+  fishing: { discoveredFish: [], totalCaught: 0 },
 }
 
 describe('feed food picker', () => {

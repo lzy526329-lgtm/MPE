@@ -23,6 +23,8 @@ function cloneInventory(state: GameState) {
     seeds: { ...state.inventory.seeds },
     produce: { ...state.inventory.produce },
     decors: { ...state.inventory.decors },
+    baits: { ...state.inventory.baits },
+    fish: state.inventory.fish.map((item) => ({ ...item })),
   }
 }
 
@@ -35,6 +37,10 @@ function cloneGame(state: GameState): GameState {
       ...state.farm,
       plots: state.farm.plots.map((plot) => ({ ...plot })),
       placedDecors: state.farm.placedDecors.map((decor) => ({ ...decor })),
+    },
+    fishing: {
+      discoveredFish: [...state.fishing.discoveredFish],
+      totalCaught: state.fishing.totalCaught,
     },
     migrations: { ...state.migrations },
   }

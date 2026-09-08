@@ -40,7 +40,7 @@ import type { UpdateState } from './updater'
 import type { FarmActionResult } from './farm/farmEngine'
 import type { CutoutRequest, CutoutResult } from './cutout'
 import type { CropId, PlacedDecor } from './farm/farmTypes'
-import type { GameActionResult, GameViewState, FoodId, SupplyId, DecorId } from './game/gameTypes'
+import type { BaitId, GameActionResult, GameViewState, FoodId, SupplyId, DecorId } from './game/gameTypes'
 
 contextBridge.exposeInMainWorld('electronAPI', {
   platform: process.platform,
@@ -311,6 +311,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('game:use-supply', supplyId),
   gameBuyDecor: (decorId: DecorId): Promise<GameActionResult> =>
     ipcRenderer.invoke('game:buy-decor', decorId),
+  gameBuyBait: (baitId: BaitId): Promise<GameActionResult> =>
+    ipcRenderer.invoke('game:buy-bait', baitId),
+  gameSellFish: (catchId: string): Promise<GameActionResult> =>
+    ipcRenderer.invoke('game:sell-fish', catchId),
+  gameSellAllFish: (): Promise<GameActionResult> =>
+    ipcRenderer.invoke('game:sell-all-fish'),
   onGameStateChanged: (callback: (state: GameViewState) => void) => {
     const listener = (_event: unknown, state: GameViewState) => callback(state)
     ipcRenderer.on('game:state-changed', listener)

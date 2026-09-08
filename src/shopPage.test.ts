@@ -27,6 +27,8 @@ const state: GameViewState = {
     seeds: withSeedCounts({ wheat: 5 }),
     produce: {},
     decors: withDecorCounts({}),
+    baits: { basic: 0, premium: 0 },
+    fish: [],
   },
   placedDecorCounts: withDecorCounts({}),
   seedOffers: [{ cropId: 'wheat', name: '小麦种子', price: 5 }],
@@ -34,6 +36,8 @@ const state: GameViewState = {
   foodOffers: [{ foodId: 'cookie', name: '饼干', price: 3, satiety: 12 }],
   supplyOffers: [{ supplyId: 'bodyWash', name: '沐浴露', price: 5, hygiene: 40 }],
   decorOffers: [],
+  baitOffers: [],
+  fishing: { discoveredFish: [], totalCaught: 0 },
 }
 
 const defaultOptions = {

@@ -3,12 +3,15 @@ import { app, ipcMain, type BrowserWindow } from 'electron'
 import { notifyPetStatusChanged, feedPetWithSatiety, cleanPetWithHygiene } from '../pet'
 import type { CropId } from '../farm/farmTypes'
 import {
+  buyBait,
   buyFood,
   buySeed,
   buySupply,
   buyDecor,
   emptyGameViewState,
   sellProduce,
+  sellAllFish,
+  sellFish,
   toGameActionResult,
   toGameViewState,
   useFood,
@@ -17,7 +20,7 @@ import {
 import { getFoodCatalogEntry } from './foodCatalog'
 import { getSupplyCatalogEntry } from './supplyCatalog'
 import { loadGame, readGameState, withGame, type GameStoreFileOps } from './gameStore'
-import type { FoodId, GameActionResult, GameViewState, SupplyId, DecorId } from './gameTypes'
+import type { BaitId, FoodId, GameActionResult, GameMutationResult, GameState, GameViewState, SupplyId, DecorId } from './gameTypes'
 
 export type GameHandlers = {
   getState: () => Promise<GameViewState>
@@ -28,6 +31,9 @@ export type GameHandlers = {
   buySupply: (supplyId: SupplyId) => Promise<GameActionResult>
   useSupply: (supplyId: SupplyId) => Promise<GameActionResult>
   buyDecor: (decorId: DecorId) => Promise<GameActionResult>
+  buyBait: (baitId: BaitId) => Promise<GameActionResult>
+  sellFish: (catchId: string) => Promise<GameActionResult>
+  sellAllFish: () => Promise<GameActionResult>
 }
 
 export type GameHandlerOptions = {
@@ -60,6 +66,31 @@ export function createGameHandlers(options: GameHandlerOptions): GameHandlers {
     }
   }
 
+  const runSimpleMutation = async (
+    label: string,
+    mutate: (state: GameState) => GameMutationResult,
+  ): Promise<GameActionResult> => {
+    try {
+      const result = toGameActionResult(
+        await withGame(options.userDataPath, options.now(), mutate, fileOps),
+      )
+      remember(result.state)
+      if (result.ok) {
+        options.publish(result.state)
+        options.publishPetStatus()
+      }
+      return result
+    } catch (error) {
+      console.error(`[game] failed to persist ${label}`, error)
+      return {
+        ok: false,
+        code: 'PERSISTENCE_FAILED',
+        message: '保存失败',
+        state: renderableState(),
+      }
+    }
+  }
+
   return {
     getState: async () => {
       const outcome = readGameState(options.userDataPath, options.now(), fileOps)
@@ -68,6 +99,9 @@ export function createGameHandlers(options: GameHandlerOptions): GameHandlers {
       }
       return remember(toGameViewState(outcome.state))
     },
+    buyBait: (baitId) => runSimpleMutation('a bait purchase', (game) => buyBait(game, baitId)),
+    sellFish: (catchId) => runSimpleMutation('a fish sale', (game) => sellFish(game, catchId)),
+    sellAllFish: () => runSimpleMutation('all fish sales', sellAllFish),
     buySeed: async (cropId) => {
       let result: GameActionResult
       try {
@@ -287,4 +321,7 @@ export function registerGameIpc(getMain: () => BrowserWindow | null): void {
   ipcMain.handle('game:buy-supply', (_event, supplyId: SupplyId) => handlers.buySupply(supplyId))
   ipcMain.handle('game:use-supply', (_event, supplyId: SupplyId) => handlers.useSupply(supplyId))
   ipcMain.handle('game:buy-decor', (_event, decorId: DecorId) => handlers.buyDecor(decorId))
+  ipcMain.handle('game:buy-bait', (_event, baitId: BaitId) => handlers.buyBait(baitId))
+  ipcMain.handle('game:sell-fish', (_event, catchId: string) => handlers.sellFish(catchId))
+  ipcMain.handle('game:sell-all-fish', () => handlers.sellAllFish())
 }

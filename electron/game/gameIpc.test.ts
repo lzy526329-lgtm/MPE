@@ -56,6 +56,28 @@ describe('createGameHandlers', () => {
     expect(state.foodOffers).toHaveLength(4)
   })
 
+  it('persists bait purchases and fish sales through shared handlers', async () => {
+    const dir = makeDir()
+    const handlers = createGameHandlers({
+      userDataPath: dir,
+      now: () => 1_000,
+      publish: vi.fn(),
+      publishPetStatus: vi.fn(),
+    })
+
+    const bought = await handlers.buyBait('basic')
+    expect(bought.state.inventory.baits.basic).toBe(1)
+
+    const game = createDefaultGameState(1_000)
+    game.inventory.fish = [
+      { id: 'fish-1', fishId: 'crucian', weightKg: 0.4, sellPrice: 4, caughtAt: 1 },
+    ]
+    saveGameAtomic(dir, game)
+    const sold = await handlers.sellFish('fish-1')
+    expect(sold.state.wallet.coins).toBe(104)
+    expect(sold.state.inventory.fish).toEqual([])
+  })
+
   it('publishes the updated game and pet status after a successful sale', async () => {
     const publish = vi.fn()
     const publishPetStatus = vi.fn()
