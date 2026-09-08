@@ -20,6 +20,11 @@ export type AppPageId =
 
 export const APP_HOME_PAGE: AppPageId = 'pet-settings-page'
 
+export const PET_GAME_MENU: { id: AppPageId; label: string }[] = [
+  { id: 'farm-page', label: '农场' },
+  { id: 'fishing-page', label: '鱼塘' },
+]
+
 export const PET_TOOL_MENU: { id: AppPageId; label: string }[] = [
   { id: 'image-page', label: '图片压缩' },
   { id: 'cutout-page', label: '图片抠图' },

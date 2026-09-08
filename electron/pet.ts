@@ -1,7 +1,7 @@
 import { BrowserWindow, Menu, app, ipcMain, powerMonitor, screen } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
-import { APP_HOME_PAGE, PET_TOOL_MENU, type AppPageId } from './appPages'
+import { APP_HOME_PAGE, PET_GAME_MENU, PET_TOOL_MENU, type AppPageId } from './appPages'
 import { registerPetAiIpc, generateSituationalLine, isProactiveAiEnabled } from './petAi'
 import { getPetCharacter, listPetCharacters } from './petCharacters'
 import {
@@ -1494,7 +1494,10 @@ function buildPetMenu() {
         },
       ],
     },
-    { label: '农场', click: () => openMainPage('farm-page') },
+    ...PET_GAME_MENU.map((item) => ({
+      label: item.label,
+      click: () => openMainPage(item.id),
+    })),
     {
       label: '工具箱',
       submenu: PET_TOOL_MENU.map((item) => ({
