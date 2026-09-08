@@ -25,14 +25,6 @@
       "basePrice": 8,
       "image": "/fishingGrounds/草鱼-cutout.png"
     },
-    "mandarin": {
-      "name": "鳜鱼",
-      "rarity": "rare",
-      "weightMin": 0.5,
-      "weightMax": 3,
-      "basePrice": 15,
-      "image": "fish-mandarin.svg"
-    },
     "goldenKoi": {
       "name": "金色锦鲤",
       "rarity": "precious",

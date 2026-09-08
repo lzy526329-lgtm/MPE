@@ -3,7 +3,6 @@ export type FishId =
   | 'crucian'
   | 'carp'
   | 'grassCarp'
-  | 'mandarin'
   | 'goldenKoi'
   | 'loach'
   | 'sardine'

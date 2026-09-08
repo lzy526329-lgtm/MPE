@@ -20,7 +20,7 @@ describe('fishing page', () => {
     expect(html).toContain('点击水面抛竿')
     expect(html).not.toContain('data-fishing-cast')
     expect(html).toContain('data-fishing-backpack-open')
-    expect(html).toContain('图鉴 0 / 23')
+    expect(html).toContain('图鉴 0 / 22')
     expect(html).toContain('×2')
   })
 

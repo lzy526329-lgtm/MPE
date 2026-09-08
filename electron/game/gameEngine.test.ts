@@ -168,7 +168,7 @@ describe('fishing economy', () => {
     const before = createDefaultGameState(1_000)
     before.inventory.fish = [
       { id: 'a', fishId: 'crucian', weightKg: 0.4, sellPrice: 4, caughtAt: 1 },
-      { id: 'b', fishId: 'mandarin', weightKg: 1, sellPrice: 15, caughtAt: 2 },
+      { id: 'b', fishId: 'tuna', weightKg: 1, sellPrice: 15, caughtAt: 2 },
     ]
     const result = sellAllFish(before)
     expect(result.game.wallet.coins).toBe(119)

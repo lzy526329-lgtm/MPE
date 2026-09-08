@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 120">
-  <title>Ñr&¤</title>
-  <path d="m43 60-34-32v64Z" fill="#f09a35" stroke="#694222" stroke-width="7" stroke-linejoin="round"/>
-  <path d="M38 60c31-49 124-55 176 0-52 55-145 49-176 0Z" fill="#ffd45c" stroke="#694222" stroke-width="7"/>
-  <path d="M78 33c19 6 29 19 28 39m45-42c21 13 26 32 16 52" fill="none" stroke="#ef793b" stroke-width="15" stroke-linecap="round"/>
-  <circle cx="185" cy="48" r="7" fill="#3e2d1d"/>
-  <circle cx="184" cy="46" r="2" fill="#fff"/>
-</svg>

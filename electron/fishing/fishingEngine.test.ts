@@ -7,7 +7,7 @@ describe('fishingEngine', () => {
     ['basic', 0, 'crucian'],
     ['basic', 0.749999, 'paleChub'],
     ['basic', 0.75, 'grassCarp'],
-    ['basic', 0.95, 'mandarin'],
+    ['basic', 0.95, 'tuna'],
     ['premium', 0.95, 'goldenKoi'],
   ] as const)('maps %s bait roll %s to %s', (baitId, roll, fishId) => {
     expect(chooseFish(baitId, () => roll)).toBe(fishId)
