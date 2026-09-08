@@ -8,6 +8,12 @@ import { buildEmptyFoodCounts, buildFoodOffers } from './foodCatalog'
 import { buildEmptySupplyCounts, buildSupplyOffers } from './supplyCatalog'
 import type { DecorId, DecorOffer } from './decorCatalog'
 import { buildEmptyDecorCounts, buildDecorOffers } from './decorCatalog'
+import {
+  buildBaitOffers,
+  buildEmptyBaitCounts,
+  getBaitIds,
+} from '../fishing/baitCatalog'
+import type { BaitId, BaitOffer } from '../fishing/fishingTypes'
 
 export type { FoodId } from './foodCatalog'
 export type { DecorId } from './decorCatalog'
@@ -17,6 +23,7 @@ export const SEED_OFFERS: readonly SeedOffer[] = buildSeedOffers()
 export const FOOD_OFFERS: readonly FoodOffer[] = buildFoodOffers()
 export const SUPPLY_OFFERS: readonly SupplyOffer[] = buildSupplyOffers()
 export const DECOR_OFFERS: readonly DecorOffer[] = buildDecorOffers()
+export const BAIT_OFFERS: readonly BaitOffer[] = buildBaitOffers()
 
 /** 农产品回收价（单次出售 1 个） */
 export const PRODUCE_OFFERS: readonly ProduceOffer[] = buildProduceOffers()
@@ -57,4 +64,10 @@ export function decorCounts(input: Record<string, number> = {}): Record<DecorId,
 
 export function seedCounts(input: Record<string, number> = {}): Record<CropId, number> {
   return mergeLegacySeeds(input) as Record<CropId, number>
+}
+
+export function baitCounts(input: Record<string, number> = {}): Record<BaitId, number> {
+  const next = buildEmptyBaitCounts()
+  for (const id of getBaitIds()) next[id] = normalizeItemCount(input[id])
+  return next
 }

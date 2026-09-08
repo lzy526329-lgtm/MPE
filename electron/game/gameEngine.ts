@@ -3,7 +3,7 @@ import type { CropId, FarmState } from '../farm/farmTypes'
 import { mergeLegacyProduce, mergeLegacySeeds, plotUnlockRequirement } from '../farm/farmCatalog'
 import { farmLevelFromTotalXp, grantFarmExperience } from '../farm/farmLevel'
 import { UNLOCK_PLOT_XP } from '../farm/farmLevelCatalog'
-import { INITIAL_COINS, PRODUCE_OFFERS, SEED_OFFERS, FOOD_OFFERS, SUPPLY_OFFERS, DECOR_OFFERS, normalizeItemCount, seedCounts, foodCounts, supplyCounts, decorCounts } from './gameCatalog'
+import { INITIAL_COINS, PRODUCE_OFFERS, SEED_OFFERS, FOOD_OFFERS, SUPPLY_OFFERS, DECOR_OFFERS, BAIT_OFFERS, normalizeItemCount, seedCounts, foodCounts, supplyCounts, decorCounts, baitCounts } from './gameCatalog'
 import { buildEmptyDecorCounts } from './decorCatalog'
 import type { FoodId, SupplyId, DecorId } from './gameTypes'
 import { buyDecor as buyDecorMutation } from '../farm/decorEngine'
@@ -34,6 +34,8 @@ function cloneInventory(inventory: InventoryState): InventoryState {
     seeds: { ...inventory.seeds },
     produce: cloneRecord(inventory.produce),
     decors: { ...inventory.decors },
+    baits: { ...baitCounts(inventory.baits) },
+    fish: (inventory.fish ?? []).map((item) => ({ ...item })),
   }
 }
 
@@ -51,6 +53,10 @@ function cloneGameState(state: GameState): GameState {
     wallet: { ...state.wallet },
     inventory: cloneInventory(state.inventory),
     farm: cloneFarmCore(state.farm),
+    fishing: {
+      discoveredFish: [...(state.fishing?.discoveredFish ?? [])],
+      totalCaught: state.fishing?.totalCaught ?? 0,
+    },
     migrations: { ...state.migrations },
   }
 }
@@ -78,7 +84,7 @@ export function createDefaultGameState(now: number): GameState {
   const { farmCore, seeds, produce } = splitFarmState(defaultFarm)
 
   return {
-    version: 1,
+    version: 2,
     wallet: { coins: INITIAL_COINS },
     inventory: {
       food: foodCounts(),
@@ -86,8 +92,11 @@ export function createDefaultGameState(now: number): GameState {
       seeds,
       produce,
       decors: decorCounts(),
+      baits: baitCounts(),
+      fish: [],
     },
     farm: farmCore,
+    fishing: { discoveredFish: [], totalCaught: 0 },
     migrations: {
       starterCoinsGranted: true,
       legacyPetImported: false,
@@ -102,7 +111,7 @@ export function migrateLegacyGameState(input: LegacyGameInput): GameState {
   const { farmCore, seeds, produce } = splitFarmState(legacy)
 
   return {
-    version: 1,
+    version: 2,
     wallet: { coins: resolveLegacyCoins(input.petCoins) },
     inventory: {
       food: foodCounts(),
@@ -110,8 +119,11 @@ export function migrateLegacyGameState(input: LegacyGameInput): GameState {
       seeds,
       produce,
       decors: decorCounts(),
+      baits: baitCounts(),
+      fish: [],
     },
     farm: farmCore,
+    fishing: { discoveredFish: [], totalCaught: 0 },
     migrations: {
       starterCoinsGranted: true,
       legacyPetImported: input.petCoins !== undefined,
@@ -140,6 +152,11 @@ export function toGameViewState(state: GameState): GameViewState {
     foodOffers: FOOD_OFFERS.map((offer) => ({ ...offer })),
     supplyOffers: SUPPLY_OFFERS.map((offer) => ({ ...offer })),
     decorOffers: DECOR_OFFERS.map((offer) => ({ ...offer })),
+    baitOffers: BAIT_OFFERS.map((offer) => ({ ...offer })),
+    fishing: {
+      discoveredFish: [...(state.fishing?.discoveredFish ?? [])],
+      totalCaught: state.fishing?.totalCaught ?? 0,
+    },
   }
 }
 
@@ -156,6 +173,8 @@ export function emptyGameViewState(): GameViewState {
       seeds: seedCounts(),
       produce: {},
       decors: decorCounts(),
+      baits: baitCounts(),
+      fish: [],
     },
     placedDecorCounts: buildEmptyDecorCounts(),
     seedOffers: SEED_OFFERS.map((offer) => ({ ...offer })),
@@ -163,6 +182,8 @@ export function emptyGameViewState(): GameViewState {
     foodOffers: FOOD_OFFERS.map((offer) => ({ ...offer })),
     supplyOffers: SUPPLY_OFFERS.map((offer) => ({ ...offer })),
     decorOffers: DECOR_OFFERS.map((offer) => ({ ...offer })),
+    baitOffers: BAIT_OFFERS.map((offer) => ({ ...offer })),
+    fishing: { discoveredFish: [], totalCaught: 0 },
   }
 }
 

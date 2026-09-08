@@ -5,9 +5,11 @@ import { createDefaultFarm } from '../farm/farmEngine'
 import { parseFarmPayload } from '../farm/farmStore'
 import type { FarmState } from '../farm/farmTypes'
 import { migrateLegacyGameState } from './gameEngine'
-import { normalizeItemCount, seedCounts, foodCounts, supplyCounts, decorCounts } from './gameCatalog'
+import { normalizeItemCount, seedCounts, foodCounts, supplyCounts, decorCounts, baitCounts } from './gameCatalog'
 import type { FarmCoreState, GameState } from './gameTypes'
 import { parsePlacedDecors } from '../farm/decorEngine'
+import { getFishCatalogEntry, isFishId } from '../fishing/fishCatalog'
+import type { FishCatch, FishId } from '../fishing/fishingTypes'
 
 export type PersistableMutation = { ok: boolean; game: GameState }
 export type GameMutator<T extends PersistableMutation> = (state: GameState) => T | Promise<T>
@@ -84,6 +86,38 @@ function parseTotalXp(value: unknown): number {
   return Math.floor(value)
 }
 
+function normalizeFishCatch(value: unknown): FishCatch | null {
+  if (!isRecord(value) || typeof value.id !== 'string' || !value.id.trim()) return null
+  if (!isFishId(value.fishId)) return null
+  const catalog = getFishCatalogEntry(value.fishId)
+  if (
+    typeof value.weightKg !== 'number' ||
+    !Number.isFinite(value.weightKg) ||
+    value.weightKg < catalog.weightMin ||
+    value.weightKg > catalog.weightMax ||
+    typeof value.sellPrice !== 'number' ||
+    !Number.isSafeInteger(value.sellPrice) ||
+    value.sellPrice < 1 ||
+    typeof value.caughtAt !== 'number' ||
+    !Number.isFinite(value.caughtAt) ||
+    value.caughtAt < 0
+  ) {
+    return null
+  }
+  return {
+    id: value.id,
+    fishId: value.fishId,
+    weightKg: value.weightKg,
+    sellPrice: value.sellPrice,
+    caughtAt: value.caughtAt,
+  }
+}
+
+function parseFishIds(value: unknown): FishId[] {
+  if (!Array.isArray(value)) return []
+  return [...new Set(value.filter(isFishId))]
+}
+
 /**
  * A damaged farm subtree is rebuilt from the default farm instead of discarding
  * the whole save, so the wallet, inventory and migration flags survive.
@@ -113,21 +147,35 @@ function parseFarmCore(
 
 export function parseGamePayload(raw: string, now: number): GameState {
   const value = JSON.parse(raw) as unknown
-  if (!isRecord(value) || value.version !== 1) throw new Error('Invalid game payload')
+  if (!isRecord(value) || (value.version !== 1 && value.version !== 2)) {
+    throw new Error('Invalid game payload')
+  }
 
   const wallet = isRecord(value.wallet) ? value.wallet : {}
   const inventory = isRecord(value.inventory) ? value.inventory : {}
+  const fishing = isRecord(value.fishing) ? value.fishing : {}
   const food = foodCounts(normalizeCountRecord(inventory.food))
   const supplies = supplyCounts(normalizeCountRecord(inventory.supplies))
   const seeds = seedCounts(normalizeCountRecord(inventory.seeds))
   const produce = normalizeCountRecord(inventory.produce)
   const decors = decorCounts(normalizeCountRecord(inventory.decors))
+  const baits = baitCounts(normalizeCountRecord(inventory.baits))
+  const fish = Array.isArray(inventory.fish)
+    ? inventory.fish
+        .map(normalizeFishCatch)
+        .filter((item): item is FishCatch => item !== null)
+        .slice(0, 100)
+    : []
 
   return {
-    version: 1,
+    version: 2,
     wallet: { coins: normalizeItemCount(wallet.coins) },
-    inventory: { food, supplies, seeds, produce, decors },
+    inventory: { food, supplies, seeds, produce, decors, baits, fish },
     farm: parseFarmCore(value.farm, now, seeds, produce),
+    fishing: {
+      discoveredFish: parseFishIds(fishing.discoveredFish),
+      totalCaught: normalizeItemCount(fishing.totalCaught),
+    },
     migrations: parseMigrations(value.migrations),
   }
 }

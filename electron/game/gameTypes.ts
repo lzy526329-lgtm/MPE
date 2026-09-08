@@ -3,10 +3,12 @@ import type { SupplyId, SupplyOffer } from './supplyCatalog'
 import type { DecorId, DecorOffer } from './decorCatalog'
 import type { FarmActionResult } from '../farm/farmEngine'
 import type { CropId, FarmState } from '../farm/farmTypes'
+import type { BaitId, BaitOffer, FishCatch, FishingState } from '../fishing/fishingTypes'
 
 export type { FoodId } from './foodCatalog'
 export type { SupplyId } from './supplyCatalog'
 export type { DecorId } from './decorCatalog'
+export type { BaitId, FishId, FishCatch, FishingState } from '../fishing/fishingTypes'
 export type FarmCoreState = Omit<FarmState, 'seeds' | 'inventory'>
 
 export type WalletState = { coins: number }
@@ -16,6 +18,8 @@ export type InventoryState = {
   seeds: Record<CropId, number>
   produce: Record<string, number>
   decors: Record<DecorId, number>
+  baits: Record<BaitId, number>
+  fish: FishCatch[]
 }
 export type GameMigrationState = {
   starterCoinsGranted: boolean
@@ -23,10 +27,11 @@ export type GameMigrationState = {
   legacyFarmImported: boolean
 }
 export type GameState = {
-  version: 1
+  version: 2
   wallet: WalletState
   inventory: InventoryState
   farm: FarmCoreState
+  fishing: FishingState
   migrations: GameMigrationState
 }
 export type SeedOffer = { cropId: CropId; name: string; price: number }
@@ -41,6 +46,8 @@ export type GameViewState = {
   foodOffers: FoodOffer[]
   supplyOffers: SupplyOffer[]
   decorOffers: DecorOffer[]
+  baitOffers: BaitOffer[]
+  fishing: FishingState
 }
 export type GameErrorCode =
   | 'UNKNOWN_ITEM'

@@ -554,3 +554,45 @@ describe('withGame serialization', () => {
     expect(peekWalletCoins(dir, 1_000)).toBe(23)
   })
 })
+
+describe('fishing save migration', () => {
+  it('migrates a version 1 save without changing wallet or farm', () => {
+    const raw = createDefaultGameState(1_000) as any
+    raw.version = 1
+    raw.wallet.coins = 42
+    delete raw.inventory.baits
+    delete raw.inventory.fish
+    delete raw.fishing
+
+    const state = parseGamePayload(JSON.stringify(raw), 2_000)
+
+    expect(state.version).toBe(2)
+    expect(state.wallet.coins).toBe(42)
+    expect(state.inventory.baits).toEqual({ basic: 0, premium: 0 })
+    expect(state.inventory.fish).toEqual([])
+    expect(state.fishing).toEqual({ discoveredFish: [], totalCaught: 0 })
+  })
+
+  it('drops invalid catches and caps valid catches at 100', () => {
+    const raw = createDefaultGameState(1_000) as any
+    raw.inventory.fish = Array.from({ length: 101 }, (_, index) => ({
+      id: `catch-${index}`,
+      fishId: 'crucian',
+      weightKg: 0.4,
+      sellPrice: 3,
+      caughtAt: index,
+    }))
+    raw.inventory.fish.push({
+      id: '',
+      fishId: 'hacker',
+      weightKg: -1,
+      sellPrice: -9,
+      caughtAt: null,
+    })
+
+    const state = parseGamePayload(JSON.stringify(raw), 2_000)
+
+    expect(state.inventory.fish).toHaveLength(100)
+    expect(state.wallet.coins).toBe(100)
+  })
+})
