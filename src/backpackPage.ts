@@ -9,7 +9,7 @@ import { foodCatalogIconHtml, formatFoodSatietyLabel } from './foodAssets'
 import { supplyCatalogIconHtml, formatSupplyHygieneLabel } from './supplyAssets'
 import { decorCatalogIconHtml } from './decorAssets'
 import { openFeedFoodPicker } from './feedFoodPicker'
-import { getFishCatalogEntry, getFishIds } from '../electron/fishing/fishCatalog'
+import { getFishCatalogEntry } from '../electron/fishing/fishCatalog'
 import { getFishImagePath } from './fishingAssets'
 import {
   escapeHtml,
@@ -183,26 +183,21 @@ function renderFishItems(
   busyCatchId: string | null,
   sellingAllFish: boolean,
 ): string {
-  return getFishIds().map((fishId) => {
-    const catches = state.inventory.fish.filter((item) => item.fishId === fishId)
-    if (catches.length === 0) return ''
-    const fish = getFishCatalogEntry(fishId)
+  return state.inventory.fish.map((item) => {
+    const fish = getFishCatalogEntry(item.fishId)
     return `
-      <article class="backpack-fish-group">
-        <div class="backpack-fish-heading">
-          <img src="${getFishImagePath(fishId)}" alt="${escapeHtml(fish.name)}" />
-          <div><h2>${escapeHtml(fish.name)}</h2><span>共 ${catches.length} 条 · ${fish.rarity}</span></div>
+      <article class="backpack-fish-card">
+        <img src="${getFishImagePath(item.fishId)}" alt="${escapeHtml(fish.name)}" />
+        <div class="backpack-fish-card-body">
+          <span class="fishing-rarity fishing-rarity--${fish.rarity}">${fish.rarity}</span>
+          <h2>${escapeHtml(fish.name)}</h2>
+          <dl>
+            <div><dt>重量</dt><dd>${item.weightKg.toFixed(2)} kg</dd></div>
+            <div><dt>售价</dt><dd>${item.sellPrice} 金币</dd></div>
+          </dl>
         </div>
-        <div class="backpack-fish-catches">
-          ${catches.map((item) => `
-            <div class="backpack-fish-catch">
-              <span>${item.weightKg.toFixed(2)} kg</span>
-              <strong>${item.sellPrice} 金币</strong>
-              <button class="secondary-button" type="button" data-sell-fish="${escapeHtml(item.id)}"
-                ${busyCatchId !== null || sellingAllFish ? 'disabled' : ''}>${busyCatchId === item.id ? '出售中…' : '出售'}</button>
-            </div>
-          `).join('')}
-        </div>
+        <button class="secondary-button" type="button" data-sell-fish="${escapeHtml(item.id)}"
+          ${busyCatchId !== null || sellingAllFish ? 'disabled' : ''}>${busyCatchId === item.id ? '出售中…' : '出售'}</button>
       </article>
     `
   }).join('')

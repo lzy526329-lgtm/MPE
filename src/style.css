@@ -1342,59 +1342,56 @@ input[type="range"] {
   gap: 14px;
 }
 
-.backpack-fish-group {
-  overflow: hidden;
+.backpack-fish-card {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
   border: 1px solid #dbe7d8;
   border-radius: 16px;
   background: #fff;
 }
 
-.backpack-fish-heading {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  background: #f3f8ef;
-}
-
-.backpack-fish-heading img {
-  width: 86px;
-  height: 48px;
+.backpack-fish-card > img {
+  width: 110px;
+  height: 76px;
   object-fit: contain;
 }
 
-.backpack-fish-heading h2 {
-  margin: 0 0 3px;
+.backpack-fish-card h2 {
+  margin: 6px 0 8px;
   font-size: 16px;
 }
 
-.backpack-fish-heading span {
-  color: #718078;
-  font-size: 12px;
+.backpack-fish-card dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 0;
 }
 
-.backpack-fish-catches {
-  display: grid;
-}
-
-.backpack-fish-catch {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
-  border-top: 1px solid #edf1eb;
+.backpack-fish-card dl div {
+  display: flex;
+  gap: 5px;
   font-size: 13px;
 }
 
-.backpack-fish-catch .secondary-button {
-  min-height: 32px;
-  padding: 5px 10px;
+.backpack-fish-card dt {
+  color: #718078;
+}
+
+.backpack-fish-card dd {
+  margin: 0;
+  color: #28382f;
+  font-weight: 700;
 }
 
 @media (max-width: 900px) {
   .backpack-fish-grid { grid-template-columns: 1fr; }
   .backpack-fish-toolbar { align-items: stretch; flex-direction: column; }
+  .backpack-fish-card { grid-template-columns: 90px minmax(0, 1fr) auto; }
+  .backpack-fish-card > img { width: 90px; height: 64px; }
 }
 
 .watermark-input-card,

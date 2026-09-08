@@ -55,7 +55,7 @@ const state: GameViewState = {
 }
 
 describe('backpack page rendering', () => {
-  it('groups catches by species and preserves per-catch sale actions', () => {
+  it('renders every catch as an individual sale card', () => {
     const fishingState: GameViewState = {
       ...state,
       inventory: {
@@ -73,8 +73,10 @@ describe('backpack page rendering', () => {
       sellingAllFish: false,
     })
     expect(html).toContain('鲫鱼')
-    expect(html).toContain('共 2 条')
+    expect(html.match(/class="backpack-fish-card"/g)).toHaveLength(2)
+    expect(html).not.toContain('共 2 条')
     expect(html).toContain('data-sell-fish="a"')
+    expect(html).toContain('data-sell-fish="b"')
     expect(html).toContain('全部出售 · 7 金币')
   })
 
