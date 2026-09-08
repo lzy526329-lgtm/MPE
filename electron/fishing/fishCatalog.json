@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "fish": {
+    "crucian": {
+      "name": "鲫鱼",
+      "rarity": "common",
+      "weightMin": 0.2,
+      "weightMax": 1,
+      "basePrice": 3,
+      "image": "fish-crucian.svg"
+    },
+    "carp": {
+      "name": "鲤鱼",
+      "rarity": "common",
+      "weightMin": 0.5,
+      "weightMax": 2.5,
+      "basePrice": 5,
+      "image": "fish-carp.svg"
+    },
+    "grassCarp": {
+      "name": "草鱼",
+      "rarity": "uncommon",
+      "weightMin": 1,
+      "weightMax": 5,
+      "basePrice": 8,
+      "image": "fish-grass-carp.svg"
+    },
+    "mandarin": {
+      "name": "鳜鱼",
+      "rarity": "rare",
+      "weightMin": 0.5,
+      "weightMax": 3,
+      "basePrice": 15,
+      "image": "fish-mandarin.svg"
+    },
+    "goldenKoi": {
+      "name": "金色锦鲤",
+      "rarity": "precious",
+      "weightMin": 0.3,
+      "weightMax": 2,
+      "basePrice": 30,
+      "image": "fish-golden-koi.svg"
+    }
+  }
+}

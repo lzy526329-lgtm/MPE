@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "baits": {
+    "basic": {
+      "name": "普通鱼饵",
+      "price": 2,
+      "description": "适合钓常见淡水鱼",
+      "image": "bait-basic.svg",
+      "rarityWeights": {
+        "common": 0.75,
+        "uncommon": 0.2,
+        "rare": 0.05,
+        "precious": 0
+      }
+    },
+    "premium": {
+      "name": "高级鱼饵",
+      "price": 6,
+      "description": "显著提高稀有鱼出现概率",
+      "image": "bait-premium.svg",
+      "rarityWeights": {
+        "common": 0.45,
+        "uncommon": 0.3,
+        "rare": 0.2,
+        "precious": 0.05
+      }
+    }
+  }
+}

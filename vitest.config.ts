@@ -6,6 +6,7 @@ export default defineConfig({
       'electron/*.test.ts',
       'electron/game/**/*.test.ts',
       'electron/farm/**/*.test.ts',
+      'electron/fishing/**/*.test.ts',
       'electron/photoplus/**/*.test.ts',
       'electron/cutout/**/*.test.ts',
       'src/**/*.test.ts',
