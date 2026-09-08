@@ -7,7 +7,7 @@
       "weightMin": 0.2,
       "weightMax": 1,
       "basePrice": 3,
-      "image": "fish-crucian.svg"
+      "image": "/fishingGrounds/鲫鱼-cutout.png"
     },
     "carp": {
       "name": "鲤鱼",
@@ -15,7 +15,7 @@
       "weightMin": 0.5,
       "weightMax": 2.5,
       "basePrice": 5,
-      "image": "fish-carp.svg"
+      "image": "/fishingGrounds/鲤鱼-cutout.png"
     },
     "grassCarp": {
       "name": "草鱼",
@@ -23,7 +23,7 @@
       "weightMin": 1,
       "weightMax": 5,
       "basePrice": 8,
-      "image": "fish-grass-carp.svg"
+      "image": "/fishingGrounds/草鱼-cutout.png"
     },
     "mandarin": {
       "name": "鳜鱼",
@@ -39,7 +39,151 @@
       "weightMin": 0.3,
       "weightMax": 2,
       "basePrice": 30,
-      "image": "fish-golden-koi.svg"
+      "image": "/fishingGrounds/锦鲤-cutout.png"
+    },
+    "loach": {
+      "name": "泥鳅",
+      "rarity": "common",
+      "weightMin": 0.05,
+      "weightMax": 0.4,
+      "basePrice": 2,
+      "image": "/fishingGrounds/泥鳅-cutout.png"
+    },
+    "sardine": {
+      "name": "沙丁鱼",
+      "rarity": "common",
+      "weightMin": 0.03,
+      "weightMax": 0.2,
+      "basePrice": 2,
+      "image": "/fishingGrounds/沙丁鱼-cutout.png"
+    },
+    "clownfish": {
+      "name": "小丑鱼",
+      "rarity": "uncommon",
+      "weightMin": 0.05,
+      "weightMax": 0.3,
+      "basePrice": 7,
+      "image": "/fishingGrounds/小丑鱼-cutout.png"
+    },
+    "blueTang": {
+      "name": "蓝唐王鱼",
+      "rarity": "uncommon",
+      "weightMin": 0.1,
+      "weightMax": 0.6,
+      "basePrice": 9,
+      "image": "/fishingGrounds/蓝唐王鱼-cutout.png"
+    },
+    "eel": {
+      "name": "黄鳝",
+      "rarity": "uncommon",
+      "weightMin": 0.2,
+      "weightMax": 2,
+      "basePrice": 8,
+      "image": "/fishingGrounds/黄鳝-cutout.png"
+    },
+    "guppy": {
+      "name": "孔雀鱼",
+      "rarity": "common",
+      "weightMin": 0.01,
+      "weightMax": 0.08,
+      "basePrice": 3,
+      "image": "/fishingGrounds/孔雀鱼-cutout.png"
+    },
+    "hairtail": {
+      "name": "带鱼",
+      "rarity": "uncommon",
+      "weightMin": 0.3,
+      "weightMax": 3,
+      "basePrice": 10,
+      "image": "/fishingGrounds/带鱼-cutout.png"
+    },
+    "goldfish": {
+      "name": "金鱼",
+      "rarity": "common",
+      "weightMin": 0.05,
+      "weightMax": 0.5,
+      "basePrice": 4,
+      "image": "/fishingGrounds/金鱼-cutout.png"
+    },
+    "betta": {
+      "name": "斗鱼",
+      "rarity": "uncommon",
+      "weightMin": 0.03,
+      "weightMax": 0.15,
+      "basePrice": 6,
+      "image": "/fishingGrounds/斗鱼-cutout.png"
+    },
+    "oceanSunfish": {
+      "name": "翻车鱼",
+      "rarity": "precious",
+      "weightMin": 50,
+      "weightMax": 1000,
+      "basePrice": 60,
+      "image": "/fishingGrounds/翻车鱼-cutout.png"
+    },
+    "whiteStrip": {
+      "name": "白条",
+      "rarity": "common",
+      "weightMin": 0.03,
+      "weightMax": 0.2,
+      "basePrice": 2,
+      "image": "/fishingGrounds/白条-cutout.png"
+    },
+    "tuna": {
+      "name": "金枪鱼",
+      "rarity": "rare",
+      "weightMin": 5,
+      "weightMax": 300,
+      "basePrice": 25,
+      "image": "/fishingGrounds/金枪鱼-cutout.png"
+    },
+    "flounder": {
+      "name": "比目鱼",
+      "rarity": "uncommon",
+      "weightMin": 0.2,
+      "weightMax": 5,
+      "basePrice": 10,
+      "image": "/fishingGrounds/比目鱼-cutout.png"
+    },
+    "lionfish": {
+      "name": "狮子鱼",
+      "rarity": "rare",
+      "weightMin": 0.3,
+      "weightMax": 1.5,
+      "basePrice": 16,
+      "image": "/fishingGrounds/狮子鱼-cutout.png"
+    },
+    "ray": {
+      "name": "鳐鱼",
+      "rarity": "rare",
+      "weightMin": 2,
+      "weightMax": 200,
+      "basePrice": 24,
+      "image": "/fishingGrounds/鳐鱼-cutout.png"
+    },
+    "seahorse": {
+      "name": "海马",
+      "rarity": "rare",
+      "weightMin": 0.01,
+      "weightMax": 0.08,
+      "basePrice": 14,
+      "image": "/fishingGrounds/海马-cutout.png"
+    },
+    "angelfish": {
+      "name": "神仙鱼",
+      "rarity": "uncommon",
+      "weightMin": 0.05,
+      "weightMax": 0.4,
+      "basePrice": 8,
+      "image": "/fishingGrounds/神仙鱼-cutout.png"
+    },
+    "paleChub": {
+      "name": "马口",
+      "rarity": "common",
+      "weightMin": 0.05,
+      "weightMax": 0.5,
+      "basePrice": 4,
+      "image": "/fishingGrounds/马口-cutout.png"
     }
   }
 }

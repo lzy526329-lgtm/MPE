@@ -16,10 +16,11 @@ describe('fishing page', () => {
     view.inventory.baits.basic = 2
     const html = renderFishingPage(view, { phase: 'idle' }, 'basic', '')
     expect(html).toContain('普通鱼饵')
+    expect(html).toContain('适合钓常见鱼类')
     expect(html).toContain('点击水面抛竿')
     expect(html).not.toContain('data-fishing-cast')
     expect(html).toContain('data-fishing-backpack-open')
-    expect(html).toContain('图鉴 0 / 5')
+    expect(html).toContain('图鉴 0 / 23')
     expect(html).toContain('×2')
   })
 
@@ -91,6 +92,7 @@ describe('fishing page', () => {
     const opened = renderFishingPage(view, { phase: 'idle' }, 'basic', '', true)
     expect(opened).toContain('aria-label="鱼类图鉴"')
     expect(opened).toContain('鲫鱼')
+    expect(opened).toContain('src="/fishingGrounds/鲫鱼-cutout.png"')
     expect(opened).toContain('尚未发现')
     expect(opened).toContain('data-fishing-catalog-close')
   })

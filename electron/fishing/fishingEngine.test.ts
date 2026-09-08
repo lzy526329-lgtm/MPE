@@ -5,7 +5,7 @@ import { chooseFish, createFishCatch } from './fishingEngine'
 describe('fishingEngine', () => {
   it.each([
     ['basic', 0, 'crucian'],
-    ['basic', 0.749999, 'carp'],
+    ['basic', 0.749999, 'paleChub'],
     ['basic', 0.75, 'grassCarp'],
     ['basic', 0.95, 'mandarin'],
     ['premium', 0.95, 'goldenKoi'],

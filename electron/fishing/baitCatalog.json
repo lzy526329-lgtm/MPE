@@ -4,7 +4,7 @@
     "basic": {
       "name": "普通鱼饵",
       "price": 2,
-      "description": "适合钓常见淡水鱼",
+      "description": "适合钓常见鱼类",
       "image": "bait-basic.svg",
       "rarityWeights": {
         "common": 0.75,

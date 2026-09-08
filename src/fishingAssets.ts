@@ -8,7 +8,8 @@ export const FISHING_ASSETS = {
 }
 
 export function getFishImagePath(fishId: FishId): string {
-  return `/fishing/${getFishCatalogEntry(fishId).image}`
+  const image = getFishCatalogEntry(fishId).image
+  return image.startsWith('/') ? image : `/fishing/${image}`
 }
 
 export function getBaitImagePath(baitId: BaitId): string {
