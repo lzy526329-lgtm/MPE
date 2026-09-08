@@ -778,18 +778,36 @@ input[type="range"] {
 }
 
 /* Fishing pond */
+.tool-page--fishing {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 72px);
+  min-height: 0;
+  overflow: hidden;
+}
+
 #fishing-page .panel {
+  flex: 1;
+  min-height: 0;
   padding: 0;
   overflow: hidden;
   background: #eaf4dc;
 }
 
+#fishing-root {
+  height: 100%;
+  min-height: 0;
+}
+
 .fishing-scene {
   position: relative;
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
   gap: 12px;
-  min-height: 560px;
+  height: 100%;
+  min-height: 0;
   padding: 14px;
+  overflow: hidden;
 }
 
 .fishing-hud {
@@ -822,7 +840,8 @@ input[type="range"] {
 
 .fishing-pond {
   position: relative;
-  min-height: 430px;
+  min-height: 0;
+  height: 100%;
   overflow: hidden;
   border-radius: 22px;
   background-position: center;
@@ -1011,6 +1030,7 @@ input[type="range"] {
   display: flex;
   align-items: stretch;
   gap: 12px;
+  min-width: 0;
 }
 
 .fishing-bait-list {
@@ -1026,6 +1046,7 @@ input[type="range"] {
   grid-template-columns: 42px minmax(120px, 1fr) auto;
   align-items: center;
   gap: 8px;
+  flex: 0 0 auto;
   min-width: 220px;
   padding: 8px 10px;
   color: #385142;
@@ -1050,23 +1071,6 @@ input[type="range"] {
 .fishing-main-action {
   min-width: 130px;
   font-size: 16px;
-}
-
-.fishing-cast-hint {
-  display: grid;
-  min-width: 150px;
-  place-items: center;
-  padding: 10px 16px;
-  color: #f8fff6;
-  border-radius: 12px;
-  background: #367a5a;
-  font-weight: 700;
-  text-align: center;
-}
-
-.fishing-cast-hint--disabled {
-  color: #7b857f;
-  background: #dce3dd;
 }
 
 .fishing-main-action--urgent {
@@ -1295,8 +1299,8 @@ input[type="range"] {
 }
 
 @media (max-width: 900px) {
-  .fishing-scene { min-height: 500px; }
-  .fishing-pond { min-height: 360px; }
+  .tool-page--fishing { height: auto; min-height: 70vh; }
+  .fishing-pond { min-height: 280px; }
   .fishing-controls { flex-direction: column; }
   .fishing-main-action { min-height: 48px; }
   .fishing-catalog-grid { grid-template-columns: 1fr; }

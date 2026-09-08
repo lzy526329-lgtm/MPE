@@ -37,10 +37,8 @@ export function nextTimedEvent(
   return null
 }
 
-function actionHtml(state: FishingUiState, canCast: boolean): string {
-  if (state.phase === 'idle') {
-    return `<div class="fishing-cast-hint${canCast ? '' : ' fishing-cast-hint--disabled'}">${canCast ? '点击水面抛竿' : '请先准备鱼饵'}</div>`
-  }
+function actionHtml(state: FishingUiState): string {
+  if (state.phase === 'idle') return ''
   if (state.phase === 'waiting' || state.phase === 'biting') {
     return `<button class="primary-button fishing-main-action${state.phase === 'biting' ? ' fishing-main-action--urgent' : ''}" type="button" data-fishing-reel>${state.phase === 'biting' ? '按空格收线！' : '提前收线（空格）'}</button>`
   }
@@ -81,7 +79,6 @@ export function renderFishingPage(
   castPoint: PondPoint = { x: 55, y: 55 },
 ): string {
   const fishCount = view.inventory.fish.length
-  const canCast = (view.inventory.baits[selectedBait] ?? 0) > 0 && fishCount < 100
   const status = message || PHASE_COPY[state.phase]
   const discovered = new Set(view.fishing.discoveredFish)
   const catchModal = state.phase === 'caught'
@@ -176,7 +173,7 @@ export function renderFishingPage(
             `
           }).join('')}
         </div>
-        ${actionHtml(state, canCast)}
+        ${actionHtml(state)}
       </div>
       ${fishCount >= 100 ? '<p class="fishing-capacity-warning">鱼获背包已满，请先出售。</p>' : ''}
       ${catchModal}

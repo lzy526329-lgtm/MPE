@@ -17,11 +17,18 @@ describe('fishing page', () => {
     const html = renderFishingPage(view, { phase: 'idle' }, 'basic', '')
     expect(html).toContain('普通鱼饵')
     expect(html).toContain('适合钓常见鱼类')
-    expect(html).toContain('点击水面抛竿')
+    expect(html).toContain('选择鱼饵后，点击水面抛竿')
+    expect(html).not.toContain('fishing-cast-hint')
     expect(html).not.toContain('data-fishing-cast')
     expect(html).toContain('data-fishing-backpack-open')
     expect(html).toContain('图鉴 0 / 22')
     expect(html).toContain('×2')
+  })
+
+  it('locks page scroll and keeps bait list horizontally scrollable', () => {
+    const css = readFileSync('src/style.css', 'utf8')
+    expect(css).toMatch(/\.tool-page--fishing\s*\{[\s\S]*?overflow:\s*hidden/)
+    expect(css).toMatch(/\.fishing-bait-list\s*\{[\s\S]*?overflow-x:\s*auto/)
   })
 
   it('places the hud and status text outside the pond', () => {
