@@ -41,6 +41,7 @@ import type { FarmActionResult } from './farm/farmEngine'
 import type { CutoutRequest, CutoutResult } from './cutout'
 import type { CropId, PlacedDecor } from './farm/farmTypes'
 import type { BaitId, GameActionResult, GameViewState, FoodId, SupplyId, DecorId } from './game/gameTypes'
+import type { FishingCastResult, FishingReelResult } from './fishing/fishingIpc'
 
 contextBridge.exposeInMainWorld('electronAPI', {
   platform: process.platform,
@@ -317,6 +318,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('game:sell-fish', catchId),
   gameSellAllFish: (): Promise<GameActionResult> =>
     ipcRenderer.invoke('game:sell-all-fish'),
+  fishingGetState: (): Promise<GameViewState> => ipcRenderer.invoke('fishing:get-state'),
+  fishingCast: (baitId: BaitId): Promise<FishingCastResult> =>
+    ipcRenderer.invoke('fishing:cast', baitId),
+  fishingReel: (token: string): Promise<FishingReelResult> =>
+    ipcRenderer.invoke('fishing:reel', token),
+  fishingCancel: (token: string): Promise<boolean> =>
+    ipcRenderer.invoke('fishing:cancel', token),
   onGameStateChanged: (callback: (state: GameViewState) => void) => {
     const listener = (_event: unknown, state: GameViewState) => callback(state)
     ipcRenderer.on('game:state-changed', listener)

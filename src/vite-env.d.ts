@@ -41,7 +41,8 @@ import type {
 import type { UpdateState } from '../electron/updater'
 import type { FarmActionResult } from '../electron/farm/farmEngine'
 import type { CropId, PlacedDecor } from '../electron/farm/farmTypes'
-import type { FoodId, GameActionResult, GameViewState, SupplyId, DecorId } from '../electron/game/gameTypes'
+import type { BaitId, FoodId, GameActionResult, GameViewState, SupplyId, DecorId } from '../electron/game/gameTypes'
+import type { FishingCastResult, FishingReelResult } from '../electron/fishing/fishingIpc'
 
 declare global {
   interface Window {
@@ -189,6 +190,13 @@ declare global {
       gameBuySupply: (supplyId: SupplyId) => Promise<GameActionResult>
       gameUseSupply: (supplyId: SupplyId) => Promise<GameActionResult>
       gameBuyDecor: (decorId: DecorId) => Promise<GameActionResult>
+      gameBuyBait: (baitId: BaitId) => Promise<GameActionResult>
+      gameSellFish: (catchId: string) => Promise<GameActionResult>
+      gameSellAllFish: () => Promise<GameActionResult>
+      fishingGetState: () => Promise<GameViewState>
+      fishingCast: (baitId: BaitId) => Promise<FishingCastResult>
+      fishingReel: (token: string) => Promise<FishingReelResult>
+      fishingCancel: (token: string) => Promise<boolean>
       onGameStateChanged: (callback: (state: GameViewState) => void) => () => void
     }
   }

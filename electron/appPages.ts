@@ -5,6 +5,7 @@ export type AppPageId =
   | 'farm-page'
   | 'shop-page'
   | 'backpack-page'
+  | 'fishing-page'
   | 'image-page'
   | 'cutout-page'
   | 'watermark-page'
