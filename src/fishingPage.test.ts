@@ -24,6 +24,21 @@ describe('fishing page', () => {
     expect(html).toContain('×2')
   })
 
+  it('places the hud and status text outside the pond', () => {
+    const view = toGameViewState(createDefaultGameState(1_000))
+    const html = renderFishingPage(view, { phase: 'idle' }, 'basic', '')
+    const hudAt = html.indexOf('class="fishing-hud"')
+    const pondAt = html.indexOf('data-fishing-pond')
+    const statusAt = html.indexOf('class="fishing-status"')
+    const controlsAt = html.indexOf('class="fishing-controls"')
+
+    expect(hudAt).toBeGreaterThan(-1)
+    expect(pondAt).toBeGreaterThan(hudAt)
+    expect(statusAt).toBeGreaterThan(pondAt)
+    expect(controlsAt).toBeGreaterThan(statusAt)
+    expect(html).toMatch(/fishing-splash[\s\S]*?<\/div>\s*<\/div>\s*<p class="fishing-status"/)
+  })
+
   it('maps current time to bite and timeout events', () => {
     const waiting: FishingUiState = {
       phase: 'waiting',

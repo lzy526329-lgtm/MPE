@@ -159,8 +159,8 @@ export function renderFishingPage(
         <img class="fishing-bobber" src="${FISHING_ASSETS.bobber}" alt="" />
         <div class="fishing-ripple" aria-hidden="true"></div>
         <div class="fishing-splash" aria-hidden="true"><i></i><i></i><i></i></div>
-        <p class="fishing-status" role="status">${escapeHtml(status)}</p>
       </div>
+      <p class="fishing-status" role="status">${escapeHtml(status)}</p>
       <div class="fishing-controls">
         <div class="fishing-bait-list" role="radiogroup" aria-label="选择鱼饵">
           ${view.baitOffers.map((offer) => {

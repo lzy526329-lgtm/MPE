@@ -793,10 +793,8 @@ input[type="range"] {
 }
 
 .fishing-hud {
-  position: absolute;
-  z-index: 6;
-  top: 28px;
-  left: 28px;
+  position: relative;
+  z-index: 1;
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
@@ -805,12 +803,11 @@ input[type="range"] {
 .fishing-hud > span,
 .fishing-hud > button {
   padding: 7px 12px;
-  border: 1px solid rgba(255, 255, 255, .45);
+  border: 1px solid rgba(48, 92, 78, .18);
   border-radius: 999px;
   color: #f8fff6;
-  background: rgba(27, 65, 65, .82);
-  box-shadow: 0 5px 14px rgba(28, 62, 55, .2);
-  backdrop-filter: blur(8px);
+  background: #245341;
+  box-shadow: 0 5px 14px rgba(28, 62, 55, .16);
 }
 
 .fishing-hud > button {
@@ -819,7 +816,7 @@ input[type="range"] {
 }
 
 .fishing-hud > button:hover {
-  background: rgba(36, 84, 78, .94);
+  background: #2d6a54;
   transform: translateY(-1px);
 }
 
@@ -997,17 +994,11 @@ input[type="range"] {
 }
 
 .fishing-status {
-  position: absolute;
-  z-index: 5;
-  left: 50%;
-  bottom: 18px;
-  max-width: 75%;
   margin: 0;
   padding: 9px 16px;
   color: #f8fff6;
-  background: rgba(27, 65, 65, .82);
+  background: #245341;
   border-radius: 999px;
-  transform: translateX(-50%);
   text-align: center;
 }
 
