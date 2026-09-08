@@ -26,6 +26,8 @@ const defaultOptions = {
   activeTab: 'seeds' as const,
   busyProduceId: null,
   busySupplyId: null,
+  busyCatchId: null,
+  sellingAllFish: false,
   error: null,
 }
 
@@ -51,6 +53,29 @@ const state: GameViewState = {
 }
 
 describe('backpack page rendering', () => {
+  it('groups catches by species and preserves per-catch sale actions', () => {
+    const fishingState: GameViewState = {
+      ...state,
+      inventory: {
+        ...state.inventory,
+        fish: [
+          { id: 'a', fishId: 'crucian', weightKg: 0.4, sellPrice: 3, caughtAt: 1 },
+          { id: 'b', fishId: 'crucian', weightKg: 0.8, sellPrice: 4, caughtAt: 2 },
+        ],
+      },
+    }
+    const html = renderBackpackPage(fishingState, {
+      ...defaultOptions,
+      activeTab: 'fish',
+      busyCatchId: null,
+      sellingAllFish: false,
+    })
+    expect(html).toContain('鲫鱼')
+    expect(html).toContain('共 2 条')
+    expect(html).toContain('data-sell-fish="a"')
+    expect(html).toContain('全部出售 · 7 金币')
+  })
+
   it('renders only seeds with a positive count', () => {
     const html = renderBackpackPage(state, defaultOptions)
 
@@ -132,6 +157,8 @@ describe('backpack page rendering', () => {
       activeTab: 'produce',
       busyProduceId: 'wheat',
       busySupplyId: null,
+      busyCatchId: null,
+      sellingAllFish: false,
       error: null,
     })
 

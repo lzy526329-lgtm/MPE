@@ -9,24 +9,27 @@ import { foodCatalogIconHtml, formatFoodSatietyLabel } from './foodAssets'
 import { supplyCatalogIconHtml, formatSupplyHygieneLabel } from './supplyAssets'
 import { decorCatalogIconHtml } from './decorAssets'
 import { openFeedFoodPicker } from './feedFoodPicker'
+import { getFishCatalogEntry, getFishIds } from '../electron/fishing/fishCatalog'
+import { getFishImagePath } from './fishingAssets'
 import {
-  DEFAULT_GAME_TAB,
   escapeHtml,
   gameErrorMessage,
   type GameTab,
 } from './gamePageShared'
 
-export type BackpackTab = GameTab | 'produce'
+export type BackpackTab = Exclude<GameTab, 'baits'> | 'produce' | 'fish'
 
 export type BackpackRenderOptions = {
   activeTab: BackpackTab
   busyProduceId: string | null
   busySupplyId: string | null
+  busyCatchId: string | null
+  sellingAllFish: boolean
   error: string | null
 }
 
 export function isBackpackTab(value: string | undefined): value is BackpackTab {
-  return value === 'food' || value === 'seeds' || value === 'produce' || value === 'supplies' || value === 'decors'
+  return value === 'food' || value === 'seeds' || value === 'produce' || value === 'supplies' || value === 'decors' || value === 'fish'
 }
 
 export function canSellProduce(owned: number): boolean {
@@ -168,16 +171,48 @@ function renderProduceItems(state: GameViewState, busyProduceId: string | null):
     .join('')
 }
 
+function renderFishItems(
+  state: GameViewState,
+  busyCatchId: string | null,
+  sellingAllFish: boolean,
+): string {
+  return getFishIds().map((fishId) => {
+    const catches = state.inventory.fish.filter((item) => item.fishId === fishId)
+    if (catches.length === 0) return ''
+    const fish = getFishCatalogEntry(fishId)
+    return `
+      <article class="backpack-fish-group">
+        <div class="backpack-fish-heading">
+          <img src="${getFishImagePath(fishId)}" alt="${escapeHtml(fish.name)}" />
+          <div><h2>${escapeHtml(fish.name)}</h2><span>共 ${catches.length} 条 · ${fish.rarity}</span></div>
+        </div>
+        <div class="backpack-fish-catches">
+          ${catches.map((item) => `
+            <div class="backpack-fish-catch">
+              <span>${item.weightKg.toFixed(2)} kg</span>
+              <strong>${item.sellPrice} 金币</strong>
+              <button class="secondary-button" type="button" data-sell-fish="${escapeHtml(item.id)}"
+                ${busyCatchId !== null || sellingAllFish ? 'disabled' : ''}>${busyCatchId === item.id ? '出售中…' : '出售'}</button>
+            </div>
+          `).join('')}
+        </div>
+      </article>
+    `
+  }).join('')
+}
+
 export function renderBackpackPage(
   state: GameViewState,
   options: BackpackRenderOptions,
 ): string {
-  const { activeTab, busyProduceId, busySupplyId, error } = options
+  const { activeTab, busyProduceId, busySupplyId, busyCatchId, sellingAllFish, error } = options
   const hasFood = hasInventoryItems(state.inventory.food)
   const hasSeeds = hasInventoryItems(state.inventory.seeds)
   const hasProduce = hasInventoryItems(state.inventory.produce)
   const hasSupplies = hasInventoryItems(state.inventory.supplies)
   const hasDecors = hasInventoryItems(state.inventory.decors)
+  const hasFish = state.inventory.fish.length > 0
+  const fishTotal = state.inventory.fish.reduce((sum, item) => sum + item.sellPrice, 0)
 
   return `
     <div class="game-page-shell">
@@ -193,6 +228,8 @@ export function renderBackpackPage(
             role="tab" aria-selected="${activeTab === 'supplies'}" data-game-tab="supplies">杂货</button>
           <button class="game-tab${activeTab === 'decors' ? ' active' : ''}" type="button"
             role="tab" aria-selected="${activeTab === 'decors'}" data-game-tab="decors">装饰</button>
+          <button class="game-tab${activeTab === 'fish' ? ' active' : ''}" type="button"
+            role="tab" aria-selected="${activeTab === 'fish'}" data-game-tab="fish">鱼获</button>
         </div>
         <div class="game-wallet" aria-label="当前余额">
           <span aria-hidden="true">●</span>
@@ -260,6 +297,24 @@ export function renderBackpackPage(
             </div>
           `}
       </section>
+      <section class="game-pane${activeTab === 'fish' ? '' : ' hidden'}" data-game-pane="fish">
+        ${hasFish
+          ? `
+            <div class="backpack-fish-toolbar">
+              <span>共 ${state.inventory.fish.length} / 100 条</span>
+              <button class="primary-button" type="button" data-sell-all-fish
+                ${busyCatchId !== null || sellingAllFish ? 'disabled' : ''}>${sellingAllFish ? '出售中…' : `全部出售 · ${fishTotal} 金币`}</button>
+            </div>
+            <div class="backpack-fish-grid">${renderFishItems(state, busyCatchId, sellingAllFish)}</div>
+          `
+          : `
+            <div class="game-empty">
+              <span aria-hidden="true">🎣</span>
+              <strong>暂无鱼获</strong>
+              <p>去鱼塘试试手气吧。</p>
+            </div>
+          `}
+      </section>
     </div>
   `
 }
@@ -273,9 +328,11 @@ export function mountBackpackPage(): void {
   mounted = true
 
   let state: GameViewState | null = null
-  let activeTab: BackpackTab = DEFAULT_GAME_TAB
+  let activeTab: BackpackTab = 'seeds'
   let busyProduceId: string | null = null
   let busySupplyId: string | null = null
+  let busyCatchId: string | null = null
+  let sellingAllFish = false
   let error: string | null = null
   let loading = false
   let stateGeneration = 0
@@ -298,7 +355,14 @@ export function mountBackpackPage(): void {
         : '<div class="game-empty" data-backpack-idle></div>'
       return
     }
-    root.innerHTML = renderBackpackPage(state, { activeTab, busyProduceId, busySupplyId, error })
+    root.innerHTML = renderBackpackPage(state, {
+      activeTab,
+      busyProduceId,
+      busySupplyId,
+      busyCatchId,
+      sellingAllFish,
+      error,
+    })
   }
 
   const refresh = async () => {
@@ -391,6 +455,43 @@ export function mountBackpackPage(): void {
     }
   }
 
+  const sellFishItem = async (catchId: string) => {
+    if (!state || busyCatchId !== null || sellingAllFish) return
+    if (!state.inventory.fish.some((item) => item.id === catchId)) return
+    busyCatchId = catchId
+    error = null
+    render()
+    try {
+      const result = await window.electronAPI.gameSellFish(catchId)
+      state = result.state
+      if (!result.ok) error = gameErrorMessage(result.code)
+    } catch {
+      error = '出售失败，请重试。'
+    } finally {
+      busyCatchId = null
+      stateGeneration += 1
+      render()
+    }
+  }
+
+  const sellAllFishItems = async () => {
+    if (!state || state.inventory.fish.length === 0 || busyCatchId !== null || sellingAllFish) return
+    sellingAllFish = true
+    error = null
+    render()
+    try {
+      const result = await window.electronAPI.gameSellAllFish()
+      state = result.state
+      if (!result.ok) error = gameErrorMessage(result.code)
+    } catch {
+      error = '出售失败，请重试。'
+    } finally {
+      sellingAllFish = false
+      stateGeneration += 1
+      render()
+    }
+  }
+
   root.addEventListener('click', (event) => {
     const target = event.target
     if (!(target instanceof Element)) return
@@ -409,6 +510,18 @@ export function mountBackpackPage(): void {
 
     if (target.closest<HTMLButtonElement>('[data-open-feed-picker]:not([disabled])')) {
       void openFeedPicker()
+      return
+    }
+
+    if (target.closest<HTMLButtonElement>('[data-sell-all-fish]:not([disabled])')) {
+      void sellAllFishItems()
+      return
+    }
+
+    const sellFishButton = target.closest<HTMLButtonElement>('[data-sell-fish]')
+    if (sellFishButton && !sellFishButton.disabled) {
+      const catchId = sellFishButton.dataset.sellFish
+      if (catchId) void sellFishItem(catchId)
       return
     }
 
