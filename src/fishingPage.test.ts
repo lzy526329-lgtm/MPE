@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import { createDefaultGameState, toGameViewState } from '../electron/game/gameEngine'
-import { nextTimedEvent, renderFishingPage } from './fishingPage'
+import {
+  isFishingReelShortcut,
+  nextTimedEvent,
+  normalizePondPoint,
+  renderFishingPage,
+} from './fishingPage'
 import type { FishingUiState } from './fishingStateMachine'
 
 describe('fishing page', () => {
@@ -10,7 +15,8 @@ describe('fishing page', () => {
     view.inventory.baits.basic = 2
     const html = renderFishingPage(view, { phase: 'idle' }, 'basic', '')
     expect(html).toContain('普通鱼饵')
-    expect(html).toContain('data-fishing-cast')
+    expect(html).toContain('点击水面抛竿')
+    expect(html).not.toContain('data-fishing-cast')
     expect(html).toContain('data-fishing-backpack-open')
     expect(html).toContain('图鉴 0 / 5')
     expect(html).toContain('×2')
@@ -29,6 +35,29 @@ describe('fishing page', () => {
     expect(nextTimedEvent({ ...waiting, phase: 'biting' }, 4_701)).toEqual({
       type: 'BITE_EXPIRED',
     })
+  })
+
+  it('normalizes the clicked pond position and clamps it inside the water', () => {
+    const rect = { left: 100, top: 50, width: 300, height: 200 }
+    expect(normalizePondPoint(250, 150, rect)).toEqual({ x: 50, y: 50 })
+    expect(normalizePondPoint(80, 260, rect)).toEqual({ x: 6, y: 90 })
+  })
+
+  it('uses a non-repeating space key as the reel shortcut', () => {
+    expect(isFishingReelShortcut('Space', false)).toBe(true)
+    expect(isFishingReelShortcut('Space', true)).toBe(false)
+    expect(isFishingReelShortcut('Enter', false)).toBe(false)
+  })
+
+  it('positions the fishing line and bobber at the clicked point', () => {
+    const view = toGameViewState(createDefaultGameState(1_000))
+    const state: FishingUiState = { phase: 'casting', baitId: 'basic' }
+    const html = renderFishingPage(view, state, 'basic', '', false, { x: 32, y: 64 })
+
+    expect(html).toContain('--fishing-cast-x:32%')
+    expect(html).toContain('--fishing-cast-y:64%')
+    expect(html).toContain('class="fishing-line"')
+    expect(html).toContain('class="fishing-bobber"')
   })
 
   it('opens a catalog with discovered fish details and hidden silhouettes', () => {

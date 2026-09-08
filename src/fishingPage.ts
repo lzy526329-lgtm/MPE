@@ -13,7 +13,7 @@ import {
 import { escapeHtml } from './gamePageShared'
 
 const PHASE_COPY: Record<FishingUiState['phase'], string> = {
-  idle: '选好鱼饵，找个好位置抛竿吧',
+  idle: '选择鱼饵后，点击水面抛竿',
   casting: '抛竿中…',
   waiting: '浮漂静静地等着鱼儿…',
   biting: '鱼儿咬钩了！快收杆！',
@@ -39,12 +39,31 @@ export function nextTimedEvent(
 
 function actionHtml(state: FishingUiState, canCast: boolean): string {
   if (state.phase === 'idle') {
-    return `<button class="primary-button fishing-main-action" type="button" data-fishing-cast${canCast ? '' : ' disabled'}>抛竿</button>`
+    return `<div class="fishing-cast-hint${canCast ? '' : ' fishing-cast-hint--disabled'}">${canCast ? '点击水面抛竿' : '请先准备鱼饵'}</div>`
   }
   if (state.phase === 'waiting' || state.phase === 'biting') {
-    return `<button class="primary-button fishing-main-action${state.phase === 'biting' ? ' fishing-main-action--urgent' : ''}" type="button" data-fishing-reel>${state.phase === 'biting' ? '收杆！' : '提前收杆'}</button>`
+    return `<button class="primary-button fishing-main-action${state.phase === 'biting' ? ' fishing-main-action--urgent' : ''}" type="button" data-fishing-reel>${state.phase === 'biting' ? '按空格收线！' : '提前收线（空格）'}</button>`
   }
   return `<button class="primary-button fishing-main-action" type="button" disabled>${state.phase === 'casting' ? '抛竿中…' : '结算中…'}</button>`
+}
+
+export type PondPoint = { x: number; y: number }
+
+export function normalizePondPoint(
+  clientX: number,
+  clientY: number,
+  rect: Pick<DOMRect, 'left' | 'top' | 'width' | 'height'>,
+): PondPoint {
+  const x = ((clientX - rect.left) / rect.width) * 100
+  const y = ((clientY - rect.top) / rect.height) * 100
+  return {
+    x: Math.round(Math.min(94, Math.max(6, x))),
+    y: Math.round(Math.min(90, Math.max(10, y))),
+  }
+}
+
+export function isFishingReelShortcut(code: string, repeat: boolean): boolean {
+  return code === 'Space' && !repeat
 }
 
 export function renderFishingPage(
@@ -53,6 +72,7 @@ export function renderFishingPage(
   selectedBait: BaitId,
   message: string,
   catalogOpen = false,
+  castPoint: PondPoint = { x: 55, y: 55 },
 ): string {
   const fishCount = view.inventory.fish.length
   const canCast = (view.inventory.baits[selectedBait] ?? 0) > 0 && fishCount < 100
@@ -122,12 +142,14 @@ export function renderFishingPage(
         <button type="button" data-fishing-backpack-open>🎒 鱼获 <strong>${fishCount}/100</strong></button>
         <button type="button" data-fishing-catalog-open>📖 <strong>图鉴 ${discovered.size} / ${getFishIds().length}</strong></button>
       </div>
-      <div class="fishing-pond" style="background-image:url('${FISHING_ASSETS.pond}')" data-fishing-pond>
+      <div class="fishing-pond" style="background-image:url('${FISHING_ASSETS.pond}');--fishing-cast-x:${castPoint.x}%;--fishing-cast-y:${castPoint.y}%" data-fishing-pond>
         <div class="fishing-water-shimmer" aria-hidden="true"></div>
         <div class="fishing-fish-shadows" aria-hidden="true">
           <span></span><span></span><span></span>
         </div>
-        <div class="fishing-line" aria-hidden="true"></div>
+        <svg class="fishing-line" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <line x1="92" y1="0" x2="${castPoint.x}" y2="${castPoint.y}" pathLength="1"></line>
+        </svg>
         <img class="fishing-bobber" src="${FISHING_ASSETS.bobber}" alt="" />
         <div class="fishing-ripple" aria-hidden="true"></div>
         <p class="fishing-status" role="status">${escapeHtml(status)}</p>
@@ -164,6 +186,7 @@ export function mountFishingPage(): void {
   let selectedBait: BaitId = 'basic'
   let message = ''
   let catalogOpen = false
+  let castPoint: PondPoint = { x: 55, y: 55 }
   let biteTimer: ReturnType<typeof setTimeout> | undefined
   let deadlineTimer: ReturnType<typeof setTimeout> | undefined
   let resetTimer: ReturnType<typeof setTimeout> | undefined
@@ -178,7 +201,7 @@ export function mountFishingPage(): void {
 
   const paint = () => {
     root.innerHTML = view
-      ? renderFishingPage(view, uiState, selectedBait, message, catalogOpen)
+      ? renderFishingPage(view, uiState, selectedBait, message, catalogOpen, castPoint)
       : '<p class="sysinfo-loading">正在加载鱼塘…</p>'
   }
 
@@ -236,13 +259,30 @@ export function mountFishingPage(): void {
 
   const cast = async () => {
     if (!view || uiState.phase !== 'idle') return
+    if ((view.inventory.baits[selectedBait] ?? 0) < 1) {
+      message = '鱼饵不足，请先去商店购买。'
+      paint()
+      return
+    }
+    if (view.inventory.fish.length >= 100) {
+      message = '鱼获背包已满，请先出售。'
+      paint()
+      return
+    }
     message = ''
     dispatch({ type: 'CAST_REQUESTED', baitId: selectedBait })
     try {
-      const result = await window.electronAPI.fishingCast(selectedBait)
+      const [result] = await Promise.all([
+        window.electronAPI.fishingCast(selectedBait),
+        new Promise<void>((resolve) => setTimeout(resolve, 650)),
+      ])
       view = result.state
       if (!result.ok) {
         fail('error', result.message)
+        return
+      }
+      if (!visible) {
+        void window.electronAPI.fishingCancel(result.session.token)
         return
       }
       dispatch({
@@ -276,8 +316,13 @@ export function mountFishingPage(): void {
       paint()
       return
     }
-    if (target.closest('[data-fishing-cast]')) void cast()
-    else if (target.closest('[data-fishing-reel]')) void reel()
+    const pond = target.closest<HTMLElement>('[data-fishing-pond]')
+    if (pond && uiState.phase === 'idle') {
+      castPoint = normalizePondPoint(event.clientX, event.clientY, pond.getBoundingClientRect())
+      void cast()
+      return
+    }
+    if (target.closest('[data-fishing-reel]')) void reel()
     else if (target.closest('[data-fishing-backpack-open]')) openBackpackTab('fish')
     else if (target.closest('[data-fishing-catalog-open]')) {
       catalogOpen = true
@@ -290,6 +335,13 @@ export function mountFishingPage(): void {
       message = ''
       dispatch({ type: 'RESET' })
     }
+  })
+
+  window.addEventListener('keydown', (event) => {
+    if (!visible || !isFishingReelShortcut(event.code, event.repeat)) return
+    if (uiState.phase !== 'waiting' && uiState.phase !== 'biting') return
+    event.preventDefault()
+    void reel()
   })
 
   onPageChange((pageId) => {
