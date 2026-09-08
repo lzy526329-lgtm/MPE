@@ -15,6 +15,7 @@ import { mountPetHomePage } from './petHomePage'
 import { mountFarmPage } from './farmPage'
 import { mountShopPage } from './shopPage'
 import { mountBackpackPage } from './backpackPage'
+import { mountFishingPage } from './fishingPage'
 import { setupAppNavigation, navigateToPage } from './appNavigation'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
@@ -44,6 +45,7 @@ app.innerHTML = `
       <button class="nav-item pet-chat-sidebar-btn" id="open-pet-chat" type="button">与我对话</button>
       <button class="nav-item pet-chat-sidebar-btn" id="open-pet-home" type="button" hidden>参观家园</button>
       <button class="nav-item pet-chat-sidebar-btn" id="open-farm" type="button">农场</button>
+      <button class="nav-item pet-chat-sidebar-btn" id="open-fishing" type="button">鱼塘</button>
       <button class="nav-item pet-chat-sidebar-btn" id="open-shop" type="button">商店</button>
       <button class="nav-item pet-chat-sidebar-btn" id="open-backpack" type="button">背包</button>
       <p class="local-tip">所有工具均在本地完成，不上传文件。</p>
@@ -998,6 +1000,17 @@ app.innerHTML = `
         <div class="panel" id="farm-root"></div>
       </section>
 
+      <section class="tool-page tool-page--fishing" id="fishing-page" hidden>
+        <header>
+          <div>
+            <p class="eyebrow">桌宠玩法</p>
+            <h1>鱼塘</h1>
+            <p class="subtitle">选好鱼饵，留意浮漂，在鱼儿咬钩时及时收杆。</p>
+          </div>
+        </header>
+        <div class="panel" id="fishing-root"></div>
+      </section>
+
       <section class="tool-page" id="shop-page" hidden>
         <header>
           <div>
@@ -1503,6 +1516,7 @@ mountPetHomePage()
 mountFarmPage()
 mountShopPage()
 mountBackpackPage()
+mountFishingPage()
 setupAppNavigation()
 
 document.querySelector<HTMLButtonElement>('#open-pet-chat')?.addEventListener('click', () => {
@@ -1513,6 +1527,9 @@ document.querySelector<HTMLButtonElement>('#open-pet-home')?.addEventListener('c
 })
 document.querySelector<HTMLButtonElement>('#open-farm')?.addEventListener('click', () => {
   navigateToPage('farm-page')
+})
+document.querySelector<HTMLButtonElement>('#open-fishing')?.addEventListener('click', () => {
+  navigateToPage('fishing-page')
 })
 document.querySelector<HTMLButtonElement>('#open-shop')?.addEventListener('click', () => {
   navigateToPage('shop-page')

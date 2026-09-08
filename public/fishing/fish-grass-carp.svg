@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 120">
+  <title>I|</title>
+  <path d="m43 60-34-27v54Z" fill="#668a64" stroke="#314b39" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M38 60c36-41 128-48 176 0-48 48-140 41-176 0Z" fill="#87a871" stroke="#314b39" stroke-width="7"/>
+  <path d="M56 68c42 14 93 14 138-2" fill="none" stroke="#b7cb82" stroke-width="7"/>
+  <circle cx="184" cy="48" r="6" fill="#25372b"/>
+</svg>

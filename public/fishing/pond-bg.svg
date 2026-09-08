@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900">
+  <title>KÿÔ∆|X</title>
+  <defs>
+    <radialGradient id="water" cx="43%" cy="40%">
+      <stop offset="0" stop-color="#8ee1d3"/>
+      <stop offset=".62" stop-color="#43aeb8"/>
+      <stop offset="1" stop-color="#277f98"/>
+    </radialGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="9"/></filter>
+  </defs>
+  <rect width="1600" height="900" fill="#82b95f"/>
+  <path d="M0 90c210 40 260-60 470-5s330-35 520 10 360-40 610 20v785H0Z" fill="#91c86a"/>
+  <path d="M142 430C118 216 378 92 690 118c267-35 661 54 742 256 98 246-145 426-441 439-302 42-707-21-821-194-40-61-34-127-28-189Z" fill="#d8bd76"/>
+  <path d="M185 432C168 246 400 142 687 158c255-30 608 53 691 227 91 190-121 357-405 374-284 36-654-18-759-166-42-59-34-112-29-161Z" fill="url(#water)"/>
+  <g fill="#e7d18d" stroke="#967848" stroke-width="8">
+    <ellipse cx="250" cy="230" rx="58" ry="34" transform="rotate(-15 250 230)"/>
+    <ellipse cx="1320" cy="650" rx="70" ry="39" transform="rotate(12 1320 650)"/>
+    <ellipse cx="1180" cy="178" rx="42" ry="27"/>
+  </g>
+  <g fill="none" stroke="#baf1e7" stroke-width="10" opacity=".3">
+    <path d="M370 370c150-70 300-65 420-10"/>
+    <path d="M760 640c180 36 320 18 430-55"/>
+    <path d="M890 255c115-20 220 3 300 64"/>
+  </g>
+  <g fill="#4b8d4e">
+    <path d="M90 240q70-100 125 3-72-38-125-3Z"/>
+    <path d="M1300 250q70-105 130 0-80-35-130 0Z"/>
+    <path d="M1220 810q90-110 160-5-95-35-160 5Z"/>
+  </g>
+  <ellipse cx="920" cy="410" rx="170" ry="55" fill="#d8ffff" opacity=".13" filter="url(#soft)"/>
+</svg>
