@@ -49,6 +49,12 @@ function actionHtml(state: FishingUiState, canCast: boolean): string {
 
 export type PondPoint = { x: number; y: number }
 
+const FISHING_VISUALS = {
+  castDurationMs: 1_200,
+  lineWidthPx: 2.5,
+  bobberSizePx: 44,
+} as const
+
 export function normalizePondPoint(
   clientX: number,
   clientY: number,
@@ -142,7 +148,7 @@ export function renderFishingPage(
         <button type="button" data-fishing-backpack-open>🎒 鱼获 <strong>${fishCount}/100</strong></button>
         <button type="button" data-fishing-catalog-open>📖 <strong>图鉴 ${discovered.size} / ${getFishIds().length}</strong></button>
       </div>
-      <div class="fishing-pond" style="background-image:url('${FISHING_ASSETS.pond}');--fishing-cast-x:${castPoint.x}%;--fishing-cast-y:${castPoint.y}%" data-fishing-pond>
+      <div class="fishing-pond" style="background-image:url('${FISHING_ASSETS.pond}');--fishing-cast-x:${castPoint.x}%;--fishing-cast-y:${castPoint.y}%;--fishing-cast-duration:${FISHING_VISUALS.castDurationMs}ms;--fishing-line-width:${FISHING_VISUALS.lineWidthPx}px;--fishing-bobber-size:${FISHING_VISUALS.bobberSizePx}px" data-fishing-pond>
         <div class="fishing-water-shimmer" aria-hidden="true"></div>
         <div class="fishing-fish-shadows" aria-hidden="true">
           <span></span><span></span><span></span>
@@ -152,6 +158,7 @@ export function renderFishingPage(
         </svg>
         <img class="fishing-bobber" src="${FISHING_ASSETS.bobber}" alt="" />
         <div class="fishing-ripple" aria-hidden="true"></div>
+        <div class="fishing-splash" aria-hidden="true"><i></i><i></i><i></i></div>
         <p class="fishing-status" role="status">${escapeHtml(status)}</p>
       </div>
       <div class="fishing-controls">
@@ -274,7 +281,7 @@ export function mountFishingPage(): void {
     try {
       const [result] = await Promise.all([
         window.electronAPI.fishingCast(selectedBait),
-        new Promise<void>((resolve) => setTimeout(resolve, 650)),
+        new Promise<void>((resolve) => setTimeout(resolve, FISHING_VISUALS.castDurationMs)),
       ])
       view = result.state
       if (!result.ok) {

@@ -882,12 +882,12 @@ input[type="range"] {
 }
 
 .fishing-line line {
-  stroke: rgba(244, 251, 238, .88);
-  stroke-width: .28;
+  stroke: rgba(255, 255, 255, .98);
+  stroke-width: var(--fishing-line-width);
   stroke-dasharray: 1;
   stroke-dashoffset: 0;
   vector-effect: non-scaling-stroke;
-  filter: drop-shadow(0 1px 1px rgba(31, 65, 59, .45));
+  filter: drop-shadow(0 1px 1px rgba(16, 47, 44, .9));
 }
 
 .fishing-bobber {
@@ -895,7 +895,7 @@ input[type="range"] {
   z-index: 4;
   top: var(--fishing-cast-y);
   left: var(--fishing-cast-x);
-  width: 28px;
+  width: var(--fishing-bobber-size);
   opacity: 0;
   translate: -50% -50%;
   transform-origin: 50% 15%;
@@ -907,14 +907,41 @@ input[type="range"] {
   z-index: 2;
   top: var(--fishing-cast-y);
   left: var(--fishing-cast-x);
-  width: 74px;
-  height: 25px;
+  width: 104px;
+  height: 35px;
   opacity: 0;
-  border: 3px solid rgba(225, 255, 247, .76);
+  border: 4px solid rgba(238, 255, 251, .92);
   border-radius: 50%;
   translate: -50% -50%;
   pointer-events: none;
 }
+
+.fishing-splash {
+  position: absolute;
+  z-index: 4;
+  top: var(--fishing-cast-y);
+  left: var(--fishing-cast-x);
+  width: 86px;
+  height: 62px;
+  opacity: 0;
+  translate: -50% -68%;
+  pointer-events: none;
+}
+
+.fishing-splash i {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  width: 8px;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(243, 255, 252, .95);
+  box-shadow: 0 1px 3px rgba(27, 68, 62, .45);
+}
+
+.fishing-splash i:nth-child(1) { transform: translateX(-28px) rotate(-32deg); }
+.fishing-splash i:nth-child(2) { height: 40px; transform: translateX(-4px); }
+.fishing-splash i:nth-child(3) { transform: translateX(20px) rotate(32deg); }
 
 .fishing-scene--casting .fishing-line,
 .fishing-scene--waiting .fishing-line,
@@ -928,15 +955,19 @@ input[type="range"] {
 }
 
 .fishing-scene--casting .fishing-line line {
-  animation: fishing-line-cast .65s ease-out both;
+  animation: fishing-line-cast var(--fishing-cast-duration) ease-out both;
 }
 
 .fishing-scene--casting .fishing-bobber {
-  animation: fishing-bobber-cast .65s cubic-bezier(.2, .72, .28, 1) both;
+  animation: fishing-bobber-cast var(--fishing-cast-duration) cubic-bezier(.2, .72, .28, 1) both;
+}
+
+.fishing-scene--casting .fishing-splash {
+  animation: fishing-splash-land .45s ease-out .78s both;
 }
 
 .fishing-scene--waiting .fishing-bobber {
-  animation: fishing-bobber-float 1.8s ease-in-out infinite alternate;
+  animation: fishing-bobber-float 1.25s ease-in-out infinite alternate;
 }
 
 .fishing-scene--casting .fishing-ripple,
@@ -946,12 +977,17 @@ input[type="range"] {
 }
 
 .fishing-scene--biting .fishing-bobber {
-  animation: fishing-bobber-bite .36s ease-in both;
+  animation: fishing-bobber-bite 1.05s cubic-bezier(.24, .78, .34, 1) both;
 }
 
 .fishing-scene--biting .fishing-ripple {
   opacity: .9;
   animation: fishing-bite-ripple .4s ease-out infinite alternate;
+}
+
+.fishing-scene--biting .fishing-splash {
+  opacity: 1;
+  animation: fishing-splash-bite .48s ease-in-out infinite alternate;
 }
 
 .fishing-scene--resolving .fishing-bobber {
@@ -1228,18 +1264,30 @@ input[type="range"] {
 }
 
 @keyframes fishing-bobber-float {
-  from { transform: translateY(-2px) rotate(-2deg); }
-  to { transform: translateY(3px) rotate(2deg); }
+  from { transform: translateY(-6px) rotate(-5deg); }
+  to { transform: translateY(8px) rotate(5deg); }
 }
 
 @keyframes fishing-bobber-bite {
-  from { opacity: 1; transform: translateY(2px) rotate(-5deg); }
-  to { opacity: .28; transform: translateY(20px) rotate(4deg) scaleY(.55); }
+  0% { opacity: 1; transform: translateY(-7px) rotate(-8deg); }
+  24% { opacity: 1; transform: translateY(4px) rotate(7deg); }
+  62%, 100% { opacity: .16; transform: translateY(36px) rotate(2deg) scaleY(.42); }
 }
 
 @keyframes fishing-bite-ripple {
   from { transform: scale(.45); }
   to { transform: scale(.85); }
+}
+
+@keyframes fishing-splash-land {
+  0% { opacity: 0; transform: scale(.35) translateY(12px); }
+  38% { opacity: 1; transform: scale(1.1) translateY(-4px); }
+  100% { opacity: 0; transform: scale(1.35) translateY(-18px); }
+}
+
+@keyframes fishing-splash-bite {
+  from { opacity: .35; transform: scale(.72) translateY(5px); }
+  to { opacity: 1; transform: scale(1.12) translateY(-4px); }
 }
 
 @keyframes fishing-bobber-reel {
@@ -1269,6 +1317,7 @@ input[type="range"] {
   .fishing-water-shimmer,
   .fishing-fish-shadows span,
   .fishing-ripple,
+  .fishing-splash,
   .fishing-line,
   .fishing-line line,
   .fishing-bobber,

@@ -56,8 +56,12 @@ describe('fishing page', () => {
 
     expect(html).toContain('--fishing-cast-x:32%')
     expect(html).toContain('--fishing-cast-y:64%')
+    expect(html).toContain('--fishing-cast-duration:1200ms')
+    expect(html).toContain('--fishing-line-width:2.5px')
+    expect(html).toContain('--fishing-bobber-size:44px')
     expect(html).toContain('class="fishing-line"')
     expect(html).toContain('class="fishing-bobber"')
+    expect(html).toContain('class="fishing-splash"')
   })
 
   it('opens a catalog with discovered fish details and hidden silhouettes', () => {
