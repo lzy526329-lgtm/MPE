@@ -43,7 +43,7 @@ describe('fishing handlers', () => {
     expect(cast).toMatchObject({
       ok: true,
       state: { inventory: { baits: { basic: 0 } } },
-      session: { token: 'token-1', biteAt: 3_500, windowMs: 1_200 },
+      session: { token: 'token-1', biteAt: 3_500, windowMs: 2_000 },
     })
 
     now = 3_500

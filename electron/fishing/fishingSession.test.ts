@@ -17,7 +17,7 @@ describe('fishing session manager', () => {
   it('allows one reel only inside the bite window', () => {
     const { manager, setNow } = setup()
     const cast = manager.start(7, 'basic')
-    expect(cast).toMatchObject({ token: 'token-1', biteAt: 3_500, deadline: 4_700 })
+    expect(cast).toMatchObject({ token: 'token-1', biteAt: 3_500, deadline: 5_500 })
 
     setNow(3_499)
     expect(manager.reel(7, cast.token)).toEqual({ status: 'too-early' })

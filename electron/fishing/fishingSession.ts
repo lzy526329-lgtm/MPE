@@ -3,7 +3,7 @@ import type { BaitId, FishCatch } from './fishingTypes'
 
 export const BITE_MIN_MS = 2_500
 export const BITE_MAX_MS = 7_000
-export const REEL_WINDOW_MS = 1_200
+export const REEL_WINDOW_MS = 2_000
 
 export type FishingSessionPublic = {
   token: string
