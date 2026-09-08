@@ -29,4 +29,19 @@ describe('fishing page', () => {
       type: 'BITE_EXPIRED',
     })
   })
+
+  it('opens a catalog with discovered fish details and hidden silhouettes', () => {
+    const view = toGameViewState(createDefaultGameState(1_000))
+    view.fishing.discoveredFish = ['crucian']
+
+    const closed = renderFishingPage(view, { phase: 'idle' }, 'basic', '', false)
+    expect(closed).toContain('data-fishing-catalog-open')
+    expect(closed).not.toContain('aria-label="鱼类图鉴"')
+
+    const opened = renderFishingPage(view, { phase: 'idle' }, 'basic', '', true)
+    expect(opened).toContain('aria-label="鱼类图鉴"')
+    expect(opened).toContain('鲫鱼')
+    expect(opened).toContain('尚未发现')
+    expect(opened).toContain('data-fishing-catalog-close')
+  })
 })

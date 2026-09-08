@@ -51,6 +51,7 @@ export function renderFishingPage(
   state: FishingUiState,
   selectedBait: BaitId,
   message: string,
+  catalogOpen = false,
 ): string {
   const fishCount = view.inventory.fish.length
   const canCast = (view.inventory.baits[selectedBait] ?? 0) > 0 && fishCount < 100
@@ -76,13 +77,49 @@ export function renderFishingPage(
         `
       })()
     : ''
+  const catalogModal = catalogOpen
+    ? `
+      <div class="fishing-catalog-backdrop">
+        <section class="fishing-catalog-panel" role="dialog" aria-modal="true" aria-label="鱼类图鉴">
+          <header>
+            <div>
+              <p class="eyebrow">POND COLLECTION</p>
+              <h2>鱼类图鉴</h2>
+              <p>已发现 ${discovered.size} / ${getFishIds().length} 种</p>
+            </div>
+            <button class="fishing-catalog-close" type="button" data-fishing-catalog-close aria-label="关闭图鉴">×</button>
+          </header>
+          <div class="fishing-catalog-grid">
+            ${getFishIds().map((fishId) => {
+              const fish = getFishCatalogEntry(fishId)
+              const unlocked = discovered.has(fishId)
+              return `
+                <article class="fishing-catalog-card${unlocked ? '' : ' fishing-catalog-card--locked'}">
+                  <img src="${getFishImagePath(fishId)}" alt="${unlocked ? escapeHtml(fish.name) : ''}" />
+                  ${unlocked
+                    ? `
+                      <div>
+                        <span class="fishing-rarity fishing-rarity--${fish.rarity}">${fish.rarity}</span>
+                        <h3>${escapeHtml(fish.name)}</h3>
+                        <p>${fish.weightMin.toFixed(1)}～${fish.weightMax.toFixed(1)} kg · 基础售价 ${fish.basePrice}</p>
+                      </div>
+                    `
+                    : '<div><h3>？？？</h3><p>尚未发现</p></div>'}
+                </article>
+              `
+            }).join('')}
+          </div>
+        </section>
+      </div>
+    `
+    : ''
 
   return `
     <div class="fishing-scene fishing-scene--${state.phase}">
       <div class="fishing-hud">
         <span>🪙 <strong>${view.wallet.coins}</strong></span>
         <span>🎒 鱼获 <strong>${fishCount}/100</strong></span>
-        <span>📖 <strong>图鉴 ${discovered.size} / ${getFishIds().length}</strong></span>
+        <button type="button" data-fishing-catalog-open>📖 <strong>图鉴 ${discovered.size} / ${getFishIds().length}</strong></button>
       </div>
       <div class="fishing-pond" style="background-image:url('${FISHING_ASSETS.pond}')" data-fishing-pond>
         <div class="fishing-water-shimmer" aria-hidden="true"></div>
@@ -113,6 +150,7 @@ export function renderFishingPage(
       </div>
       ${fishCount >= 100 ? '<p class="fishing-capacity-warning">鱼获背包已满，请先出售。</p>' : ''}
       ${catchModal}
+      ${catalogModal}
     </div>
   `
 }
@@ -124,6 +162,7 @@ export function mountFishingPage(): void {
   let uiState: FishingUiState = { phase: 'idle' }
   let selectedBait: BaitId = 'basic'
   let message = ''
+  let catalogOpen = false
   let biteTimer: ReturnType<typeof setTimeout> | undefined
   let deadlineTimer: ReturnType<typeof setTimeout> | undefined
   let resetTimer: ReturnType<typeof setTimeout> | undefined
@@ -138,7 +177,7 @@ export function mountFishingPage(): void {
 
   const paint = () => {
     root.innerHTML = view
-      ? renderFishingPage(view, uiState, selectedBait, message)
+      ? renderFishingPage(view, uiState, selectedBait, message, catalogOpen)
       : '<p class="sysinfo-loading">正在加载鱼塘…</p>'
   }
 
@@ -238,6 +277,13 @@ export function mountFishingPage(): void {
     }
     if (target.closest('[data-fishing-cast]')) void cast()
     else if (target.closest('[data-fishing-reel]')) void reel()
+    else if (target.closest('[data-fishing-catalog-open]')) {
+      catalogOpen = true
+      paint()
+    } else if (target.closest('[data-fishing-catalog-close]')) {
+      catalogOpen = false
+      paint()
+    }
     else if (target.closest('[data-fishing-result-close]')) {
       message = ''
       dispatch({ type: 'RESET' })
@@ -253,6 +299,7 @@ export function mountFishingPage(): void {
     const token = activeToken(uiState)
     if (token) void window.electronAPI.fishingCancel(token)
     clearTimers()
+    catalogOpen = false
     uiState = { phase: 'idle' }
   })
 

@@ -802,7 +802,8 @@ input[type="range"] {
   flex-wrap: wrap;
 }
 
-.fishing-hud > span {
+.fishing-hud > span,
+.fishing-hud > button {
   padding: 7px 12px;
   border: 1px solid rgba(255, 255, 255, .45);
   border-radius: 999px;
@@ -810,6 +811,16 @@ input[type="range"] {
   background: rgba(27, 65, 65, .82);
   box-shadow: 0 5px 14px rgba(28, 62, 55, .2);
   backdrop-filter: blur(8px);
+}
+
+.fishing-hud > button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.fishing-hud > button:hover {
+  background: rgba(36, 84, 78, .94);
+  transform: translateY(-1px);
 }
 
 .fishing-pond {
@@ -1024,6 +1035,97 @@ input[type="range"] {
 .fishing-catch-card dt { color: #7d887e; font-size: 12px; }
 .fishing-catch-card dd { margin: 0; font-weight: 700; }
 
+.fishing-catalog-backdrop {
+  position: absolute;
+  z-index: 22;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(20, 46, 45, .58);
+  backdrop-filter: blur(7px);
+}
+
+.fishing-catalog-panel {
+  width: min(760px, 94%);
+  max-height: 88%;
+  overflow: auto;
+  padding: 22px;
+  border: 1px solid rgba(255, 255, 255, .72);
+  border-radius: 24px;
+  background: #fffdf3;
+  box-shadow: 0 24px 70px rgba(22, 56, 48, .34);
+}
+
+.fishing-catalog-panel > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.fishing-catalog-panel h2,
+.fishing-catalog-panel header p {
+  margin: 0;
+}
+
+.fishing-catalog-close {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  color: #46544b;
+  background: #e9efe5;
+  cursor: pointer;
+  font-size: 25px;
+  line-height: 1;
+}
+
+.fishing-catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.fishing-catalog-card {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  align-items: center;
+  gap: 12px;
+  min-height: 112px;
+  padding: 12px;
+  border: 1px solid #dbe7d8;
+  border-radius: 16px;
+  background: #f5f9f0;
+}
+
+.fishing-catalog-card img {
+  width: 120px;
+  height: 72px;
+  object-fit: contain;
+}
+
+.fishing-catalog-card h3 {
+  margin: 5px 0 2px;
+  font-size: 17px;
+}
+
+.fishing-catalog-card p {
+  margin: 0;
+  color: #748078;
+  font-size: 12px;
+}
+
+.fishing-catalog-card--locked img {
+  opacity: .42;
+  filter: grayscale(1) brightness(.2);
+}
+
+.fishing-catalog-card--locked {
+  background: #eef1eb;
+}
+
 .fishing-rarity {
   display: inline-flex;
   padding: 3px 9px;
@@ -1065,6 +1167,7 @@ input[type="range"] {
   .fishing-pond { min-height: 360px; }
   .fishing-controls { flex-direction: column; }
   .fishing-main-action { min-height: 48px; }
+  .fishing-catalog-grid { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {
