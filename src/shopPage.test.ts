@@ -46,10 +46,32 @@ const defaultOptions = {
   busyFoodId: null,
   busySupplyId: null,
   busyDecorId: null,
+  busyBaitId: null,
   error: null,
 }
 
 describe('shop page rendering', () => {
+  it('renders bait offers with owned count and affordability', () => {
+    const fishingState: GameViewState = {
+      ...state,
+      wallet: { coins: 5 },
+      inventory: { ...state.inventory, baits: { basic: 2, premium: 0 } },
+      baitOffers: [
+        { baitId: 'basic', name: '普通鱼饵', price: 2, description: '常见淡水鱼', image: 'bait-basic.svg' },
+        { baitId: 'premium', name: '高级鱼饵', price: 6, description: '提高稀有概率', image: 'bait-premium.svg' },
+      ],
+    }
+    const html = renderShopPage(fishingState, {
+      ...defaultOptions,
+      activeTab: 'baits',
+      busyBaitId: null,
+    })
+    expect(html).toContain('普通鱼饵')
+    expect(html).toContain('拥有 2')
+    expect(html).toContain('高级鱼饵')
+    expect(html).toContain('金币不足')
+  })
+
   it('renders coins, the wheat offer and owned seed counts', () => {
     const html = renderShopPage(state, defaultOptions)
 
