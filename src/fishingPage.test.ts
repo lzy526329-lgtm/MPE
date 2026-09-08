@@ -108,6 +108,8 @@ describe('fishing page', () => {
     expect(opened).toContain('aria-label="鱼类图鉴"')
     expect(opened).toContain('鲫鱼')
     expect(opened).toContain('src="/fishingGrounds/鲫鱼-cutout.png"')
+    expect(opened).toContain('fishing-rarity--common">普通</span>')
+    expect(opened).not.toContain('fishing-rarity--common">common</span>')
     expect(opened).toContain('尚未发现')
     expect(opened).toContain('data-fishing-catalog-close')
   })

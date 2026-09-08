@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
-import { getFishCatalogEntry, getFishIds } from './fishCatalog'
+import { getFishCatalogEntry, getFishIds, fishRarityLabel } from './fishCatalog'
 
 describe('fish catalog', () => {
   it('contains all 22 configured species', () => {
@@ -36,5 +36,12 @@ describe('fish catalog', () => {
       'bobber.svg',
       'pond-bg.svg',
     ])
+  })
+
+  it('maps rarity keys to chinese labels', () => {
+    expect(fishRarityLabel('common')).toBe('普通')
+    expect(fishRarityLabel('uncommon')).toBe('少见')
+    expect(fishRarityLabel('rare')).toBe('稀有')
+    expect(fishRarityLabel('precious')).toBe('珍贵')
   })
 })

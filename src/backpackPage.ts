@@ -9,7 +9,7 @@ import { foodCatalogIconHtml, formatFoodSatietyLabel } from './foodAssets'
 import { supplyCatalogIconHtml, formatSupplyHygieneLabel } from './supplyAssets'
 import { decorCatalogIconHtml } from './decorAssets'
 import { openFeedFoodPicker } from './feedFoodPicker'
-import { getFishCatalogEntry } from '../electron/fishing/fishCatalog'
+import { getFishCatalogEntry, fishRarityLabel } from '../electron/fishing/fishCatalog'
 import { getFishImagePath } from './fishingAssets'
 import {
   escapeHtml,
@@ -189,7 +189,7 @@ function renderFishItems(
       <article class="backpack-fish-card">
         <img src="${getFishImagePath(item.fishId)}" alt="${escapeHtml(fish.name)}" />
         <div class="backpack-fish-card-body">
-          <span class="fishing-rarity fishing-rarity--${fish.rarity}">${fish.rarity}</span>
+          <span class="fishing-rarity fishing-rarity--${fish.rarity}">${fishRarityLabel(fish.rarity)}</span>
           <h2>${escapeHtml(fish.name)}</h2>
           <dl>
             <div><dt>重量</dt><dd>${item.weightKg.toFixed(2)} kg</dd></div>

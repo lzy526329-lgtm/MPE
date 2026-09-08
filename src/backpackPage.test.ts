@@ -75,6 +75,8 @@ describe('backpack page rendering', () => {
     expect(html).toContain('鲫鱼')
     expect(html.match(/class="backpack-fish-card"/g)).toHaveLength(2)
     expect(html).not.toContain('共 2 条')
+    expect(html).toContain('fishing-rarity--common">普通</span>')
+    expect(html).not.toContain('fishing-rarity--common">common</span>')
     expect(html).toContain('data-sell-fish="a"')
     expect(html).toContain('data-sell-fish="b"')
     expect(html).toContain('全部出售 · 7 金币')

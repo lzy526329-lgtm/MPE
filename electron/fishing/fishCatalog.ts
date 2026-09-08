@@ -44,3 +44,14 @@ export function getFishCatalogEntry(fishId: FishId): FishCatalogEntry {
 export function getFishIdsByRarity(rarity: FishRarity): FishId[] {
   return getFishIds().filter((id) => FISH_CATALOG.fish[id].rarity === rarity)
 }
+
+const FISH_RARITY_LABELS: Record<FishRarity, string> = {
+  common: '普通',
+  uncommon: '少见',
+  rare: '稀有',
+  precious: '珍贵',
+}
+
+export function fishRarityLabel(rarity: FishRarity): string {
+  return FISH_RARITY_LABELS[rarity]
+}

@@ -1,5 +1,5 @@
 import { getBaitCatalogEntry } from '../electron/fishing/baitCatalog'
-import { getFishCatalogEntry, getFishIds } from '../electron/fishing/fishCatalog'
+import { getFishCatalogEntry, getFishIds, fishRarityLabel } from '../electron/fishing/fishCatalog'
 import type { BaitId } from '../electron/fishing/fishingTypes'
 import type { GameViewState } from '../electron/game/gameTypes'
 import { getCurrentPage, onPageChange } from './appNavigation'
@@ -93,7 +93,7 @@ export function renderFishingPage(
               <p class="eyebrow">NEW CATCH</p>
               <img src="${getFishImagePath(state.catch.fishId)}" alt="${escapeHtml(fish.name)}" />
               <h2>${escapeHtml(fish.name)}</h2>
-              <span class="fishing-rarity fishing-rarity--${fish.rarity}">${fish.rarity}</span>
+              <span class="fishing-rarity fishing-rarity--${fish.rarity}">${fishRarityLabel(fish.rarity)}</span>
               <dl>
                 <div><dt>重量</dt><dd>${state.catch.weightKg.toFixed(2)} kg</dd></div>
                 <div><dt>售价</dt><dd>${state.catch.sellPrice} 金币</dd></div>
@@ -126,7 +126,7 @@ export function renderFishingPage(
                   ${unlocked
                     ? `
                       <div>
-                        <span class="fishing-rarity fishing-rarity--${fish.rarity}">${fish.rarity}</span>
+                        <span class="fishing-rarity fishing-rarity--${fish.rarity}">${fishRarityLabel(fish.rarity)}</span>
                         <h3>${escapeHtml(fish.name)}</h3>
                         <p>${fish.weightMin.toFixed(1)}～${fish.weightMax.toFixed(1)} kg · 基础售价 ${fish.basePrice}</p>
                       </div>
