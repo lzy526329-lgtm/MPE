@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
 
 import { createDefaultGameState, toGameViewState } from '../electron/game/gameEngine'
 import {
@@ -60,8 +61,23 @@ describe('fishing page', () => {
     expect(html).toContain('--fishing-line-width:2.5px')
     expect(html).toContain('--fishing-bobber-size:44px')
     expect(html).toContain('class="fishing-line"')
+    expect(html).toContain('<line x1="8" y1="100" x2="32" y2="64"></line>')
+    expect(html).not.toContain('pathLength')
     expect(html).toContain('class="fishing-bobber"')
     expect(html).toContain('class="fishing-splash"')
+  })
+
+  it('keeps fishing svg assets free of invalid xml control characters', () => {
+    for (const asset of ['bobber.svg', 'bait-basic.svg']) {
+      const svg = readFileSync(`public/fishing/${asset}`, 'utf8')
+      expect(svg).not.toMatch(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/)
+    }
+  })
+
+  it('renders the fishing line as one continuous stroke', () => {
+    const css = readFileSync('src/style.css', 'utf8')
+    expect(css).not.toContain('stroke-dasharray')
+    expect(css).not.toContain('stroke-dashoffset')
   })
 
   it('opens a catalog with discovered fish details and hidden silhouettes', () => {

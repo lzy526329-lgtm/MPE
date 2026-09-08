@@ -154,7 +154,7 @@ export function renderFishingPage(
           <span></span><span></span><span></span>
         </div>
         <svg class="fishing-line" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-          <line x1="92" y1="0" x2="${castPoint.x}" y2="${castPoint.y}" pathLength="1"></line>
+          <line x1="8" y1="100" x2="${castPoint.x}" y2="${castPoint.y}"></line>
         </svg>
         <img class="fishing-bobber" src="${FISHING_ASSETS.bobber}" alt="" />
         <div class="fishing-ripple" aria-hidden="true"></div>
