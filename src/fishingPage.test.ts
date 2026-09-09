@@ -73,6 +73,22 @@ describe('fishing page', () => {
     expect(isFishingReelShortcut('Enter', false)).toBe(false)
   })
 
+  it('never renders an action button beside the bait list', () => {
+    const view = toGameViewState(createDefaultGameState(1_000))
+    const states: FishingUiState[] = [
+      { phase: 'casting', baitId: 'basic' },
+      { phase: 'waiting', baitId: 'basic', token: 't1', biteAt: 3_500, deadline: 5_500 },
+      { phase: 'biting', baitId: 'basic', token: 't1', deadline: 5_500 },
+      { phase: 'resolving', token: 't1' },
+    ]
+
+    for (const state of states) {
+      const html = renderFishingPage(view, state, 'basic', '')
+      expect(html).not.toContain('fishing-main-action')
+      expect(html).not.toContain('data-fishing-reel')
+    }
+  })
+
   it('positions the fishing line and bobber at the clicked point', () => {
     const view = toGameViewState(createDefaultGameState(1_000))
     const state: FishingUiState = { phase: 'casting', baitId: 'basic' }

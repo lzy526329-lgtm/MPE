@@ -1068,17 +1068,6 @@ input[type="range"] {
 .fishing-bait small { color: #718278; }
 .fishing-bait em { color: #276848; font-style: normal; font-weight: 700; }
 
-.fishing-main-action {
-  min-width: 130px;
-  font-size: 16px;
-}
-
-.fishing-main-action--urgent {
-  color: #2e2310;
-  background: #ffd85c;
-  animation: fishing-action-pulse .48s ease-in-out infinite alternate;
-}
-
 .fishing-capacity-warning {
   margin: 0;
   color: #a64639;
@@ -1293,16 +1282,10 @@ input[type="range"] {
   to { opacity: 0; }
 }
 
-@keyframes fishing-action-pulse {
-  from { transform: scale(1); }
-  to { transform: scale(1.045); }
-}
-
 @media (max-width: 900px) {
   .tool-page--fishing { height: auto; min-height: 70vh; }
   .fishing-pond { min-height: 280px; }
   .fishing-controls { flex-direction: column; }
-  .fishing-main-action { min-height: 48px; }
   .fishing-catalog-grid { grid-template-columns: 1fr; }
 }
 
@@ -1313,8 +1296,7 @@ input[type="range"] {
   .fishing-splash,
   .fishing-line,
   .fishing-line line,
-  .fishing-bobber,
-  .fishing-main-action--urgent {
+  .fishing-bobber {
     animation: none !important;
     transition: none !important;
   }

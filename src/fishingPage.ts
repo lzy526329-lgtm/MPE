@@ -37,14 +37,6 @@ export function nextTimedEvent(
   return null
 }
 
-function actionHtml(state: FishingUiState): string {
-  if (state.phase === 'idle') return ''
-  if (state.phase === 'waiting' || state.phase === 'biting') {
-    return `<button class="primary-button fishing-main-action${state.phase === 'biting' ? ' fishing-main-action--urgent' : ''}" type="button" data-fishing-reel>${state.phase === 'biting' ? '按空格收线！' : '提前收线（空格）'}</button>`
-  }
-  return `<button class="primary-button fishing-main-action" type="button" disabled>${state.phase === 'casting' ? '抛竿中…' : '结算中…'}</button>`
-}
-
 export type PondPoint = { x: number; y: number }
 
 const FISHING_VISUALS = {
@@ -173,7 +165,6 @@ export function renderFishingPage(
             `
           }).join('')}
         </div>
-        ${actionHtml(state)}
       </div>
       ${fishCount >= 100 ? '<p class="fishing-capacity-warning">鱼获背包已满，请先出售。</p>' : ''}
       ${catchModal}
@@ -326,8 +317,7 @@ export function mountFishingPage(): void {
       void cast()
       return
     }
-    if (target.closest('[data-fishing-reel]')) void reel()
-    else if (target.closest('[data-fishing-backpack-open]')) openBackpackTab('fish')
+    if (target.closest('[data-fishing-backpack-open]')) openBackpackTab('fish')
     else if (target.closest('[data-fishing-catalog-open]')) {
       catalogOpen = true
       paint()
