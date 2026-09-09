@@ -18,6 +18,17 @@ describe('fishing UI state machine', () => {
     expect(state.phase).toBe('biting')
     state = reduceFishingState(state, { type: 'REEL_REQUESTED' })
     expect(state.phase).toBe('resolving')
+    state = reduceFishingState(state, {
+      type: 'REEL_CONTINUED',
+      fight: { progress: 0.2, tension: 0.3, tensionAt: 3_600, fishPull: 0.5 },
+    })
+    expect(state).toMatchObject({
+      phase: 'biting',
+      baitId: 'basic',
+      token: 't1',
+      deadline: 4_700,
+      fight: { progress: 0.2, tension: 0.3 },
+    })
   })
 
   it('ignores reel requests from idle', () => {

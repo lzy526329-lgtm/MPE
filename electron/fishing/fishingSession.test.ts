@@ -14,32 +14,56 @@ function setup() {
 }
 
 describe('fishing session manager', () => {
-  it('allows one reel only inside the bite window', () => {
+  it('allows reeling only inside the bite window', () => {
     const { manager, setNow } = setup()
     const cast = manager.start(7, 'basic')
-    expect(cast).toMatchObject({ token: 'token-1', biteAt: 3_500, deadline: 5_500 })
+    expect(cast).toMatchObject({ token: 'token-1', biteAt: 3_500, deadline: 23_500 })
 
     setNow(3_499)
     expect(manager.reel(7, cast.token)).toEqual({ status: 'too-early' })
     expect(manager.reel(7, cast.token)).toEqual({ status: 'invalid' })
   })
 
-  it('returns a catch during the window and consumes the token', () => {
+  it('returns progress during the fight and consumes the token on catch', () => {
     const { manager, setNow } = setup()
     const cast = manager.start(7, 'basic')
-    setNow(cast.biteAt)
-    expect(manager.reel(7, cast.token)).toMatchObject({
+    let outcome: ReturnType<typeof manager.reel> = { status: 'invalid' }
+    for (let index = 0; index < 15; index += 1) {
+      setNow(cast.biteAt + index * 1_000)
+      outcome = manager.reel(7, cast.token)
+    }
+    expect(outcome).toMatchObject({
       status: 'caught',
       catch: { id: 'token-1', fishId: 'crucian' },
+      progress: 1,
     })
     expect(manager.reel(7, cast.token)).toEqual({ status: 'invalid' })
   })
 
-  it('expires, cancels and isolates sessions by owner', () => {
+  it('breaks a red line, recovers tension while waiting and isolates sessions by owner', () => {
     const { manager, setNow } = setup()
+    const strained = manager.start(7, 'basic')
+    setNow(strained.biteAt)
+    expect(manager.reel(7, strained.token).status).toBe('continue')
+    setNow(strained.biteAt)
+    expect(manager.reel(7, strained.token).status).toBe('continue')
+    setNow(strained.biteAt)
+    expect(manager.reel(7, strained.token).status).toBe('continue')
+    setNow(strained.biteAt)
+    expect(manager.reel(7, strained.token)).toMatchObject({
+      status: 'continue',
+      tension: expect.any(Number),
+    })
+    setNow(strained.biteAt)
+    expect(manager.reel(7, strained.token).status).toBe('continue')
+    setNow(strained.biteAt)
+    expect(manager.reel(7, strained.token)).toEqual({ status: 'line-broken' })
+
     const expired = manager.start(7, 'basic')
-    setNow(expired.deadline + 1)
-    expect(manager.reel(7, expired.token)).toEqual({ status: 'too-late' })
+    setNow(expired.biteAt)
+    manager.reel(7, expired.token)
+    setNow(expired.biteAt + 2_400)
+    expect(manager.reel(7, expired.token).status).toBe('continue')
 
     const isolated = manager.start(7, 'premium')
     expect(manager.reel(8, isolated.token)).toEqual({ status: 'invalid' })
@@ -53,6 +77,6 @@ describe('fishing session manager', () => {
     const second = manager.start(7, 'premium')
     expect(manager.reel(7, first.token)).toEqual({ status: 'invalid' })
     setNow(second.biteAt)
-    expect(manager.reel(7, second.token).status).toBe('caught')
+    expect(manager.reel(7, second.token).status).toBe('continue')
   })
 })

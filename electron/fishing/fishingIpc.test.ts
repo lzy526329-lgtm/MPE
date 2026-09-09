@@ -43,11 +43,15 @@ describe('fishing handlers', () => {
     expect(cast).toMatchObject({
       ok: true,
       state: { inventory: { baits: { basic: 0 } } },
-      session: { token: 'token-1', biteAt: 3_500, windowMs: 2_000 },
+      session: { token: 'token-1', biteAt: 3_500, windowMs: 20_000 },
     })
 
     now = 3_500
-    const reeled = await handlers.reel(12, 'token-1')
+    let reeled: Awaited<ReturnType<typeof handlers.reel>> = await handlers.reel(12, 'token-1')
+    for (let index = 1; index < 15; index += 1) {
+      now = 3_500 + index * 1_000
+      reeled = await handlers.reel(12, 'token-1')
+    }
     expect(reeled).toMatchObject({
       ok: true,
       status: 'caught',

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 
 import { createDefaultGameState, toGameViewState } from '../electron/game/gameEngine'
 import {
+  getDisplayedFishingTension,
   isFishingReelShortcut,
   nextTimedEvent,
   normalizePondPoint,
@@ -29,6 +30,11 @@ describe('fishing page', () => {
     const css = readFileSync('src/style.css', 'utf8')
     expect(css).toMatch(/\.tool-page--fishing\s*\{[\s\S]*?overflow:\s*hidden/)
     expect(css).toMatch(/\.fishing-bait-list\s*\{[\s\S]*?overflow-x:\s*auto/)
+  })
+
+  it('lets the fishing page use the available workspace width', () => {
+    const css = readFileSync('src/style.css', 'utf8')
+    expect(css).toMatch(/\.tool-page--fishing > header,\s*#fishing-page \.panel\s*\{[\s\S]*?max-width:\s*none/)
   })
 
   it('places the hud and status text outside the pond', () => {
@@ -100,6 +106,7 @@ describe('fishing page', () => {
     expect(html).toContain('--fishing-line-width:2.5px')
     expect(html).toContain('--fishing-bobber-size:44px')
     expect(html).toContain('class="fishing-line"')
+    expect(html).toContain('data-fishing-line-status="safe"')
     expect(html).toContain('<line x1="8" y1="100" x2="32" y2="64"></line>')
     expect(html).not.toContain('pathLength')
     expect(html).toContain('class="fishing-bobber"')
@@ -135,5 +142,34 @@ describe('fishing page', () => {
     expect(opened).not.toContain('fishing-rarity--common">common</span>')
     expect(opened).toContain('尚未发现')
     expect(opened).toContain('data-fishing-catalog-close')
+  })
+
+  it('renders the fight meters and turns the line red at dangerous tension', () => {
+    const view = toGameViewState(createDefaultGameState(1_000))
+    const html = renderFishingPage(view, {
+      phase: 'biting',
+      baitId: 'basic',
+      token: 't1',
+      deadline: 9_000,
+      fight: { progress: 0.4, tension: 0.9, tensionAt: Date.now(), fishPull: 0.58 },
+    }, 'basic', '')
+
+    expect(html).toContain('收线进度')
+    expect(html).toContain('40%')
+    expect(html).toContain('data-fishing-line-status="danger"')
+    expect(html).toContain('鱼线变红了，先松手等张力下降')
+    expect(html).toContain('鱼的反拉 58%')
+  })
+
+  it('lets line tension recover over time', () => {
+    const state: FishingUiState = {
+      phase: 'biting',
+      baitId: 'basic',
+      token: 't1',
+      deadline: 9_000,
+      fight: { progress: 0, tension: 0.8, tensionAt: 1_000, fishPull: 0 },
+    }
+    expect(getDisplayedFishingTension(state, 1_000)).toBe(0.8)
+    expect(getDisplayedFishingTension(state, 2_200)).toBeCloseTo(0.3)
   })
 })

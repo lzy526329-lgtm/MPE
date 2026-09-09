@@ -14,6 +14,7 @@ import { isBaitId } from './baitCatalog'
 import {
   createFishingSessionManager,
   type FishingSessionManager,
+  type FishingFightSnapshot,
   type FishingSessionPublic,
 } from './fishingSession'
 import type { BaitId, FishCatch } from './fishingTypes'
@@ -23,10 +24,22 @@ export type FishingCastResult =
   | { ok: false; code: GameErrorCode; message: string; state: GameViewState }
 
 export type FishingReelResult =
-  | { ok: true; status: 'caught'; catch: FishCatch; state: GameViewState }
+  | {
+      ok: true
+      status: 'continue'
+      state: GameViewState
+      fight: FishingFightSnapshot
+    }
+  | {
+      ok: true
+      status: 'caught'
+      catch: FishCatch
+      state: GameViewState
+      fight: FishingFightSnapshot
+    }
   | {
       ok: false
-      status: 'invalid' | 'too-early' | 'too-late' | 'error'
+      status: 'invalid' | 'too-early' | 'too-late' | 'line-broken' | 'error'
       message: string
       state: GameViewState
     }
@@ -90,11 +103,25 @@ export function createFishingHandlers(options: {
     },
     reel: async (ownerId, token) => {
       const outcome = options.sessions.reel(ownerId, token)
+      if (outcome.status === 'continue') {
+        return {
+          ok: true,
+          status: 'continue',
+          fight: {
+            progress: outcome.progress,
+            tension: outcome.tension,
+            tensionAt: outcome.tensionAt,
+            fishPull: outcome.fishPull,
+          },
+          state: renderableState(),
+        }
+      }
       if (outcome.status !== 'caught') {
         const messages = {
           invalid: '本轮钓鱼已失效',
           'too-early': '收杆太早，鱼儿受惊了',
           'too-late': '鱼儿已经脱钩',
+          'line-broken': '鱼线绷断了，鱼儿逃走了',
         }
         return {
           ok: false,
@@ -114,7 +141,18 @@ export function createFishingHandlers(options: {
           return { ok: false, status: 'error', message: mutation.message, state: mutation.state }
         }
         options.publish(mutation.state)
-        return { ok: true, status: 'caught', catch: outcome.catch, state: mutation.state }
+        return {
+          ok: true,
+          status: 'caught',
+          catch: outcome.catch,
+          fight: {
+            progress: outcome.progress,
+            tension: outcome.tension,
+            tensionAt: outcome.tensionAt,
+            fishPull: outcome.fishPull,
+          },
+          state: mutation.state,
+        }
       } catch (error) {
         console.error('[fishing] failed to persist a catch', error)
         return { ok: false, status: 'error', message: '保存失败', state: renderableState() }

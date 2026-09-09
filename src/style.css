@@ -786,6 +786,12 @@ input[type="range"] {
   overflow: hidden;
 }
 
+.tool-page--fishing > header,
+#fishing-page .panel {
+  width: 100%;
+  max-width: none;
+}
+
 #fishing-page .panel {
   flex: 1;
   min-height: 0;
@@ -894,14 +900,25 @@ input[type="range"] {
   width: 100%;
   height: 100%;
   opacity: 0;
+  color: rgba(255, 255, 255, .98);
   pointer-events: none;
+  transition: color .18s ease, filter .18s ease;
 }
 
 .fishing-line line {
-  stroke: rgba(255, 255, 255, .98);
+  stroke: currentColor;
   stroke-width: var(--fishing-line-width);
   vector-effect: non-scaling-stroke;
   filter: drop-shadow(0 1px 1px rgba(16, 47, 44, .9));
+}
+
+.fishing-line[data-fishing-line-status="warning"] {
+  color: #ffd34f;
+}
+
+.fishing-line[data-fishing-line-status="danger"] {
+  color: #ff4a43;
+  filter: drop-shadow(0 0 5px rgba(255, 56, 49, .68));
 }
 
 .fishing-bobber {
@@ -1024,6 +1041,67 @@ input[type="range"] {
 .fishing-scene--biting .fishing-status {
   color: #2f2618;
   background: #ffdb68;
+}
+
+.fishing-fight-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  border: 1px solid rgba(72, 112, 75, .2);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .7);
+}
+
+.fishing-fight-meter {
+  min-width: 0;
+}
+
+.fishing-fight-meter__label {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 5px;
+  color: #55705b;
+  font-size: 12px;
+}
+
+.fishing-fight-meter__label strong {
+  color: #2b5d46;
+}
+
+.fishing-meter-track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dce8d8;
+}
+
+.fishing-meter-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #4b9b72;
+  transition: width .14s ease, background-color .18s ease;
+}
+
+.fishing-fight-meter--tension .fishing-meter-track i {
+  background: #64ae7c;
+}
+
+.fishing-fight-meter--warning .fishing-meter-track i {
+  background: #e5b938;
+}
+
+.fishing-fight-meter--danger .fishing-meter-track i {
+  background: #e3544c;
+}
+
+.fishing-fish-pull {
+  color: #8a6652;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .fishing-controls {
@@ -1285,6 +1363,8 @@ input[type="range"] {
 @media (max-width: 900px) {
   .tool-page--fishing { height: auto; min-height: 70vh; }
   .fishing-pond { min-height: 280px; }
+  .fishing-fight-panel { grid-template-columns: 1fr 1fr; }
+  .fishing-fish-pull { grid-column: 1 / -1; }
   .fishing-controls { flex-direction: column; }
   .fishing-catalog-grid { grid-template-columns: 1fr; }
 }
