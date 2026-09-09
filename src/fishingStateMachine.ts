@@ -12,6 +12,7 @@ export type FishingFightState = {
   tension: number
   tensionAt: number
   fishPull: number
+  lineDangerUntil: number
 }
 
 export type FishingUiState =
@@ -73,6 +74,7 @@ export function reduceFishingState(
         tension: 0,
         tensionAt: state.biteAt,
         fishPull: 0,
+        lineDangerUntil: 0,
       },
     }
   }

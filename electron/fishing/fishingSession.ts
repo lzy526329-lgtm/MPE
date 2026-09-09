@@ -8,6 +8,8 @@ export const REEL_WINDOW_MS = 20_000
 export const LINE_TENSION_WARNING = 0.56
 export const LINE_TENSION_DANGER = 0.82
 export const TENSION_RECOVERY_MS = 2_400
+export const LINE_RED_WINDOW_MS = 2_000
+export const LINE_RED_CHANCE = 0.18
 
 const MAX_PROGRESS = 1
 const BASE_PROGRESS_PER_REEL = 0.075
@@ -26,6 +28,7 @@ export type FishingFightSnapshot = {
   tension: number
   tensionAt: number
   fishPull: number
+  lineDangerUntil: number
 }
 
 export type FishingSessionPublic = {
@@ -42,6 +45,7 @@ type ActiveSession = FishingSessionPublic & {
   tension: number
   tensionAt: number
   fishStrength: number
+  lineDangerUntil: number
 }
 
 export type ReelOutcome =
@@ -72,6 +76,7 @@ function snapshot(session: ActiveSession, now: number, fishPull = 0): FishingFig
     tension: getLiveTension(session, now),
     tensionAt: now,
     fishPull,
+    lineDangerUntil: session.lineDangerUntil,
   }
 }
 
@@ -104,6 +109,7 @@ export function createFishingSessionManager(options: {
         tension: 0,
         tensionAt: biteAt,
         fishStrength,
+        lineDangerUntil: 0,
       }
       sessions.set(ownerId, session)
       return { token, biteAt, deadline, windowMs: REEL_WINDOW_MS }
@@ -124,12 +130,13 @@ export function createFishingSessionManager(options: {
         return { status: 'too-late' }
       }
 
-      const tension = getLiveTension(session, now)
-      if (tension >= LINE_TENSION_DANGER) {
+      if (session.lineDangerUntil > now) {
         sessions.delete(ownerId)
         return { status: 'line-broken' }
       }
 
+      const redLineTriggered = clamp(rng()) >= 1 - LINE_RED_CHANCE
+      const tension = getLiveTension(session, now)
       const fishPull = clamp(
         0.42 + session.fishStrength * 0.75 + clamp(rng()) * 0.12,
         0,
@@ -144,6 +151,7 @@ export function createFishingSessionManager(options: {
         tension + BASE_TENSION_PER_REEL + session.fishStrength * 0.2 + fishPull * 0.04,
       )
       session.tensionAt = now
+      session.lineDangerUntil = redLineTriggered ? now + LINE_RED_WINDOW_MS : 0
 
       if (session.progress >= MAX_PROGRESS) {
         sessions.delete(ownerId)

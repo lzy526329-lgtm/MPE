@@ -1,7 +1,6 @@
 import { getBaitCatalogEntry } from '../electron/fishing/baitCatalog'
 import { getFishCatalogEntry, getFishIds, fishRarityLabel } from '../electron/fishing/fishCatalog'
 import {
-  LINE_TENSION_DANGER,
   TENSION_RECOVERY_MS,
   lineStatusForTension,
 } from '../electron/fishing/fishingSession'
@@ -27,6 +26,8 @@ const PHASE_COPY: Record<FishingUiState['phase'], string> = {
   caught: '钓到了！',
   failed: '这次没钓到',
 }
+
+const LINE_RED_COPY = '鱼线变红了！2秒内不要按空格'
 
 function activeToken(state: FishingUiState): string | null {
   return state.phase === 'waiting' || state.phase === 'biting' || state.phase === 'resolving'
@@ -78,6 +79,16 @@ export function getDisplayedFishingTension(
   return Math.min(1, Math.max(0, fight.tension - elapsed / TENSION_RECOVERY_MS))
 }
 
+export function getDisplayedFishingLineStatus(
+  state: FishingUiState,
+  now = Date.now(),
+): 'safe' | 'warning' | 'danger' {
+  const fight = state.phase === 'biting' || state.phase === 'resolving' ? state.fight : undefined
+  if (fight?.lineDangerUntil && fight.lineDangerUntil > now) return 'danger'
+  const tensionStatus = lineStatusForTension(getDisplayedFishingTension(state, now))
+  return tensionStatus === 'danger' ? 'warning' : tensionStatus
+}
+
 function getFightState(state: FishingUiState) {
   return state.phase === 'biting' || state.phase === 'resolving' ? state.fight : undefined
 }
@@ -93,12 +104,13 @@ export function renderFishingPage(
   const fishCount = view.inventory.fish.length
   const fight = getFightState(state)
   const tension = getDisplayedFishingTension(state)
-  const lineStatus = lineStatusForTension(tension)
+  const tensionStatus = lineStatusForTension(tension)
+  const lineStatus = getDisplayedFishingLineStatus(state)
   const progress = Math.min(1, Math.max(0, fight?.progress ?? 0))
   const isFighting = state.phase === 'biting' || state.phase === 'resolving'
   const status = message || (
     lineStatus === 'danger' && isFighting
-      ? '鱼线变红了，先松手等张力下降'
+      ? LINE_RED_COPY
       : PHASE_COPY[state.phase]
   )
   const lineStatusLabel = {
@@ -113,7 +125,7 @@ export function renderFishingPage(
           <div class="fishing-fight-meter__label"><span>收线进度</span><strong>${Math.round(progress * 100)}%</strong></div>
           <div class="fishing-meter-track"><i data-fishing-progress-fill style="width:${Math.round(progress * 100)}%"></i></div>
         </div>
-        <div class="fishing-fight-meter fishing-fight-meter--tension fishing-fight-meter--${lineStatus}" data-fishing-tension-meter>
+        <div class="fishing-fight-meter fishing-fight-meter--tension fishing-fight-meter--${tensionStatus}" data-fishing-tension-meter>
           <div class="fishing-fight-meter__label"><span>鱼线张力</span><strong data-fishing-tension-label>${lineStatusLabel}</strong></div>
           <div class="fishing-meter-track"><i data-fishing-tension-fill style="width:${Math.round(tension * 100)}%"></i></div>
         </div>
@@ -250,7 +262,8 @@ export function mountFishingPage(): void {
   const updateFightVisuals = () => {
     if (uiState.phase !== 'biting' && uiState.phase !== 'resolving') return
     const tension = getDisplayedFishingTension(uiState)
-    const lineStatus = lineStatusForTension(tension)
+    const tensionStatus = lineStatusForTension(tension)
+    const lineStatus = getDisplayedFishingLineStatus(uiState)
     const percent = `${Math.round(tension * 100)}%`
     const pond = root.querySelector<HTMLElement>('[data-fishing-pond]')
     const line = root.querySelector<SVGElement>('.fishing-line')
@@ -259,16 +272,12 @@ export function mountFishingPage(): void {
     const tensionLabel = root.querySelector<HTMLElement>('[data-fishing-tension-label]')
     if (pond) pond.style.setProperty('--fishing-line-tension', String(tension))
     if (line) line.setAttribute('data-fishing-line-status', lineStatus)
-    if (tensionMeter) tensionMeter.className = `fishing-fight-meter fishing-fight-meter--tension fishing-fight-meter--${lineStatus}`
+    if (tensionMeter) tensionMeter.className = `fishing-fight-meter fishing-fight-meter--tension fishing-fight-meter--${tensionStatus}`
     if (tensionFill) tensionFill.style.width = percent
-    if (tensionLabel) tensionLabel.textContent = { safe: '安全', warning: '绷紧', danger: '危险' }[lineStatus]
-    if (message === '鱼线变红了，先松手等张力下降' && lineStatus !== 'danger') {
-      message = ''
+    if (tensionLabel) tensionLabel.textContent = { safe: '安全', warning: '绷紧', danger: '危险' }[tensionStatus]
+    if (!message) {
       const status = root.querySelector<HTMLElement>('.fishing-status')
-      if (status) status.textContent = PHASE_COPY.biting
-    } else if (!message && lineStatus === 'danger') {
-      const status = root.querySelector<HTMLElement>('.fishing-status')
-      if (status) status.textContent = '鱼线变红了，先松手等张力下降'
+      if (status) status.textContent = lineStatus === 'danger' ? LINE_RED_COPY : PHASE_COPY.biting
     }
   }
 
@@ -312,11 +321,6 @@ export function mountFishingPage(): void {
   const reel = async () => {
     const token = activeToken(uiState)
     if (!token || uiState.phase !== 'biting' || reelInFlight) return
-    if (getDisplayedFishingTension(uiState) >= LINE_TENSION_DANGER) {
-      message = '鱼线变红了，先松手等张力下降'
-      paint()
-      return
-    }
     reelInFlight = true
     dispatch({ type: 'REEL_REQUESTED' })
     try {

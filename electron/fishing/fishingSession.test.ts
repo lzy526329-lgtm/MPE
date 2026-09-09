@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest'
 
 import { createFishingSessionManager } from './fishingSession'
 
-function setup() {
+function setup(rng: () => number = () => 0) {
   let now = 1_000
   let sequence = 0
   const manager = createFishingSessionManager({
     now: () => now,
-    rng: () => 0,
+    rng,
     randomUUID: () => `token-${++sequence}`,
   })
   return { manager, setNow: (value: number) => { now = value } }
@@ -40,30 +40,31 @@ describe('fishing session manager', () => {
     expect(manager.reel(7, cast.token)).toEqual({ status: 'invalid' })
   })
 
-  it('breaks a red line, recovers tension while waiting and isolates sessions by owner', () => {
-    const { manager, setNow } = setup()
-    const strained = manager.start(7, 'basic')
-    setNow(strained.biteAt)
-    expect(manager.reel(7, strained.token).status).toBe('continue')
-    setNow(strained.biteAt)
-    expect(manager.reel(7, strained.token).status).toBe('continue')
-    setNow(strained.biteAt)
-    expect(manager.reel(7, strained.token).status).toBe('continue')
-    setNow(strained.biteAt)
-    expect(manager.reel(7, strained.token)).toMatchObject({
-      status: 'continue',
-      tension: expect.any(Number),
-    })
-    setNow(strained.biteAt)
-    expect(manager.reel(7, strained.token).status).toBe('continue')
-    setNow(strained.biteAt)
-    expect(manager.reel(7, strained.token)).toEqual({ status: 'line-broken' })
+  it('randomly turns the line red and breaks if reeling within two seconds', () => {
+    const rolls = [0, 0, 0, 0.99, 0]
+    const { manager, setNow } = setup(() => rolls.shift() ?? 0)
+    const cast = manager.start(7, 'basic')
 
-    const expired = manager.start(7, 'basic')
-    setNow(expired.biteAt)
-    manager.reel(7, expired.token)
-    setNow(expired.biteAt + 2_400)
-    expect(manager.reel(7, expired.token).status).toBe('continue')
+    setNow(cast.biteAt)
+    expect(manager.reel(7, cast.token)).toMatchObject({
+      status: 'continue',
+      lineDangerUntil: cast.biteAt + 2_000,
+    })
+    setNow(cast.biteAt + 1_999)
+    expect(manager.reel(7, cast.token)).toEqual({ status: 'line-broken' })
+  })
+
+  it('lets a red line recover after two seconds and isolates sessions by owner', () => {
+    const rolls = [0, 0, 0, 0.99, 0, 0, 0]
+    const { manager, setNow } = setup(() => rolls.shift() ?? 0)
+    const recovered = manager.start(7, 'basic')
+    setNow(recovered.biteAt)
+    expect(manager.reel(7, recovered.token).status).toBe('continue')
+    setNow(recovered.biteAt + 2_001)
+    expect(manager.reel(7, recovered.token)).toMatchObject({
+      status: 'continue',
+      lineDangerUntil: 0,
+    })
 
     const isolated = manager.start(7, 'premium')
     expect(manager.reel(8, isolated.token)).toEqual({ status: 'invalid' })

@@ -20,7 +20,13 @@ describe('fishing UI state machine', () => {
     expect(state.phase).toBe('resolving')
     state = reduceFishingState(state, {
       type: 'REEL_CONTINUED',
-      fight: { progress: 0.2, tension: 0.3, tensionAt: 3_600, fishPull: 0.5 },
+      fight: {
+        progress: 0.2,
+        tension: 0.3,
+        tensionAt: 3_600,
+        fishPull: 0.5,
+        lineDangerUntil: 0,
+      },
     })
     expect(state).toMatchObject({
       phase: 'biting',

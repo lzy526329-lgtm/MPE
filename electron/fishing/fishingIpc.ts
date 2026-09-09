@@ -112,6 +112,7 @@ export function createFishingHandlers(options: {
             tension: outcome.tension,
             tensionAt: outcome.tensionAt,
             fishPull: outcome.fishPull,
+            lineDangerUntil: outcome.lineDangerUntil,
           },
           state: renderableState(),
         }
@@ -150,6 +151,7 @@ export function createFishingHandlers(options: {
             tension: outcome.tension,
             tensionAt: outcome.tensionAt,
             fishPull: outcome.fishPull,
+            lineDangerUntil: outcome.lineDangerUntil,
           },
           state: mutation.state,
         }
