@@ -1005,7 +1005,6 @@ app.innerHTML = `
           <div>
             <p class="eyebrow">桌宠玩法</p>
             <h1>鱼塘</h1>
-            <p class="subtitle">选好鱼饵，留意浮漂，在鱼儿咬钩时及时收杆。</p>
           </div>
         </header>
         <div class="panel" id="fishing-root"></div>

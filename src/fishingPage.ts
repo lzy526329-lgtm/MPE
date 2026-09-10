@@ -17,6 +17,7 @@ import {
   type FishingUiState,
 } from './fishingStateMachine'
 import { escapeHtml } from './gamePageShared'
+import { createFishingWater } from './fishingWater'
 
 const PHASE_COPY: Record<FishingUiState['phase'], string> = {
   idle: '选择鱼饵后，点击水面抛竿',
@@ -50,9 +51,16 @@ export type PondPoint = { x: number; y: number }
 
 const FISHING_VISUALS = {
   castDurationMs: 1_200,
-  lineWidthPx: 2.5,
-  bobberSizePx: 44,
+  lineWidthPx: 1.6,
+  bobberSizePx: 38,
 } as const
+
+export function getFishingLinePath(point: PondPoint, tension: number, held = false): string {
+  const slack = (1 - Math.min(1, Math.max(0, tension))) * (held ? 1.5 : 7)
+  const controlX = (8 + point.x) / 2
+  const controlY = Math.min(99, (100 + point.y) / 2 + slack)
+  return `M 8 100 Q ${controlX.toFixed(2)} ${controlY.toFixed(2)} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`
+}
 
 export function normalizePondPoint(
   clientX: number,
@@ -227,17 +235,14 @@ export function renderFishingPage(
   return `
     <div class="fishing-scene fishing-scene--${state.phase}">
       <div class="fishing-hud">
-        <span>🪙 <strong>${view.wallet.coins}</strong></span>
+        <span><span class="fishing-coin" aria-hidden="true">G</span> <strong>${view.wallet.coins}</strong></span>
         <button type="button" data-fishing-backpack-open>🎒 鱼获 <strong>${fishCount}/100</strong></button>
         <button type="button" data-fishing-catalog-open>📖 <strong>图鉴 ${discovered.size} / ${getFishIds().length}</strong></button>
       </div>
       <div class="fishing-pond" style="background-image:url('${FISHING_ASSETS.pond}');--fishing-cast-x:${bobberPoint.x}%;--fishing-cast-y:${bobberPoint.y}%;--fishing-cast-duration:${FISHING_VISUALS.castDurationMs}ms;--fishing-line-width:${FISHING_VISUALS.lineWidthPx}px;--fishing-bobber-size:${FISHING_VISUALS.bobberSizePx}px;--fishing-line-tension:${tension};--fishing-line-color:${lineColor}" data-fishing-pond>
-        <div class="fishing-water-shimmer" aria-hidden="true"></div>
-        <div class="fishing-fish-shadows" aria-hidden="true">
-          <span></span><span></span><span></span>
-        </div>
+        <canvas class="fishing-water" aria-hidden="true"></canvas>
         <svg class="fishing-line" data-fishing-line-status="${lineStatus}" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-          <line x1="8" y1="100" x2="${bobberPoint.x}" y2="${bobberPoint.y}"></line>
+          <path d="${getFishingLinePath(bobberPoint, lineStatus === 'danger' ? 1 : tension)}"></path>
         </svg>
         <img class="fishing-bobber" src="${FISHING_ASSETS.bobber}" alt="" />
         <div class="fishing-ripple" aria-hidden="true"></div>
@@ -287,6 +292,10 @@ export function mountFishingPage(): void {
   let bobberTarget: PondPoint = castPoint
   let nextBobberWanderAt = 0
   let visible = getCurrentPage() === 'fishing-page'
+  const waterCanvas = document.createElement('canvas')
+  waterCanvas.className = 'fishing-water'
+  waterCanvas.setAttribute('aria-hidden', 'true')
+  const water = createFishingWater(waterCanvas)
 
   const stopReeling = () => {
     spaceHeld = false
@@ -320,14 +329,14 @@ export function mountFishingPage(): void {
       y: bobberPoint.y + (bobberTarget.y - bobberPoint.y) * easing,
     }
     const pond = root.querySelector<HTMLElement>('[data-fishing-pond]')
-    const line = root.querySelector<SVGLineElement>('.fishing-line line')
+    const line = root.querySelector<SVGPathElement>('.fishing-line path')
     if (pond) {
       pond.style.setProperty('--fishing-cast-x', `${bobberPoint.x}%`)
       pond.style.setProperty('--fishing-cast-y', `${bobberPoint.y}%`)
     }
     if (line) {
-      line.setAttribute('x2', bobberPoint.x.toFixed(2))
-      line.setAttribute('y2', bobberPoint.y.toFixed(2))
+      const tension = getDisplayedFishingLineStatus(uiState, now) === 'danger' ? 1 : getDisplayedFishingTension(uiState, now)
+      line.setAttribute('d', getFishingLinePath(bobberPoint, tension, spaceHeld))
     }
   }
 
@@ -375,9 +384,22 @@ export function mountFishingPage(): void {
   }
 
   const paint = () => {
+    const previousPond = root.querySelector<HTMLElement>('[data-fishing-pond]')
     root.innerHTML = view
       ? renderFishingPage(view, uiState, selectedBait, message, catalogOpen, castPoint, bobberPoint)
       : '<p class="sysinfo-loading">正在加载鱼塘…</p>'
+    const nextPond = root.querySelector<HTMLElement>('[data-fishing-pond]')
+    // Preserve live animation nodes while the HUD receives fresh fight snapshots.
+    if (previousPond && nextPond) {
+      previousPond.style.cssText = nextPond.style.cssText
+      const oldLine = previousPond.querySelector('.fishing-line')
+      const newLine = nextPond.querySelector('.fishing-line')
+      oldLine?.setAttribute('data-fishing-line-status', newLine?.getAttribute('data-fishing-line-status') ?? 'safe')
+      previousPond.querySelector('path')?.setAttribute('d', nextPond.querySelector('path')?.getAttribute('d') ?? '')
+      nextPond.replaceWith(previousPond)
+    }
+    root.querySelector('.fishing-water')?.replaceWith(waterCanvas)
+    water.setActive(visible && !catalogOpen)
   }
 
   const dispatch = (event: FishingUiEvent) => {
@@ -556,6 +578,7 @@ export function mountFishingPage(): void {
 
   onPageChange((pageId) => {
     visible = pageId === 'fishing-page'
+    water.setActive(visible && !catalogOpen)
     if (visible) {
       void refresh()
       return
@@ -572,6 +595,7 @@ export function mountFishingPage(): void {
   window.addEventListener('blur', stopReeling)
 
   window.addEventListener('beforeunload', () => {
+    water.dispose()
     stopReeling()
     const token = activeToken(uiState)
     if (token) void window.electronAPI.fishingCancel(token)

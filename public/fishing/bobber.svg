@@ -1,7 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 120">
   <title>Fishing bobber</title>
-  <path d="M40 4v25" stroke="#48372f" stroke-width="7" stroke-linecap="round"/>
-  <ellipse cx="40" cy="69" rx="25" ry="36" fill="#fff8df" stroke="#48372f" stroke-width="6"/>
-  <path d="M17 65a25 36 0 0 1 46 0Z" fill="#ef654e"/>
-  <path d="M40 105v11" stroke="#48372f" stroke-width="6" stroke-linecap="round"/>
+  <defs>
+    <linearGradient id="enamel" x2="100%" y2="0">
+      <stop stop-color="#be3d36"/>
+      <stop offset=".38" stop-color="#ff8370"/>
+      <stop offset=".65" stop-color="#ee5749"/>
+      <stop offset="1" stop-color="#a02e32"/>
+    </linearGradient>
+    <linearGradient id="ivory" x2="100%" y2="0">
+      <stop stop-color="#b8d0c9"/>
+      <stop offset=".4" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#d5e5dc"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="42" cy="98" rx="14" ry="4" fill="#184e59" opacity=".2"/>
+  <path d="M40 94v19" stroke="#245461" stroke-width="3" opacity=".45" stroke-linecap="round"/>
+  <path d="M40 10v40" stroke="#274e55" stroke-width="4" stroke-linecap="round"/>
+  <path d="M40 10v12m0 5v7" stroke="#ff9b6b" stroke-width="4" stroke-linecap="round"/>
+  <path d="M40 36c-6 0-11 13-11 28 0 17 5 27 11 30 6-3 11-13 11-30 0-15-5-28-11-28Z" fill="url(#ivory)" stroke="#2c5f62" stroke-width="1.3"/>
+  <path d="M29 62c.4-14 5-26 11-26s10.6 12 11 26c-7 3-15 3-22 0Z" fill="url(#enamel)"/>
+  <path d="M30 71q10 4 20 0" fill="none" stroke="#d25945" stroke-width="3"/>
+  <path d="M35 46q-3 7-3 13" stroke="#ffd1b8" stroke-width="2" stroke-linecap="round" opacity=".85"/>
+  <path d="M31 90q9 4 18 0" stroke="#d8fff5" stroke-width="1.4" fill="none" opacity=".85"/>
 </svg>

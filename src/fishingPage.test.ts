@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { createDefaultGameState, toGameViewState } from '../electron/game/gameEngine'
 import {
   getDisplayedFishingLineColor,
+  getFishingLinePath,
   getDisplayedFishingLineStatus,
   getDisplayedFishingTension,
   isFishingReelShortcut,
@@ -105,21 +106,29 @@ describe('fishing page', () => {
     expect(html).toContain('--fishing-cast-x:32%')
     expect(html).toContain('--fishing-cast-y:64%')
     expect(html).toContain('--fishing-cast-duration:1200ms')
-    expect(html).toContain('--fishing-line-width:2.5px')
-    expect(html).toContain('--fishing-bobber-size:44px')
+    expect(html).toContain('--fishing-line-width:1.6px')
+    expect(html).toContain('--fishing-bobber-size:38px')
     expect(html).toContain('class="fishing-line"')
     expect(html).toContain('data-fishing-line-status="safe"')
-    expect(html).toContain('<line x1="8" y1="100" x2="32" y2="64"></line>')
+    expect(html).toContain(`<path d="${getFishingLinePath({ x: 32, y: 64 }, 0)}"></path>`)
     expect(html).not.toContain('pathLength')
     expect(html).toContain('class="fishing-bobber"')
     expect(html).toContain('class="fishing-splash"')
   })
 
   it('keeps fishing svg assets free of invalid xml control characters', () => {
-    for (const asset of ['bobber.svg', 'bait-basic.svg']) {
-      const svg = readFileSync(`public/fishing/${asset}`, 'utf8')
+    for (const asset of ['pond-bg.svg', 'bobber.svg', 'bait-basic.svg', 'bait-premium.svg']) {
+      const svg = new TextDecoder('utf-8', { fatal: true }).decode(readFileSync(`public/fishing/${asset}`))
       expect(svg).not.toMatch(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/)
     }
+  })
+
+  it('keeps the line attached while reducing slack under tension', () => {
+    const point = { x: 55, y: 55 }
+    expect(getFishingLinePath(point, 0)).toBe('M 8 100 Q 31.50 84.50 55.00 55.00')
+    expect(getFishingLinePath(point, 0, true)).toBe('M 8 100 Q 31.50 79.00 55.00 55.00')
+    expect(getFishingLinePath(point, 1)).toBe('M 8 100 Q 31.50 77.50 55.00 55.00')
+    expect(getFishingLinePath(point, 2)).toBe(getFishingLinePath(point, 1))
   })
 
   it('renders the fishing line as one continuous stroke', () => {
