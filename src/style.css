@@ -900,7 +900,7 @@ input[type="range"] {
   width: 100%;
   height: 100%;
   opacity: 0;
-  color: rgba(255, 255, 255, .98);
+  color: var(--fishing-line-color, #161c1c);
   pointer-events: none;
   transition: color .18s ease, filter .18s ease;
 }
@@ -912,12 +912,7 @@ input[type="range"] {
   filter: drop-shadow(0 1px 1px rgba(16, 47, 44, .9));
 }
 
-.fishing-line[data-fishing-line-status="warning"] {
-  color: #ffd34f;
-}
-
 .fishing-line[data-fishing-line-status="danger"] {
-  color: #ff4a43;
   filter: drop-shadow(0 0 5px rgba(255, 56, 49, .68));
 }
 
@@ -931,6 +926,7 @@ input[type="range"] {
   translate: -50% -50%;
   transform-origin: 50% 15%;
   pointer-events: none;
+  transition: top .1s linear, left .1s linear;
 }
 
 .fishing-ripple {

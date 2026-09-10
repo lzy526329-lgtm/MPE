@@ -9,10 +9,13 @@ export const LINE_TENSION_WARNING = 0.56
 export const LINE_TENSION_DANGER = 0.82
 export const TENSION_RECOVERY_MS = 2_400
 export const LINE_RED_WINDOW_MS = 2_000
+export const LINE_RED_BUFFER_MS = 1_000
+export const LINE_RECOVERY_MIN_MS = 700
+export const LINE_RECOVERY_MAX_MS = 1_700
 export const LINE_RED_CHANCE = 0.18
 
 const MAX_PROGRESS = 1
-const BASE_PROGRESS_PER_REEL = 0.075
+const BASE_PROGRESS_PER_REEL = 0.026
 const BASE_TENSION_PER_REEL = 0.13
 const RARITY_FIGHT_STRENGTH = {
   common: 0.18,
@@ -24,11 +27,14 @@ const RARITY_FIGHT_STRENGTH = {
 export type FishingLineStatus = 'safe' | 'warning' | 'danger'
 
 export type FishingFightSnapshot = {
+  deadline: number
   progress: number
   tension: number
   tensionAt: number
   fishPull: number
   lineDangerUntil: number
+  lineRecoveryUntil: number
+  lineRecoveryStatus: 'safe' | 'warning'
 }
 
 export type FishingSessionPublic = {
@@ -45,7 +51,10 @@ type ActiveSession = FishingSessionPublic & {
   tension: number
   tensionAt: number
   fishStrength: number
+  lineDangerAt: number
   lineDangerUntil: number
+  lineRecoveryUntil: number
+  lineRecoveryStatus: 'safe' | 'warning'
 }
 
 export type ReelOutcome =
@@ -72,11 +81,14 @@ function getLiveTension(session: ActiveSession, now: number): number {
 
 function snapshot(session: ActiveSession, now: number, fishPull = 0): FishingFightSnapshot {
   return {
+    deadline: session.deadline,
     progress: session.progress,
     tension: getLiveTension(session, now),
     tensionAt: now,
     fishPull,
     lineDangerUntil: session.lineDangerUntil,
+    lineRecoveryUntil: session.lineRecoveryUntil,
+    lineRecoveryStatus: session.lineRecoveryStatus,
   }
 }
 
@@ -109,7 +121,10 @@ export function createFishingSessionManager(options: {
         tension: 0,
         tensionAt: biteAt,
         fishStrength,
+        lineDangerAt: 0,
         lineDangerUntil: 0,
+        lineRecoveryUntil: 0,
+        lineRecoveryStatus: 'safe',
       }
       sessions.set(ownerId, session)
       return { token, biteAt, deadline, windowMs: REEL_WINDOW_MS }
@@ -131,11 +146,15 @@ export function createFishingSessionManager(options: {
       }
 
       if (session.lineDangerUntil > now) {
-        sessions.delete(ownerId)
-        return { status: 'line-broken' }
+        if (now >= session.lineDangerAt) {
+          sessions.delete(ownerId)
+          return { status: 'line-broken' }
+        }
+        return { status: 'continue', ...snapshot(session, now, 0) }
       }
 
-      const redLineTriggered = clamp(rng()) >= 1 - LINE_RED_CHANCE
+      const recoveringLine = session.lineRecoveryUntil > now
+      const redLineTriggered = !recoveringLine && clamp(rng()) >= 1 - LINE_RED_CHANCE
       const tension = getLiveTension(session, now)
       const fishPull = clamp(
         0.42 + session.fishStrength * 0.75 + clamp(rng()) * 0.12,
@@ -151,7 +170,22 @@ export function createFishingSessionManager(options: {
         tension + BASE_TENSION_PER_REEL + session.fishStrength * 0.2 + fishPull * 0.04,
       )
       session.tensionAt = now
-      session.lineDangerUntil = redLineTriggered ? now + LINE_RED_WINDOW_MS : 0
+      if (redLineTriggered) {
+        // Forced red-line pauses must not consume the player's reeling time.
+        session.deadline += LINE_RED_WINDOW_MS
+        session.lineDangerAt = now + LINE_RED_BUFFER_MS
+        session.lineDangerUntil = now + LINE_RED_WINDOW_MS
+        session.lineRecoveryUntil =
+          session.lineDangerUntil +
+          LINE_RECOVERY_MIN_MS +
+          Math.floor(clamp(rng()) * (LINE_RECOVERY_MAX_MS - LINE_RECOVERY_MIN_MS))
+        session.lineRecoveryStatus = clamp(rng()) >= 0.5 ? 'warning' : 'safe'
+      } else if (!recoveringLine) {
+        session.lineDangerAt = 0
+        session.lineDangerUntil = 0
+        session.lineRecoveryUntil = 0
+        session.lineRecoveryStatus = 'safe'
+      }
 
       if (session.progress >= MAX_PROGRESS) {
         sessions.delete(ownerId)

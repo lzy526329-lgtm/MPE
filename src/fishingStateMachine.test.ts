@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { reduceFishingState, type FishingUiState } from './fishingStateMachine'
+import { nextTimedEvent } from './fishingPage'
 
 describe('fishing UI state machine', () => {
   it('moves through casting, waiting, biting and resolving', () => {
@@ -20,21 +21,26 @@ describe('fishing UI state machine', () => {
     expect(state.phase).toBe('resolving')
     state = reduceFishingState(state, {
       type: 'REEL_CONTINUED',
+      deadline: 6_700,
       fight: {
         progress: 0.2,
         tension: 0.3,
         tensionAt: 3_600,
         fishPull: 0.5,
         lineDangerUntil: 0,
+        lineRecoveryUntil: 0,
+        lineRecoveryStatus: 'safe',
       },
     })
     expect(state).toMatchObject({
       phase: 'biting',
       baitId: 'basic',
       token: 't1',
-      deadline: 4_700,
+      deadline: 6_700,
       fight: { progress: 0.2, tension: 0.3 },
     })
+    expect(nextTimedEvent(state, 4_701)).toBeNull()
+    expect(nextTimedEvent(state, 6_701)).toEqual({ type: 'BITE_EXPIRED' })
   })
 
   it('ignores reel requests from idle', () => {

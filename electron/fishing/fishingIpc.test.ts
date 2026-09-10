@@ -48,9 +48,11 @@ describe('fishing handlers', () => {
 
     now = 3_500
     let reeled: Awaited<ReturnType<typeof handlers.reel>> = await handlers.reel(12, 'token-1')
-    for (let index = 1; index < 15; index += 1) {
-      now = 3_500 + index * 1_000
+    expect(reeled).toMatchObject({ fight: { deadline: 23_500 } })
+    for (let index = 1; index < 100; index += 1) {
+      now = 3_500 + index * 220
       reeled = await handlers.reel(12, 'token-1')
+      if (reeled.status === 'caught') break
     }
     expect(reeled).toMatchObject({
       ok: true,

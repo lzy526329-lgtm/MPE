@@ -108,11 +108,14 @@ export function createFishingHandlers(options: {
           ok: true,
           status: 'continue',
           fight: {
+            deadline: outcome.deadline,
             progress: outcome.progress,
             tension: outcome.tension,
             tensionAt: outcome.tensionAt,
             fishPull: outcome.fishPull,
             lineDangerUntil: outcome.lineDangerUntil,
+            lineRecoveryUntil: outcome.lineRecoveryUntil,
+            lineRecoveryStatus: outcome.lineRecoveryStatus,
           },
           state: renderableState(),
         }
@@ -147,11 +150,14 @@ export function createFishingHandlers(options: {
           status: 'caught',
           catch: outcome.catch,
           fight: {
+            deadline: outcome.deadline,
             progress: outcome.progress,
             tension: outcome.tension,
             tensionAt: outcome.tensionAt,
             fishPull: outcome.fishPull,
             lineDangerUntil: outcome.lineDangerUntil,
+            lineRecoveryUntil: outcome.lineRecoveryUntil,
+            lineRecoveryStatus: outcome.lineRecoveryStatus,
           },
           state: mutation.state,
         }

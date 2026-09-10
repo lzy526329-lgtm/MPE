@@ -1,6 +1,7 @@
 import { getBaitCatalogEntry } from '../electron/fishing/baitCatalog'
 import { getFishCatalogEntry, getFishIds, fishRarityLabel } from '../electron/fishing/fishCatalog'
 import {
+  LINE_TENSION_WARNING,
   TENSION_RECOVERY_MS,
   lineStatusForTension,
 } from '../electron/fishing/fishingSession'
@@ -21,13 +22,14 @@ const PHASE_COPY: Record<FishingUiState['phase'], string> = {
   idle: '选择鱼饵后，点击水面抛竿',
   casting: '抛竿中…',
   waiting: '浮漂静静地等着鱼儿…',
-  biting: '鱼儿咬钩了！连按空格收线',
+  biting: '鱼儿咬钩了！长按空格收线',
   resolving: '正在收线…',
   caught: '钓到了！',
   failed: '这次没钓到',
 }
 
-const LINE_RED_COPY = '鱼线变红了！2秒内不要按空格'
+const LINE_RED_COPY = '鱼线变红了！松开空格'
+const FISHING_REEL_TICK_MS = 220
 
 function activeToken(state: FishingUiState): string | null {
   return state.phase === 'waiting' || state.phase === 'biting' || state.phase === 'resolving'
@@ -85,8 +87,37 @@ export function getDisplayedFishingLineStatus(
 ): 'safe' | 'warning' | 'danger' {
   const fight = state.phase === 'biting' || state.phase === 'resolving' ? state.fight : undefined
   if (fight?.lineDangerUntil && fight.lineDangerUntil > now) return 'danger'
+  if (fight?.lineRecoveryUntil && fight.lineRecoveryUntil > now) {
+    return fight.lineRecoveryStatus
+  }
   const tensionStatus = lineStatusForTension(getDisplayedFishingTension(state, now))
   return tensionStatus === 'danger' ? 'warning' : tensionStatus
+}
+
+function mixColor(start: [number, number, number], end: [number, number, number], amount: number): string {
+  const ratio = Math.min(1, Math.max(0, amount))
+  const channels = start.map((channel, index) =>
+    Math.round(channel + (end[index] - channel) * ratio))
+  return `rgb(${channels.join(', ')})`
+}
+
+export function getDisplayedFishingLineColor(
+  state: FishingUiState,
+  now = Date.now(),
+): string {
+  const fight = state.phase === 'biting' || state.phase === 'resolving' ? state.fight : undefined
+  const lineStatus = getDisplayedFishingLineStatus(state, now)
+  if (lineStatus === 'danger') return '#ef4141'
+  if (fight?.lineRecoveryUntil && fight.lineRecoveryUntil > now) {
+    return fight.lineRecoveryStatus === 'warning' ? '#f0c63f' : '#161c1c'
+  }
+
+  const tension = getDisplayedFishingTension(state, now)
+  return mixColor(
+    [22, 28, 28],
+    [238, 198, 55],
+    Math.min(1, tension / LINE_TENSION_WARNING),
+  )
 }
 
 function getFightState(state: FishingUiState) {
@@ -100,12 +131,14 @@ export function renderFishingPage(
   message: string,
   catalogOpen = false,
   castPoint: PondPoint = { x: 55, y: 55 },
+  bobberPoint: PondPoint = castPoint,
 ): string {
   const fishCount = view.inventory.fish.length
   const fight = getFightState(state)
   const tension = getDisplayedFishingTension(state)
   const tensionStatus = lineStatusForTension(tension)
   const lineStatus = getDisplayedFishingLineStatus(state)
+  const lineColor = getDisplayedFishingLineColor(state)
   const progress = Math.min(1, Math.max(0, fight?.progress ?? 0))
   const isFighting = state.phase === 'biting' || state.phase === 'resolving'
   const status = message || (
@@ -117,7 +150,7 @@ export function renderFishingPage(
     safe: '安全',
     warning: '绷紧',
     danger: '危险',
-  }[lineStatus]
+  }[tensionStatus]
   const fightPanel = isFighting
     ? `
       <section class="fishing-fight-panel" aria-label="钓鱼对抗状态">
@@ -198,13 +231,13 @@ export function renderFishingPage(
         <button type="button" data-fishing-backpack-open>🎒 鱼获 <strong>${fishCount}/100</strong></button>
         <button type="button" data-fishing-catalog-open>📖 <strong>图鉴 ${discovered.size} / ${getFishIds().length}</strong></button>
       </div>
-      <div class="fishing-pond" style="background-image:url('${FISHING_ASSETS.pond}');--fishing-cast-x:${castPoint.x}%;--fishing-cast-y:${castPoint.y}%;--fishing-cast-duration:${FISHING_VISUALS.castDurationMs}ms;--fishing-line-width:${FISHING_VISUALS.lineWidthPx}px;--fishing-bobber-size:${FISHING_VISUALS.bobberSizePx}px;--fishing-line-tension:${tension}" data-fishing-pond>
+      <div class="fishing-pond" style="background-image:url('${FISHING_ASSETS.pond}');--fishing-cast-x:${bobberPoint.x}%;--fishing-cast-y:${bobberPoint.y}%;--fishing-cast-duration:${FISHING_VISUALS.castDurationMs}ms;--fishing-line-width:${FISHING_VISUALS.lineWidthPx}px;--fishing-bobber-size:${FISHING_VISUALS.bobberSizePx}px;--fishing-line-tension:${tension};--fishing-line-color:${lineColor}" data-fishing-pond>
         <div class="fishing-water-shimmer" aria-hidden="true"></div>
         <div class="fishing-fish-shadows" aria-hidden="true">
           <span></span><span></span><span></span>
         </div>
         <svg class="fishing-line" data-fishing-line-status="${lineStatus}" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-          <line x1="8" y1="100" x2="${castPoint.x}" y2="${castPoint.y}"></line>
+          <line x1="8" y1="100" x2="${bobberPoint.x}" y2="${bobberPoint.y}"></line>
         </svg>
         <img class="fishing-bobber" src="${FISHING_ASSETS.bobber}" alt="" />
         <div class="fishing-ripple" aria-hidden="true"></div>
@@ -245,32 +278,77 @@ export function mountFishingPage(): void {
   let catalogOpen = false
   let castPoint: PondPoint = { x: 55, y: 55 }
   let biteTimer: ReturnType<typeof setTimeout> | undefined
-  let deadlineTimer: ReturnType<typeof setTimeout> | undefined
   let resetTimer: ReturnType<typeof setTimeout> | undefined
   let tensionTimer: ReturnType<typeof setInterval> | undefined
+  let reelTicker: ReturnType<typeof setInterval> | undefined
   let reelInFlight = false
+  let spaceHeld = false
+  let bobberPoint: PondPoint = castPoint
+  let bobberTarget: PondPoint = castPoint
+  let nextBobberWanderAt = 0
   let visible = getCurrentPage() === 'fishing-page'
+
+  const stopReeling = () => {
+    spaceHeld = false
+    if (reelTicker) clearInterval(reelTicker)
+    reelTicker = undefined
+  }
 
   const clearTimers = () => {
     if (biteTimer) clearTimeout(biteTimer)
-    if (deadlineTimer) clearTimeout(deadlineTimer)
     if (resetTimer) clearTimeout(resetTimer)
     if (tensionTimer) clearInterval(tensionTimer)
-    biteTimer = deadlineTimer = resetTimer = tensionTimer = undefined
+    stopReeling()
+    biteTimer = resetTimer = tensionTimer = undefined
+  }
+
+  const updateBobberVisuals = (now: number) => {
+    if (uiState.phase !== 'biting' && uiState.phase !== 'resolving') return
+    if (spaceHeld && now >= nextBobberWanderAt) {
+      bobberTarget = {
+        x: Math.min(90, Math.max(10, castPoint.x + (Math.random() * 2 - 1) * 15)),
+        y: Math.min(88, Math.max(12, castPoint.y + 4 + Math.random() * 12)),
+      }
+      nextBobberWanderAt = now + 280 + Math.random() * 520
+    } else if (!spaceHeld) {
+      bobberTarget = castPoint
+    }
+
+    const easing = spaceHeld ? 0.18 : 0.1
+    bobberPoint = {
+      x: bobberPoint.x + (bobberTarget.x - bobberPoint.x) * easing,
+      y: bobberPoint.y + (bobberTarget.y - bobberPoint.y) * easing,
+    }
+    const pond = root.querySelector<HTMLElement>('[data-fishing-pond]')
+    const line = root.querySelector<SVGLineElement>('.fishing-line line')
+    if (pond) {
+      pond.style.setProperty('--fishing-cast-x', `${bobberPoint.x}%`)
+      pond.style.setProperty('--fishing-cast-y', `${bobberPoint.y}%`)
+    }
+    if (line) {
+      line.setAttribute('x2', bobberPoint.x.toFixed(2))
+      line.setAttribute('y2', bobberPoint.y.toFixed(2))
+    }
   }
 
   const updateFightVisuals = () => {
     if (uiState.phase !== 'biting' && uiState.phase !== 'resolving') return
-    const tension = getDisplayedFishingTension(uiState)
+    const now = Date.now()
+    updateBobberVisuals(now)
+    const tension = getDisplayedFishingTension(uiState, now)
     const tensionStatus = lineStatusForTension(tension)
-    const lineStatus = getDisplayedFishingLineStatus(uiState)
+    const lineStatus = getDisplayedFishingLineStatus(uiState, now)
+    const lineColor = getDisplayedFishingLineColor(uiState, now)
     const percent = `${Math.round(tension * 100)}%`
     const pond = root.querySelector<HTMLElement>('[data-fishing-pond]')
     const line = root.querySelector<SVGElement>('.fishing-line')
     const tensionMeter = root.querySelector<HTMLElement>('[data-fishing-tension-meter]')
     const tensionFill = root.querySelector<HTMLElement>('[data-fishing-tension-fill]')
     const tensionLabel = root.querySelector<HTMLElement>('[data-fishing-tension-label]')
-    if (pond) pond.style.setProperty('--fishing-line-tension', String(tension))
+    if (pond) {
+      pond.style.setProperty('--fishing-line-tension', String(tension))
+      pond.style.setProperty('--fishing-line-color', lineColor)
+    }
     if (line) line.setAttribute('data-fishing-line-status', lineStatus)
     if (tensionMeter) tensionMeter.className = `fishing-fight-meter fishing-fight-meter--tension fishing-fight-meter--${tensionStatus}`
     if (tensionFill) tensionFill.style.width = percent
@@ -284,6 +362,10 @@ export function mountFishingPage(): void {
   const startTensionTicker = () => {
     if (tensionTimer) return
     tensionTimer = setInterval(() => {
+      if (nextTimedEvent(uiState, Date.now())?.type === 'BITE_EXPIRED') {
+        fail('too-late', '鱼儿挣脱了，收线太慢')
+        return
+      }
       if (uiState.phase === 'biting' || uiState.phase === 'resolving') {
         updateFightVisuals()
       } else {
@@ -294,7 +376,7 @@ export function mountFishingPage(): void {
 
   const paint = () => {
     root.innerHTML = view
-      ? renderFishingPage(view, uiState, selectedBait, message, catalogOpen, castPoint)
+      ? renderFishingPage(view, uiState, selectedBait, message, catalogOpen, castPoint, bobberPoint)
       : '<p class="sysinfo-loading">正在加载鱼塘…</p>'
   }
 
@@ -337,6 +419,7 @@ export function mountFishingPage(): void {
         message = ''
         dispatch({
           type: 'REEL_CONTINUED',
+          deadline: result.fight.deadline,
           fight: result.fight,
         })
         startTensionTicker()
@@ -354,18 +437,27 @@ export function mountFishingPage(): void {
     }
   }
 
+  const startReeling = () => {
+    if (spaceHeld || uiState.phase !== 'biting') return
+    spaceHeld = true
+    nextBobberWanderAt = 0
+    void reel()
+    reelTicker = setInterval(() => {
+      if (!spaceHeld || uiState.phase !== 'biting') {
+        stopReeling()
+        return
+      }
+      void reel()
+    }, FISHING_REEL_TICK_MS)
+  }
+
   const scheduleSession = () => {
     if (uiState.phase !== 'waiting') return
     const biteDelay = Math.max(0, uiState.biteAt - Date.now())
-    const deadline = uiState.deadline
     biteTimer = setTimeout(() => {
       if (uiState.phase !== 'waiting') return
       dispatch({ type: 'BITE_STARTED' })
       startTensionTicker()
-      deadlineTimer = setTimeout(() => {
-        if (uiState.phase !== 'biting') return
-        fail('too-late', '鱼儿挣脱了，收线太慢')
-      }, Math.max(0, deadline - Date.now() + 1))
     }, biteDelay)
   }
 
@@ -431,6 +523,8 @@ export function mountFishingPage(): void {
     const pond = target.closest<HTMLElement>('[data-fishing-pond]')
     if (pond && uiState.phase === 'idle') {
       castPoint = normalizePondPoint(event.clientX, event.clientY, pond.getBoundingClientRect())
+      bobberPoint = castPoint
+      bobberTarget = castPoint
       void cast()
       return
     }
@@ -452,7 +546,12 @@ export function mountFishingPage(): void {
     if (!visible || catalogOpen || !isFishingReelShortcut(event.code, event.repeat)) return
     if (uiState.phase !== 'biting') return
     event.preventDefault()
-    void reel()
+    startReeling()
+  })
+
+  window.addEventListener('keyup', (event) => {
+    if (event.code !== 'Space') return
+    stopReeling()
   })
 
   onPageChange((pageId) => {
@@ -466,9 +565,14 @@ export function mountFishingPage(): void {
     clearTimers()
     catalogOpen = false
     uiState = { phase: 'idle' }
+    bobberPoint = castPoint
+    bobberTarget = castPoint
   })
 
+  window.addEventListener('blur', stopReeling)
+
   window.addEventListener('beforeunload', () => {
+    stopReeling()
     const token = activeToken(uiState)
     if (token) void window.electronAPI.fishingCancel(token)
   })

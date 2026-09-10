@@ -13,6 +13,8 @@ export type FishingFightState = {
   tensionAt: number
   fishPull: number
   lineDangerUntil: number
+  lineRecoveryUntil: number
+  lineRecoveryStatus: 'safe' | 'warning'
 }
 
 export type FishingUiState =
@@ -42,7 +44,7 @@ export type FishingUiEvent =
   | { type: 'BITE_STARTED' }
   | { type: 'BITE_EXPIRED' }
   | { type: 'REEL_REQUESTED' }
-  | { type: 'REEL_CONTINUED'; fight: FishingFightState }
+  | { type: 'REEL_CONTINUED'; fight: FishingFightState; deadline: number }
   | { type: 'REEL_CAUGHT'; catch: FishCatch }
   | { type: 'REEL_FAILED'; reason: FishingFailureReason }
   | { type: 'RESET' }
@@ -75,6 +77,8 @@ export function reduceFishingState(
         tensionAt: state.biteAt,
         fishPull: 0,
         lineDangerUntil: 0,
+        lineRecoveryUntil: 0,
+        lineRecoveryStatus: 'safe',
       },
     }
   }
@@ -95,7 +99,7 @@ export function reduceFishingState(
       phase: 'biting',
       baitId: state.baitId ?? 'basic',
       token: state.token,
-      deadline: state.deadline ?? 0,
+      deadline: event.deadline,
       fight: event.fight,
     }
   }

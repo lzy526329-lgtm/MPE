@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { createFishingSessionManager } from './fishingSession'
+import { createFishingSessionManager, LINE_RED_WINDOW_MS } from './fishingSession'
 
 function setup(rng: () => number = () => 0) {
   let now = 1_000
@@ -28,9 +28,10 @@ describe('fishing session manager', () => {
     const { manager, setNow } = setup()
     const cast = manager.start(7, 'basic')
     let outcome: ReturnType<typeof manager.reel> = { status: 'invalid' }
-    for (let index = 0; index < 15; index += 1) {
-      setNow(cast.biteAt + index * 1_000)
+    for (let index = 0; index < 100; index += 1) {
+      setNow(cast.biteAt + index * 250)
       outcome = manager.reel(7, cast.token)
+      if (outcome.status === 'caught') break
     }
     expect(outcome).toMatchObject({
       status: 'caught',
@@ -40,7 +41,7 @@ describe('fishing session manager', () => {
     expect(manager.reel(7, cast.token)).toEqual({ status: 'invalid' })
   })
 
-  it('randomly turns the line red and breaks if reeling within two seconds', () => {
+  it('randomly turns the line red and breaks after the one-second buffer', () => {
     const rolls = [0, 0, 0, 0.99, 0]
     const { manager, setNow } = setup(() => rolls.shift() ?? 0)
     const cast = manager.start(7, 'basic')
@@ -48,9 +49,17 @@ describe('fishing session manager', () => {
     setNow(cast.biteAt)
     expect(manager.reel(7, cast.token)).toMatchObject({
       status: 'continue',
+      deadline: cast.deadline + LINE_RED_WINDOW_MS,
       lineDangerUntil: cast.biteAt + 2_000,
+      lineRecoveryUntil: cast.biteAt + 2_700,
+      lineRecoveryStatus: 'safe',
     })
-    setNow(cast.biteAt + 1_999)
+    setNow(cast.biteAt + 999)
+    expect(manager.reel(7, cast.token)).toMatchObject({
+      status: 'continue',
+      deadline: cast.deadline + LINE_RED_WINDOW_MS,
+    })
+    setNow(cast.biteAt + 1_001)
     expect(manager.reel(7, cast.token)).toEqual({ status: 'line-broken' })
   })
 
@@ -63,7 +72,14 @@ describe('fishing session manager', () => {
     setNow(recovered.biteAt + 2_001)
     expect(manager.reel(7, recovered.token)).toMatchObject({
       status: 'continue',
+      lineDangerUntil: recovered.biteAt + 2_000,
+      lineRecoveryUntil: recovered.biteAt + 2_700,
+    })
+    setNow(recovered.biteAt + 2_701)
+    expect(manager.reel(7, recovered.token)).toMatchObject({
+      status: 'continue',
       lineDangerUntil: 0,
+      lineRecoveryUntil: 0,
     })
 
     const isolated = manager.start(7, 'premium')
@@ -79,5 +95,47 @@ describe('fishing session manager', () => {
     expect(manager.reel(7, first.token)).toEqual({ status: 'invalid' })
     setNow(second.biteAt)
     expect(manager.reel(7, second.token).status).toBe('continue')
+  })
+
+  it('allows a catch after many mandatory red pauses exceed the original deadline', () => {
+    let roll = 0
+    const { manager, setNow } = setup(() => roll)
+    const cast = manager.start(7, 'basic')
+    roll = 0.99
+    let now = cast.biteAt
+    let deadline = cast.deadline
+    let previousDangerUntil = 0
+    let pauses = 0
+    let caught = false
+    for (let tick = 0; tick < 100; tick += 1) {
+      setNow(now)
+      const result = manager.reel(7, cast.token)
+      expect(['continue', 'caught']).toContain(result.status)
+      if (result.status !== 'continue' && result.status !== 'caught') break
+      if (result.lineDangerUntil > now && result.lineDangerUntil !== previousDangerUntil) {
+        pauses += 1
+        deadline += LINE_RED_WINDOW_MS
+      }
+      expect(result.deadline).toBe(deadline)
+      previousDangerUntil = result.lineDangerUntil
+      if (result.status === 'caught') {
+        caught = true
+        break
+      }
+      now = Math.max(now + 220, result.lineDangerUntil)
+    }
+    expect(pauses).toBeGreaterThan(3)
+    expect(now).toBeGreaterThan(cast.deadline)
+    expect(caught).toBe(true)
+  })
+
+  it('still expires after the usable reeling time runs out', () => {
+    const rolls = [0, 0, 0, 0.99, 0]
+    const { manager, setNow } = setup(() => rolls.shift() ?? 0)
+    const cast = manager.start(7, 'basic')
+    setNow(cast.biteAt)
+    manager.reel(7, cast.token)
+    setNow(cast.deadline + LINE_RED_WINDOW_MS + 1)
+    expect(manager.reel(7, cast.token)).toEqual({ status: 'too-late' })
   })
 })

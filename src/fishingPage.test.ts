@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 
 import { createDefaultGameState, toGameViewState } from '../electron/game/gameEngine'
 import {
+  getDisplayedFishingLineColor,
   getDisplayedFishingLineStatus,
   getDisplayedFishingTension,
   isFishingReelShortcut,
@@ -147,6 +148,7 @@ describe('fishing page', () => {
 
   it('renders the fight meters and turns the line red during the random danger window', () => {
     const view = toGameViewState(createDefaultGameState(1_000))
+    const now = Date.now()
     const html = renderFishingPage(view, {
       phase: 'biting',
       baitId: 'basic',
@@ -155,16 +157,18 @@ describe('fishing page', () => {
       fight: {
         progress: 0.4,
         tension: 0.3,
-        tensionAt: Date.now(),
+        tensionAt: now,
         fishPull: 0.58,
-        lineDangerUntil: Date.now() + 2_000,
+        lineDangerUntil: now + 2_000,
+        lineRecoveryUntil: now + 3_000,
+        lineRecoveryStatus: 'warning',
       },
     }, 'basic', '')
 
     expect(html).toContain('收线进度')
     expect(html).toContain('40%')
     expect(html).toContain('data-fishing-line-status="danger"')
-    expect(html).toContain('鱼线变红了！2秒内不要按空格')
+    expect(html).toContain('鱼线变红了！松开空格')
     expect(html).toContain('鱼的反拉 58%')
   })
 
@@ -174,7 +178,15 @@ describe('fishing page', () => {
       baitId: 'basic',
       token: 't1',
       deadline: 9_000,
-      fight: { progress: 0, tension: 0.8, tensionAt: 1_000, fishPull: 0, lineDangerUntil: 0 },
+      fight: {
+        progress: 0,
+        tension: 0.8,
+        tensionAt: 1_000,
+        fishPull: 0,
+        lineDangerUntil: 0,
+        lineRecoveryUntil: 0,
+        lineRecoveryStatus: 'safe',
+      },
     }
     expect(getDisplayedFishingTension(state, 1_000)).toBe(0.8)
     expect(getDisplayedFishingTension(state, 2_200)).toBeCloseTo(0.3)
@@ -186,9 +198,31 @@ describe('fishing page', () => {
       baitId: 'basic',
       token: 't1',
       deadline: 9_000,
-      fight: { progress: 0, tension: 0.2, tensionAt: 1_000, fishPull: 0, lineDangerUntil: 3_000 },
+      fight: {
+        progress: 0,
+        tension: 0.2,
+        tensionAt: 1_000,
+        fishPull: 0,
+        lineDangerUntil: 3_000,
+        lineRecoveryUntil: 3_700,
+        lineRecoveryStatus: 'warning',
+      },
     }
     expect(getDisplayedFishingLineStatus(state, 2_999)).toBe('danger')
-    expect(getDisplayedFishingLineStatus(state, 3_001)).toBe('safe')
+    expect(getDisplayedFishingLineStatus(state, 3_001)).toBe('warning')
+    expect(getDisplayedFishingLineStatus(state, 3_701)).toBe('safe')
+
+    const fight = state.fight!
+    const highTensionState: FishingUiState = {
+      ...state,
+      fight: {
+        ...fight,
+        tension: 0.95,
+        lineDangerUntil: 0,
+        lineRecoveryUntil: 0,
+      },
+    }
+    expect(getDisplayedFishingLineStatus(highTensionState, 1_000)).toBe('warning')
+    expect(getDisplayedFishingLineColor(highTensionState, 1_000)).not.toBe('#ef4141')
   })
 })
