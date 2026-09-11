@@ -41,7 +41,7 @@ describe('fishing session manager', () => {
     expect(manager.reel(7, cast.token)).toEqual({ status: 'invalid' })
   })
 
-  it('randomly turns the line red and breaks after the one-second buffer', () => {
+  it('randomly turns the line red and breaks at the end of the two-second buffer', () => {
     const rolls = [0, 0, 0, 0.99, 0]
     const { manager, setNow } = setup(() => rolls.shift() ?? 0)
     const cast = manager.start(7, 'basic')
@@ -50,32 +50,46 @@ describe('fishing session manager', () => {
     expect(manager.reel(7, cast.token)).toMatchObject({
       status: 'continue',
       deadline: cast.deadline + LINE_RED_WINDOW_MS,
-      lineDangerUntil: cast.biteAt + 2_000,
-      lineRecoveryUntil: cast.biteAt + 2_700,
+      lineDangerUntil: cast.biteAt + 3_000,
+      lineRecoveryUntil: cast.biteAt + 3_700,
       lineRecoveryStatus: 'safe',
     })
-    setNow(cast.biteAt + 999)
+    setNow(cast.biteAt + 1_999)
     expect(manager.reel(7, cast.token)).toMatchObject({
       status: 'continue',
       deadline: cast.deadline + LINE_RED_WINDOW_MS,
     })
-    setNow(cast.biteAt + 1_001)
+    setNow(cast.biteAt + 2_000)
     expect(manager.reel(7, cast.token)).toEqual({ status: 'line-broken' })
   })
 
-  it('lets a red line recover after two seconds and isolates sessions by owner', () => {
+  it.each([
+    [0.8999, false],
+    [0.9, true],
+  ])('uses the upper ten percent of random rolls for red lines: %s', (roll, triggersRed) => {
+    const rolls = [0, 0, 0, roll]
+    const { manager, setNow } = setup(() => rolls.shift() ?? 0)
+    const cast = manager.start(7, 'basic')
+    setNow(cast.biteAt)
+    expect(manager.reel(7, cast.token)).toMatchObject({
+      status: 'continue',
+      lineDangerUntil: triggersRed ? cast.biteAt + 3_000 : 0,
+    })
+  })
+
+  it('lets a red line recover at three seconds and isolates sessions by owner', () => {
     const rolls = [0, 0, 0, 0.99, 0, 0, 0]
     const { manager, setNow } = setup(() => rolls.shift() ?? 0)
     const recovered = manager.start(7, 'basic')
     setNow(recovered.biteAt)
     expect(manager.reel(7, recovered.token).status).toBe('continue')
-    setNow(recovered.biteAt + 2_001)
+    setNow(recovered.biteAt + 3_000)
     expect(manager.reel(7, recovered.token)).toMatchObject({
       status: 'continue',
-      lineDangerUntil: recovered.biteAt + 2_000,
-      lineRecoveryUntil: recovered.biteAt + 2_700,
+      lineDangerUntil: recovered.biteAt + 3_000,
+      lineRecoveryUntil: recovered.biteAt + 3_700,
     })
-    setNow(recovered.biteAt + 2_701)
+    setNow(recovered.biteAt + 3_701)
     expect(manager.reel(7, recovered.token)).toMatchObject({
       status: 'continue',
       lineDangerUntil: 0,

@@ -8,11 +8,11 @@ export const REEL_WINDOW_MS = 20_000
 export const LINE_TENSION_WARNING = 0.56
 export const LINE_TENSION_DANGER = 0.82
 export const TENSION_RECOVERY_MS = 2_400
-export const LINE_RED_WINDOW_MS = 2_000
-export const LINE_RED_BUFFER_MS = 1_000
+export const LINE_RED_WINDOW_MS = 3_000
+export const LINE_RED_BUFFER_MS = 2_000
 export const LINE_RECOVERY_MIN_MS = 700
 export const LINE_RECOVERY_MAX_MS = 1_700
-export const LINE_RED_CHANCE = 0.18
+export const LINE_RED_CHANCE = 0.1
 
 const MAX_PROGRESS = 1
 const BASE_PROGRESS_PER_REEL = 0.026
