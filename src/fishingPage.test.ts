@@ -171,7 +171,7 @@ describe('fishing page', () => {
     expect(opened).toContain('data-fishing-catalog-close')
   })
 
-  it('renders the fight meters and turns the line red during the random danger window', () => {
+  it('renders only the progress meter and keeps the red-line warning', () => {
     const view = toGameViewState(createDefaultGameState(1_000))
     const now = Date.now()
     const html = renderFishingPage(view, {
@@ -194,7 +194,8 @@ describe('fishing page', () => {
     expect(html).toContain('40%')
     expect(html).toContain('data-fishing-line-status="danger"')
     expect(html).toContain('鱼线变红了！松开空格')
-    expect(html).toContain('鱼的反拉 58%')
+    expect(html).not.toContain('鱼线张力')
+    expect(html).not.toContain('鱼的反拉')
   })
 
   it('lets line tension recover over time', () => {

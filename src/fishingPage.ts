@@ -145,7 +145,6 @@ export function renderFishingPage(
   const fishCount = view.inventory.fish.length
   const fight = getFightState(state)
   const tension = getDisplayedFishingTension(state)
-  const tensionStatus = lineStatusForTension(tension)
   const lineStatus = getDisplayedFishingLineStatus(state)
   const lineColor = getDisplayedFishingLineColor(state)
   const progress = Math.min(1, Math.max(0, fight?.progress ?? 0))
@@ -155,11 +154,6 @@ export function renderFishingPage(
       ? LINE_RED_COPY
       : PHASE_COPY[state.phase]
   )
-  const lineStatusLabel = {
-    safe: '安全',
-    warning: '绷紧',
-    danger: '危险',
-  }[tensionStatus]
   const fightPanel = isFighting
     ? `
       <section class="fishing-fight-panel" aria-label="钓鱼对抗状态">
@@ -167,11 +161,6 @@ export function renderFishingPage(
           <div class="fishing-fight-meter__label"><span>收线进度</span><strong>${Math.round(progress * 100)}%</strong></div>
           <div class="fishing-meter-track"><i data-fishing-progress-fill style="width:${Math.round(progress * 100)}%"></i></div>
         </div>
-        <div class="fishing-fight-meter fishing-fight-meter--tension fishing-fight-meter--${tensionStatus}" data-fishing-tension-meter>
-          <div class="fishing-fight-meter__label"><span>鱼线张力</span><strong data-fishing-tension-label>${lineStatusLabel}</strong></div>
-          <div class="fishing-meter-track"><i data-fishing-tension-fill style="width:${Math.round(tension * 100)}%"></i></div>
-        </div>
-        <span class="fishing-fish-pull">鱼的反拉 ${Math.round((fight?.fishPull ?? 0) * 100)}%</span>
       </section>
     `
     : ''
@@ -348,23 +337,15 @@ export function mountFishingPage(): void {
     const now = Date.now()
     updateBobberVisuals(now)
     const tension = getDisplayedFishingTension(uiState, now)
-    const tensionStatus = lineStatusForTension(tension)
     const lineStatus = getDisplayedFishingLineStatus(uiState, now)
     const lineColor = getDisplayedFishingLineColor(uiState, now)
-    const percent = `${Math.round(tension * 100)}%`
     const pond = root.querySelector<HTMLElement>('[data-fishing-pond]')
     const line = root.querySelector<SVGElement>('.fishing-line')
-    const tensionMeter = root.querySelector<HTMLElement>('[data-fishing-tension-meter]')
-    const tensionFill = root.querySelector<HTMLElement>('[data-fishing-tension-fill]')
-    const tensionLabel = root.querySelector<HTMLElement>('[data-fishing-tension-label]')
     if (pond) {
       pond.style.setProperty('--fishing-line-tension', String(tension))
       pond.style.setProperty('--fishing-line-color', lineColor)
     }
     if (line) line.setAttribute('data-fishing-line-status', lineStatus)
-    if (tensionMeter) tensionMeter.className = `fishing-fight-meter fishing-fight-meter--tension fishing-fight-meter--${tensionStatus}`
-    if (tensionFill) tensionFill.style.width = percent
-    if (tensionLabel) tensionLabel.textContent = { safe: '安全', warning: '绷紧', danger: '危险' }[tensionStatus]
     if (!message) {
       const status = root.querySelector<HTMLElement>('.fishing-status')
       if (status) status.textContent = lineStatus === 'danger' ? LINE_RED_COPY : PHASE_COPY.biting

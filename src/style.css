@@ -1041,7 +1041,7 @@ input[type="range"] {
 
 .fishing-fight-panel {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
   gap: 14px;
   padding: 0 0 12px;
@@ -1080,24 +1080,6 @@ input[type="range"] {
   border-radius: inherit;
   background: #4b9b72;
   transition: width .14s ease, background-color .18s ease;
-}
-
-.fishing-fight-meter--tension .fishing-meter-track i {
-  background: #64ae7c;
-}
-
-.fishing-fight-meter--warning .fishing-meter-track i {
-  background: #e5b938;
-}
-
-.fishing-fight-meter--danger .fishing-meter-track i {
-  background: #e3544c;
-}
-
-.fishing-fish-pull {
-  color: #8a6652;
-  font-size: 12px;
-  white-space: nowrap;
 }
 
 .fishing-controls {
@@ -1392,8 +1374,6 @@ input[type="range"] {
 @media (max-width: 900px) {
   .tool-page--fishing { height: calc(100dvh - 72px); min-height: 520px; }
   .fishing-pond { min-height: 180px; }
-  .fishing-fight-panel { grid-template-columns: 1fr 1fr; }
-  .fishing-fish-pull { grid-column: 1 / -1; }
   .fishing-controls { flex-direction: column; }
   .fishing-catalog-grid { grid-template-columns: 1fr; }
 }
