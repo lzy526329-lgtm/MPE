@@ -3,10 +3,11 @@ import type { CropId, FarmState } from '../farm/farmTypes'
 import { mergeLegacyProduce, mergeLegacySeeds, plotUnlockRequirement } from '../farm/farmCatalog'
 import { farmLevelFromTotalXp, grantFarmExperience } from '../farm/farmLevel'
 import { UNLOCK_PLOT_XP } from '../farm/farmLevelCatalog'
-import { INITIAL_COINS, PRODUCE_OFFERS, SEED_OFFERS, FOOD_OFFERS, SUPPLY_OFFERS, DECOR_OFFERS, BAIT_OFFERS, normalizeItemCount, seedCounts, foodCounts, supplyCounts, decorCounts, baitCounts } from './gameCatalog'
+import { INITIAL_COINS, PRODUCE_OFFERS, SEED_OFFERS, FOOD_OFFERS, SUPPLY_OFFERS, DECOR_OFFERS, FURNITURE_OFFERS, BAIT_OFFERS, normalizeItemCount, seedCounts, foodCounts, supplyCounts, decorCounts, furnitureInventoryCounts, baitCounts } from './gameCatalog'
 import { buildEmptyDecorCounts } from './decorCatalog'
 import type { BaitId, FishCatch, FoodId, SupplyId, DecorId } from './gameTypes'
 import { buyDecor as buyDecorMutation } from '../farm/decorEngine'
+import { getFurnitureEntry, getFurnitureIds, type FurnitureId } from './furnitureCatalog'
 import type {
   FarmCoreState,
   FarmGameMutationResult,
@@ -34,6 +35,7 @@ function cloneInventory(inventory: InventoryState): InventoryState {
     seeds: { ...inventory.seeds },
     produce: cloneRecord(inventory.produce),
     decors: { ...inventory.decors },
+    furniture: { ...(inventory.furniture ?? {}) } as InventoryState['furniture'],
     baits: { ...baitCounts(inventory.baits) },
     fish: (inventory.fish ?? []).map((item) => ({ ...item })),
   }
@@ -53,6 +55,7 @@ function cloneGameState(state: GameState): GameState {
     wallet: { ...state.wallet },
     inventory: cloneInventory(state.inventory),
     farm: cloneFarmCore(state.farm),
+    house: { placedDecors: (state.house?.placedDecors ?? []).map((decor) => ({ ...decor })) },
     fishing: {
       discoveredFish: [...(state.fishing?.discoveredFish ?? [])],
       totalCaught: state.fishing?.totalCaught ?? 0,
@@ -92,10 +95,12 @@ export function createDefaultGameState(now: number): GameState {
       seeds,
       produce,
       decors: decorCounts(),
+      furniture: furnitureInventoryCounts(),
       baits: baitCounts(),
       fish: [],
     },
     farm: farmCore,
+    house: { placedDecors: [] },
     fishing: { discoveredFish: [], totalCaught: 0 },
     migrations: {
       starterCoinsGranted: true,
@@ -119,10 +124,12 @@ export function migrateLegacyGameState(input: LegacyGameInput): GameState {
       seeds,
       produce,
       decors: decorCounts(),
+      furniture: furnitureInventoryCounts(),
       baits: baitCounts(),
       fish: [],
     },
     farm: farmCore,
+    house: { placedDecors: [] },
     fishing: { discoveredFish: [], totalCaught: 0 },
     migrations: {
       starterCoinsGranted: true,
@@ -146,12 +153,14 @@ export function toGameViewState(state: GameState): GameViewState {
   return {
     wallet: { ...state.wallet },
     inventory: cloneInventory(state.inventory),
+    house: { placedDecors: (state.house?.placedDecors ?? []).map((decor) => ({ ...decor })) },
     placedDecorCounts: countPlacedDecors(state),
     seedOffers: SEED_OFFERS.map((offer) => ({ ...offer })),
     produceOffers: PRODUCE_OFFERS.map((offer) => ({ ...offer })),
     foodOffers: FOOD_OFFERS.map((offer) => ({ ...offer })),
     supplyOffers: SUPPLY_OFFERS.map((offer) => ({ ...offer })),
     decorOffers: DECOR_OFFERS.map((offer) => ({ ...offer })),
+    furnitureOffers: FURNITURE_OFFERS.map((offer) => ({ ...offer })),
     baitOffers: BAIT_OFFERS.map((offer) => ({ ...offer })),
     fishing: {
       discoveredFish: [...(state.fishing?.discoveredFish ?? [])],
@@ -173,15 +182,18 @@ export function emptyGameViewState(): GameViewState {
       seeds: seedCounts(),
       produce: {},
       decors: decorCounts(),
+      furniture: furnitureInventoryCounts(),
       baits: baitCounts(),
       fish: [],
     },
+    house: { placedDecors: [] },
     placedDecorCounts: buildEmptyDecorCounts(),
     seedOffers: SEED_OFFERS.map((offer) => ({ ...offer })),
     produceOffers: PRODUCE_OFFERS.map((offer) => ({ ...offer })),
     foodOffers: FOOD_OFFERS.map((offer) => ({ ...offer })),
     supplyOffers: SUPPLY_OFFERS.map((offer) => ({ ...offer })),
     decorOffers: DECOR_OFFERS.map((offer) => ({ ...offer })),
+    furnitureOffers: FURNITURE_OFFERS.map((offer) => ({ ...offer })),
     baitOffers: BAIT_OFFERS.map((offer) => ({ ...offer })),
     fishing: { discoveredFish: [], totalCaught: 0 },
   }
@@ -689,6 +701,25 @@ export function buyDecor(state: GameState, decorId: string): GameMutationResult 
   const result = buyDecorMutation(state, decorId, toGameViewState(state))
   if (!result.ok) return result
   return { ok: true, game: result.game, state: toGameViewState(result.game) }
+}
+
+export function buyFurniture(state: GameState, furnitureId: string): GameMutationResult {
+  if (!getFurnitureIds().includes(furnitureId as FurnitureId)) {
+    return { ok: false, code: 'UNKNOWN_ITEM', message: '未知家具', game: cloneGameState(state), state: toGameViewState(state) }
+  }
+  const id = furnitureId as FurnitureId
+  const entry = getFurnitureEntry(id)
+  const owned = state.inventory.furniture?.[id] ?? 0
+  if (entry.max !== undefined && owned >= entry.max) {
+    return { ok: false, code: 'INVALID_STATE', message: `最多购买 ${entry.max} 个`, game: cloneGameState(state), state: toGameViewState(state) }
+  }
+  if (state.wallet.coins < entry.price) {
+    return { ok: false, code: 'INSUFFICIENT_COINS', message: '金币不足', game: cloneGameState(state), state: toGameViewState(state) }
+  }
+  const game = cloneGameState(state)
+  game.wallet.coins -= entry.price
+  game.inventory.furniture![id] = (game.inventory.furniture?.[id] ?? 0) + 1
+  return { ok: true, game, state: toGameViewState(game) }
 }
 
 export function toGameActionResult(result: GameMutationResult): GameActionResult {

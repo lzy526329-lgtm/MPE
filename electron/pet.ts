@@ -1450,7 +1450,6 @@ function buildPetMenu() {
   return Menu.buildFromTemplate([
     { label: '宠物设置', click: () => openMainPage(APP_HOME_PAGE) },
     { label: '与我对话', click: () => openMainPage('pet-chat-page') },
-    // 家园入口暂隐，页面代码保留：openMainPage('pet-home-page')
     { type: 'separator' },
     {
       label: '喂食',

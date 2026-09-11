@@ -1,6 +1,6 @@
 import type { GameErrorCode } from '../electron/game/gameTypes'
 
-export type GameTab = 'food' | 'seeds' | 'supplies' | 'decors' | 'baits'
+export type GameTab = 'food' | 'seeds' | 'supplies' | 'decors' | 'furniture' | 'baits'
 
 export const DEFAULT_GAME_TAB: GameTab = 'seeds'
 
@@ -30,7 +30,7 @@ export function escapeHtml(value: string): string {
 }
 
 export function isGameTab(value: string | undefined): value is GameTab {
-  return value === 'food' || value === 'seeds' || value === 'supplies' || value === 'decors' || value === 'baits'
+  return value === 'food' || value === 'seeds' || value === 'supplies' || value === 'decors' || value === 'furniture' || value === 'baits'
 }
 
 export function switchGameTab(root: HTMLElement, tab: GameTab): void {

@@ -39,8 +39,8 @@ import type {
 import type { UpdateState } from './updater'
 import type { FarmActionResult } from './farm/farmEngine'
 import type { CutoutRequest, CutoutResult } from './cutout'
-import type { CropId, PlacedDecor } from './farm/farmTypes'
-import type { BaitId, GameActionResult, GameViewState, FoodId, SupplyId, DecorId } from './game/gameTypes'
+import type { CropId, PlacedDecor, HouseDecorPlacement, HouseSurface } from './farm/farmTypes'
+import type { BaitId, GameActionResult, GameViewState, FoodId, SupplyId, DecorId, FurnitureId } from './game/gameTypes'
 import type { FishingCastResult, FishingReelResult } from './fishing/fishingIpc'
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -295,8 +295,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('farm:place-decor', request),
   farmRemoveDecor: (request: { instanceId: string }): Promise<FarmActionResult> =>
     ipcRenderer.invoke('farm:remove-decor', request),
-  farmSavePlacedDecors: (request: { placedDecors: PlacedDecor[] }): Promise<FarmActionResult> =>
-    ipcRenderer.invoke('farm:save-placed-decors', request),
+      farmSavePlacedDecors: (request: { placedDecors: PlacedDecor[] }): Promise<FarmActionResult> =>
+        ipcRenderer.invoke('farm:save-placed-decors', request),
+      houseGetState: (): Promise<GameViewState> => ipcRenderer.invoke('house:get-state'),
+      housePlaceDecor: (request: { decorId: FurnitureId; surface: HouseSurface }): Promise<GameActionResult> => ipcRenderer.invoke('house:place-decor', request),
+      houseRemoveDecor: (request: { instanceId: string }): Promise<GameActionResult> => ipcRenderer.invoke('house:remove-decor', request),
+      houseSaveDecors: (placements: HouseDecorPlacement[]): Promise<GameActionResult> => ipcRenderer.invoke('house:save-decors', { placements }),
   gameGetState: (): Promise<GameViewState> => ipcRenderer.invoke('game:get-state'),
   gameBuySeed: (cropId: CropId): Promise<GameActionResult> =>
     ipcRenderer.invoke('game:buy-seed', cropId),
@@ -312,6 +316,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('game:use-supply', supplyId),
   gameBuyDecor: (decorId: DecorId): Promise<GameActionResult> =>
     ipcRenderer.invoke('game:buy-decor', decorId),
+  gameBuyFurniture: (furnitureId: FurnitureId): Promise<GameActionResult> =>
+    ipcRenderer.invoke('game:buy-furniture', furnitureId),
   gameBuyBait: (baitId: BaitId): Promise<GameActionResult> =>
     ipcRenderer.invoke('game:buy-bait', baitId),
   gameSellFish: (catchId: string): Promise<GameActionResult> =>

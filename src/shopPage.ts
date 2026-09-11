@@ -1,4 +1,4 @@
-import type { GameViewState, FoodId, SupplyId, DecorId, BaitId } from '../electron/game/gameTypes'
+import type { GameViewState, FoodId, SupplyId, DecorId, FurnitureId, BaitId } from '../electron/game/gameTypes'
 import type { CropId } from '../electron/farm/farmTypes'
 import { formatCropGrowLabel, getCropCatalogEntry, getCropShopImgPath } from '../electron/farm/cropCatalog'
 import { getFoodImagePath } from '../electron/game/foodCatalog'
@@ -24,6 +24,7 @@ export type ShopRenderOptions = {
   busyFoodId: string | null
   busySupplyId: string | null
   busyDecorId: string | null
+  busyFurnitureId?: string | null
   busyBaitId: string | null
   error: string | null
 }
@@ -119,6 +120,14 @@ function renderBaitOffer(
       </div>
     </article>
   `
+}
+
+function renderFurnitureOffer(state: GameViewState, offer: NonNullable<GameViewState['furnitureOffers']>[number], busyId: string | null): string {
+  const owned = state.inventory.furniture?.[offer.furnitureId] ?? 0
+  const buying = busyId === offer.furnitureId
+  const atMax = offer.max !== undefined && owned >= offer.max
+  const affordable = state.wallet.coins >= offer.price
+  return `<article class="shop-offer-card"><div class="shop-offer-heading">${decorCatalogIconHtml(offer.src, 'shop-offer-icon')}<div><h2>${escapeHtml(offer.name)}</h2><p class="shop-offer-grow">家具</p><p>${offer.max !== undefined ? `拥有 ${owned}/${offer.max}` : `拥有 ${owned}`}</p></div></div><div class="shop-offer-action"><strong>${offer.price} 金币</strong>${atMax ? '<span class="shop-offer-warning">已达上限</span>' : ''}<button class="primary-button shop-buy-button" type="button" data-buy-furniture="${offer.furnitureId}"${busyId !== null || !affordable || atMax ? ' disabled' : ''}>${buying ? '购买中…' : atMax ? '已满' : '购买 1 件'}</button></div></article>`
 }
 
 function renderSupplyOffer(
@@ -229,6 +238,7 @@ export function renderShopPage(
   options: ShopRenderOptions,
 ): string {
   const { activeTab, busyCropId, busyFoodId, busySupplyId, busyDecorId, busyBaitId, error } = options
+  const busyFurnitureId = options.busyFurnitureId ?? null
   const seedOffers = state.seedOffers
     .map((offer) => renderOffer(state, offer, busyCropId))
     .join('')
@@ -241,6 +251,7 @@ export function renderShopPage(
   const decorOffers = state.decorOffers
     .map((offer) => renderDecorOffer(state, offer, busyDecorId))
     .join('')
+  const furnitureOffers = (state.furnitureOffers ?? []).map((offer) => renderFurnitureOffer(state, offer, busyFurnitureId)).join('')
   const baitOffers = state.baitOffers
     .map((offer) => renderBaitOffer(state, offer, busyBaitId))
     .join('')
@@ -257,6 +268,8 @@ export function renderShopPage(
             role="tab" aria-selected="${activeTab === 'supplies'}" data-game-tab="supplies">杂货</button>
           <button class="game-tab${activeTab === 'decors' ? ' active' : ''}" type="button"
             role="tab" aria-selected="${activeTab === 'decors'}" data-game-tab="decors">装饰</button>
+          <button class="game-tab${activeTab === 'furniture' ? ' active' : ''}" type="button"
+            role="tab" aria-selected="${activeTab === 'furniture'}" data-game-tab="furniture">家具</button>
           <button class="game-tab${activeTab === 'baits' ? ' active' : ''}" type="button"
             role="tab" aria-selected="${activeTab === 'baits'}" data-game-tab="baits">鱼饵</button>
         </div>
@@ -299,6 +312,9 @@ export function renderShopPage(
             </div>
           `}
       </section>
+      <section class="game-pane${activeTab === 'furniture' ? '' : ' hidden'}" data-game-pane="furniture">
+        ${furnitureOffers.length > 0 ? `<div class="shop-offer-grid">${furnitureOffers}</div>` : '<div class="game-empty"><strong>暂无家具上架</strong></div>'}
+      </section>
       <section class="game-pane${activeTab === 'baits' ? '' : ' hidden'}" data-game-pane="baits">
         <div class="shop-offer-grid">${baitOffers}</div>
       </section>
@@ -320,6 +336,7 @@ export function mountShopPage(): void {
   let busyFoodId: string | null = null
   let busySupplyId: string | null = null
   let busyDecorId: string | null = null
+  let busyFurnitureId: string | null = null
   let busyBaitId: string | null = null
   let error: string | null = null
   let loading = false
@@ -343,7 +360,7 @@ export function mountShopPage(): void {
         : '<div class="game-empty" data-shop-idle></div>'
       return
     }
-    root.innerHTML = renderShopPage(state, { activeTab, busyCropId, busyFoodId, busySupplyId, busyDecorId, busyBaitId, error })
+    root.innerHTML = renderShopPage(state, { activeTab, busyCropId, busyFoodId, busySupplyId, busyDecorId, busyFurnitureId, busyBaitId, error })
   }
 
   const refresh = async () => {
@@ -464,6 +481,16 @@ export function mountShopPage(): void {
     }
   }
 
+  const buyFurnitureItem = async (furnitureId: FurnitureId) => {
+    if (!state || busyFurnitureId !== null) return
+    const offer = state.furnitureOffers?.find((item) => item.furnitureId === furnitureId)
+    if (!offer || state.wallet.coins < offer.price) return
+    busyFurnitureId = furnitureId; error = null; render()
+    try { const result = await window.electronAPI.gameBuyFurniture(furnitureId); state = result.state; if (!result.ok) error = result.message || gameErrorMessage(result.code) }
+    catch { error = '购买失败，请重试。' }
+    finally { busyFurnitureId = null; render() }
+  }
+
   const buyBaitItem = async (baitId: BaitId) => {
     if (!state || busyBaitId !== null) return
     const offer = state.baitOffers.find((item) => item.baitId === baitId)
@@ -516,6 +543,13 @@ export function mountShopPage(): void {
       if (decorId && state?.decorOffers.some((offer) => offer.decorId === decorId)) {
         void buyDecorItem(decorId as DecorId)
       }
+      return
+    }
+
+    const buyFurnitureButton = target.closest<HTMLButtonElement>('[data-buy-furniture]')
+    if (buyFurnitureButton && !buyFurnitureButton.disabled) {
+      const furnitureId = buyFurnitureButton.dataset.buyFurniture
+      if (furnitureId && state?.furnitureOffers?.some((offer) => offer.furnitureId === furnitureId)) void buyFurnitureItem(furnitureId as FurnitureId)
       return
     }
 

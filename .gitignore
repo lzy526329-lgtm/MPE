@@ -2,6 +2,7 @@ node_modules
 dist
 dist-electron
 fishing-preview.html
+house-preview.html
 release
 .DS_Store
 *.log

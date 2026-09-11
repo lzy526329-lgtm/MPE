@@ -182,6 +182,10 @@ declare global {
       farmPlaceDecor: (request: { decorId: DecorId }) => Promise<FarmActionResult>
       farmRemoveDecor: (request: { instanceId: string }) => Promise<FarmActionResult>
       farmSavePlacedDecors: (request: { placedDecors: PlacedDecor[] }) => Promise<FarmActionResult>
+      houseGetState: () => Promise<GameViewState>
+      housePlaceDecor: (request: { decorId: import('../electron/game/gameTypes').FurnitureId; surface: 'floor' | 'left-wall' | 'right-wall' }) => Promise<GameActionResult>
+      houseRemoveDecor: (request: { instanceId: string }) => Promise<GameActionResult>
+      houseSaveDecors: (placements: import('../electron/farm/farmTypes').HouseDecorPlacement[]) => Promise<GameActionResult>
       gameGetState: () => Promise<GameViewState>
       gameBuySeed: (cropId: CropId) => Promise<GameActionResult>
       gameSellProduce: (produceId: string) => Promise<GameActionResult>
@@ -190,6 +194,7 @@ declare global {
       gameBuySupply: (supplyId: SupplyId) => Promise<GameActionResult>
       gameUseSupply: (supplyId: SupplyId) => Promise<GameActionResult>
       gameBuyDecor: (decorId: DecorId) => Promise<GameActionResult>
+      gameBuyFurniture: (furnitureId: import('../electron/game/gameTypes').FurnitureId) => Promise<GameActionResult>
       gameBuyBait: (baitId: BaitId) => Promise<GameActionResult>
       gameSellFish: (catchId: string) => Promise<GameActionResult>
       gameSellAllFish: () => Promise<GameActionResult>

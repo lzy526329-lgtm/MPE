@@ -17,7 +17,6 @@ function syncToolbar(pageId: AppPageId) {
   title.textContent = APP_PAGE_TITLES[pageId] ?? ''
   if (petNav) petNav.hidden = !isHome
   if (petChatBtn) petChatBtn.hidden = !isHome
-  // 家园入口暂隐
   if (petHomeBtn) petHomeBtn.hidden = true
 }
 

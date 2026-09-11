@@ -23,7 +23,7 @@ export const APP_HOME_PAGE: AppPageId = 'pet-settings-page'
 export const APP_PAGE_TITLES: Record<AppPageId, string> = {
   'pet-settings-page': '宠物设置',
   'pet-chat-page': '与宠物对话',
-  'pet-home-page': '宠物家园',
+  'pet-home-page': '个人小屋',
   'farm-page': '农场',
   'shop-page': '商店',
   'backpack-page': '背包',

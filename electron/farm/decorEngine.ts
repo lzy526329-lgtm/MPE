@@ -38,6 +38,7 @@ function cloneGame(state: GameState): GameState {
       plots: state.farm.plots.map((plot) => ({ ...plot })),
       placedDecors: state.farm.placedDecors.map((decor) => ({ ...decor })),
     },
+    house: { placedDecors: (state.house?.placedDecors ?? []).map((decor) => ({ ...decor })) },
     fishing: {
       discoveredFish: [...state.fishing.discoveredFish],
       totalCaught: state.fishing.totalCaught,

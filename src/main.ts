@@ -43,7 +43,7 @@ app.innerHTML = `
         <button class="nav-item" type="button" data-pet-tab="about">关于与更新</button>
       </nav>
       <button class="nav-item pet-chat-sidebar-btn" id="open-pet-chat" type="button">与我对话</button>
-      <button class="nav-item pet-chat-sidebar-btn" id="open-pet-home" type="button" hidden>参观家园</button>
+      <button class="nav-item pet-chat-sidebar-btn" id="open-pet-home" type="button" hidden>个人小屋</button>
       <button class="nav-item pet-chat-sidebar-btn" id="open-farm" type="button">农场</button>
       <button class="nav-item pet-chat-sidebar-btn" id="open-fishing" type="button">鱼塘</button>
       <button class="nav-item pet-chat-sidebar-btn" id="open-shop" type="button">商店</button>
@@ -898,8 +898,7 @@ app.innerHTML = `
         <header>
           <div>
             <p class="eyebrow">MY PET</p>
-            <h1>宠物家园</h1>
-            <p class="subtitle">样板间施工中，先搭好墙和地板。</p>
+            <h1>个人小屋</h1>
           </div>
         </header>
         <div class="panel home-panel" id="pet-home-root"></div>

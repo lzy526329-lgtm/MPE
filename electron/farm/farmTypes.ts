@@ -27,7 +27,11 @@ export type PlacedDecor = {
   width: number
   zIndex: number
   flipX?: boolean
+  rotation?: number
 }
+
+export type HouseSurface = 'floor' | 'left-wall' | 'right-wall'
+export type HouseDecorPlacement = PlacedDecor & { surface: HouseSurface }
 
 export type FarmPageContext = {
   walletCoins: number

@@ -2545,9 +2545,69 @@ input[type="range"] {
 }
 
 .tool-page--home .home-panel {
-  max-width: 980px;
-  padding: 18px 18px 14px;
-  overflow: hidden;
+  max-width: none;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.house-layout { display: grid; grid-template-columns: minmax(0, 1fr) 188px; gap: 24px; align-items: start; letter-spacing: 0; }
+.house-main { min-width: 0; }
+.house-room {
+  position: relative;
+  width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
+  aspect-ratio: 1;
+  isolation: isolate;
+  touch-action: none;
+  user-select: none;
+}
+.house-room-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; filter: drop-shadow(0 12px 9px #3b514819); }
+.house-surface { position: absolute; inset: 0; pointer-events: none; transition: background 120ms; }
+.house-room.is-placing { cursor: crosshair; }
+.house-room.is-placing .house-surface { pointer-events: auto; }
+.house-room.is-placing .house-surface:hover { background: #4c997315; }
+.house-placements { position: absolute; inset: 0; pointer-events: none; }
+.house-placement, .house-ghost { position: absolute; transform: translate(-50%, -100%); padding: 0; background: none; border: 0; border-radius: 0; }
+.house-placement { pointer-events: auto; cursor: grab; line-height: 0; touch-action: none; }
+.house-placement:active { cursor: grabbing; }
+.house-placement img { display: block; width: 100%; height: auto; pointer-events: none; filter: drop-shadow(0 3px 2px #362b2030); }
+.house-placement.is-flipped img { transform: scaleX(-1); }
+.house-placement.is-selected img { filter: drop-shadow(1px 0 0 #357e62) drop-shadow(-1px 0 0 #357e62) drop-shadow(0 2px 2px #357e6260); }
+.house-placement:focus-visible { outline: 2px solid #357e62; outline-offset: 3px; }
+.house-ghost { height: auto; opacity: .6; pointer-events: none; z-index: 2000; }
+.house-status { min-height: 20px; margin: 8px 0 0; text-align: center; color: #68776d; font-size: 12px; }
+.house-assets { align-self: start; min-width: 0; padding: 16px 0 16px 18px; border-left: 1px solid #dce3dd; }
+.house-assets-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.house-assets-heading h2 { margin: 0; font-size: 15px; color: #334b40; }
+.house-assets .text-button { color: #357e62; font-size: 12px; white-space: nowrap; }
+.house-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 18px 0 14px; border-bottom: 1px solid #dce3dd; }
+.house-tabs button { padding: 8px 0; border: 0; border-bottom: 2px solid transparent; background: none; font-size: 12px; color: #717c75; cursor: pointer; }
+.house-tabs button[aria-selected="true"] { color: #2b7458; border-bottom-color: #2b7458; font-weight: 600; }
+.house-asset-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-content: start; min-height: 180px; }
+.house-asset { position: relative; min-width: 0; display: grid; grid-template-rows: 62px 30px; padding: 7px; background: #fff9; border: 1px solid #dfe6e0; border-radius: 6px; color: #415348; cursor: pointer; }
+.house-asset:hover, .house-asset[aria-pressed="true"] { border-color: #4e9275; background: #edf6ef; }
+.house-asset img { width: 100%; height: 62px; object-fit: contain; }
+.house-asset span { align-self: end; text-align: center; font-size: 12px; line-height: 15px; overflow-wrap: anywhere; }
+.house-asset b { position: absolute; right: 5px; top: 3px; font-size: 10px; font-weight: 500; color: #607667; }
+.house-empty { grid-column: 1 / -1; padding: 24px 0; text-align: center; color: #79877e; font-size: 12px; }
+.house-selection { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 52px; margin-top: 18px; border-top: 1px solid #dce3dd; }
+.house-selection-name { font-size: 12px; color: #63776a; overflow-wrap: anywhere; }
+.house-remove { flex: 0 0 32px; height: 32px; padding: 0; border: 1px solid #d7dfd9; background: transparent; color: #92675b; border-radius: 4px; font-size: 22px; cursor: pointer; }
+.house-remove:disabled { opacity: .35; cursor: default; }
+.house-edit-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.house-tool-button { min-height: 28px; padding: 4px 8px; border: 1px solid #d7dfd9; border-radius: 4px; background: transparent; color: #4c6557; font-size: 12px; cursor: pointer; }
+.house-tool-button:hover, .house-tool-button.is-active { border-color: #4e9275; background: #edf6ef; color: #2b7458; }
+.house-layer-label { margin-left: auto; color: #718078; font-size: 12px; }
+.house-cancel { margin-top: 8px; }
+@media (max-width: 760px) {
+  .house-layout { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .house-assets { padding: 14px 0; border-left: 0; border-top: 1px solid #dce3dd; }
+  .house-asset-list { grid-template-columns: repeat(4, minmax(0, 1fr)); min-height: 0; }
+  .house-tabs { max-width: 260px; margin-top: 8px; }
 }
 
 .home-shell {

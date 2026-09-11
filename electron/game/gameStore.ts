@@ -5,8 +5,10 @@ import { createDefaultFarm } from '../farm/farmEngine'
 import { parseFarmPayload } from '../farm/farmStore'
 import type { FarmState } from '../farm/farmTypes'
 import { migrateLegacyGameState } from './gameEngine'
-import { normalizeItemCount, seedCounts, foodCounts, supplyCounts, decorCounts, baitCounts } from './gameCatalog'
+import { normalizeItemCount, seedCounts, foodCounts, supplyCounts, decorCounts, furnitureInventoryCounts, baitCounts } from './gameCatalog'
+import { getFurnitureIds } from './furnitureCatalog'
 import type { FarmCoreState, GameState } from './gameTypes'
+import type { HouseDecorPlacement, HouseSurface } from '../farm/farmTypes'
 import { parsePlacedDecors } from '../farm/decorEngine'
 import { getFishCatalogEntry, isFishId } from '../fishing/fishCatalog'
 import type { FishCatch, FishId } from '../fishing/fishingTypes'
@@ -86,6 +88,24 @@ function parseTotalXp(value: unknown): number {
   return Math.floor(value)
 }
 
+function parseHouseDecors(value: unknown): HouseDecorPlacement[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((item): item is HouseDecorPlacement => {
+    if (!isRecord(item) || typeof item.instanceId !== 'string' || typeof item.decorId !== 'string') return false
+    if (!['floor', 'left-wall', 'right-wall'].includes(item.surface as string)) return false
+    return [item.left, item.top, item.width, item.zIndex].every((n) => typeof n === 'number' && Number.isFinite(n))
+  }).map((item) => ({
+    instanceId: item.instanceId as string, decorId: item.decorId as string,
+    surface: item.surface as HouseSurface,
+    left: Math.max(0, Math.min(100, Math.round((item.left as number) * 100) / 100)),
+    top: Math.max(0, Math.min(100, Math.round((item.top as number) * 100) / 100)),
+    width: Math.max(2, Math.min(60, Math.round((item.width as number) * 100) / 100)),
+    zIndex: Math.max(0, Math.min(30, Math.round(item.zIndex as number))),
+    rotation: typeof item.rotation === 'number' && Number.isFinite(item.rotation) ? ((Math.round(item.rotation) % 360) + 360) % 360 : 0,
+    ...(item.flipX === true ? { flipX: true } : {}),
+  }))
+}
+
 function normalizeFishCatch(value: unknown): FishCatch | null {
   if (!isRecord(value) || typeof value.id !== 'string' || !value.id.trim()) return null
   if (!isFishId(value.fishId)) return null
@@ -158,7 +178,10 @@ export function parseGamePayload(raw: string, now: number): GameState {
   const supplies = supplyCounts(normalizeCountRecord(inventory.supplies))
   const seeds = seedCounts(normalizeCountRecord(inventory.seeds))
   const produce = normalizeCountRecord(inventory.produce)
-  const decors = decorCounts(normalizeCountRecord(inventory.decors))
+  const decorInput = normalizeCountRecord(inventory.decors)
+  const decors = decorCounts(decorInput)
+  const legacyFurniture = Object.fromEntries(getFurnitureIds().map((id) => [id, normalizeItemCount(decorInput[id])]))
+  const furniture = furnitureInventoryCounts({ ...legacyFurniture, ...normalizeCountRecord(inventory.furniture) })
   const baits = baitCounts(normalizeCountRecord(inventory.baits))
   const fish = Array.isArray(inventory.fish)
     ? inventory.fish
@@ -170,8 +193,9 @@ export function parseGamePayload(raw: string, now: number): GameState {
   return {
     version: 2,
     wallet: { coins: normalizeItemCount(wallet.coins) },
-    inventory: { food, supplies, seeds, produce, decors, baits, fish },
+    inventory: { food, supplies, seeds, produce, decors, furniture, baits, fish },
     farm: parseFarmCore(value.farm, now, seeds, produce),
+    house: { placedDecors: parseHouseDecors(value.house && isRecord(value.house) ? value.house.placedDecors : []) },
     fishing: {
       discoveredFish: parseFishIds(fishing.discoveredFish),
       totalCaught: normalizeItemCount(fishing.totalCaught),

@@ -8,6 +8,7 @@ import {
   buySeed,
   buySupply,
   buyDecor,
+  buyFurniture,
   emptyGameViewState,
   sellProduce,
   sellAllFish,
@@ -20,7 +21,7 @@ import {
 import { getFoodCatalogEntry } from './foodCatalog'
 import { getSupplyCatalogEntry } from './supplyCatalog'
 import { loadGame, readGameState, withGame, type GameStoreFileOps } from './gameStore'
-import type { BaitId, FoodId, GameActionResult, GameMutationResult, GameState, GameViewState, SupplyId, DecorId } from './gameTypes'
+import type { BaitId, FoodId, FurnitureId, GameActionResult, GameMutationResult, GameState, GameViewState, SupplyId, DecorId } from './gameTypes'
 
 export type GameHandlers = {
   getState: () => Promise<GameViewState>
@@ -31,6 +32,7 @@ export type GameHandlers = {
   buySupply: (supplyId: SupplyId) => Promise<GameActionResult>
   useSupply: (supplyId: SupplyId) => Promise<GameActionResult>
   buyDecor: (decorId: DecorId) => Promise<GameActionResult>
+  buyFurniture: (furnitureId: FurnitureId) => Promise<GameActionResult>
   buyBait: (baitId: BaitId) => Promise<GameActionResult>
   sellFish: (catchId: string) => Promise<GameActionResult>
   sellAllFish: () => Promise<GameActionResult>
@@ -302,6 +304,7 @@ export function createGameHandlers(options: GameHandlerOptions): GameHandlers {
       }
       return result
     },
+    buyFurniture: (furnitureId) => runSimpleMutation('a furniture purchase', (game) => buyFurniture(game, furnitureId)),
   }
 }
 
@@ -321,6 +324,7 @@ export function registerGameIpc(getMain: () => BrowserWindow | null): void {
   ipcMain.handle('game:buy-supply', (_event, supplyId: SupplyId) => handlers.buySupply(supplyId))
   ipcMain.handle('game:use-supply', (_event, supplyId: SupplyId) => handlers.useSupply(supplyId))
   ipcMain.handle('game:buy-decor', (_event, decorId: DecorId) => handlers.buyDecor(decorId))
+  ipcMain.handle('game:buy-furniture', (_event, furnitureId: FurnitureId) => handlers.buyFurniture(furnitureId))
   ipcMain.handle('game:buy-bait', (_event, baitId: BaitId) => handlers.buyBait(baitId))
   ipcMain.handle('game:sell-fish', (_event, catchId: string) => handlers.sellFish(catchId))
   ipcMain.handle('game:sell-all-fish', () => handlers.sellAllFish())

@@ -148,7 +148,7 @@ describe('fishing page', () => {
     const opened = renderFishingPage(view, { phase: 'idle' }, 'basic', '', true)
     expect(opened).toContain('aria-label="鱼类图鉴"')
     expect(opened).toContain('鲫鱼')
-    expect(opened).toContain('src="/fishingGrounds/鲫鱼-cutout.png"')
+    expect(opened).toContain('src="./fishingGrounds/%E9%B2%AB%E9%B1%BC-cutout.png"')
     expect(opened).toContain('fishing-rarity--common">普通</span>')
     expect(opened).not.toContain('fishing-rarity--common">common</span>')
     expect(opened).toContain('尚未发现')

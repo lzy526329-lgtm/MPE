@@ -29,6 +29,7 @@ import { registerAppPrefsIpc, syncOpenAtLoginFromPrefs } from './appPrefs'
 import { registerFarmIpc } from './farm/farmIpc'
 import { registerGameIpc } from './game/gameIpc'
 import { registerFishingIpc } from './fishing/fishingIpc'
+import { registerHouseIpc } from './house/houseIpc'
 import { createAppTray, destroyAppTray, isAppQuitting, markAppQuitting, requestAppQuit } from './tray'
 import {
   addPdfWatermark,
@@ -306,6 +307,7 @@ if (!gotSingleInstanceLock) {
     registerFarmIpc(() => win)
     registerGameIpc(() => win)
     registerFishingIpc(() => win)
+    registerHouseIpc(() => win)
     registerUpdaterIpc(() => win)
     createWindow(false)
     restorePetIfNeeded()
