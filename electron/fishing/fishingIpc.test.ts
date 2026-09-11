@@ -22,18 +22,21 @@ afterEach(() => {
 })
 
 describe('fishing handlers', () => {
-  it('deducts bait and persists a catch only after a timely reel', async () => {
+  it.each([
+    [0, 'white', 2], [0.8, 'gold', 4], [0.95, 'red', 6],
+  ] as const)('deducts bait and persists a %s quality roll after a timely reel', async (qualityRoll, quality, sellPrice) => {
     const dir = makeDir()
     let now = 1_000
     const game = createDefaultGameState(now)
     game.inventory.baits.basic = 1
     saveGameAtomic(dir, game)
+    const rolls = [0, 0, 0, qualityRoll]
     const handlers = createFishingHandlers({
       userDataPath: dir,
       now: () => now,
       sessions: createFishingSessionManager({
         now: () => now,
-        rng: () => 0,
+        rng: () => rolls.shift() ?? 0,
         randomUUID: () => 'token-1',
       }),
       publish: vi.fn(),
@@ -57,9 +60,10 @@ describe('fishing handlers', () => {
     expect(reeled).toMatchObject({
       ok: true,
       status: 'caught',
-      catch: { id: 'token-1', fishId: 'crucian' },
+      catch: { id: 'token-1', fishId: 'crucian', quality, sellPrice },
     })
     expect(loadGame(dir, now).inventory.fish).toHaveLength(1)
+    expect(loadGame(dir, now).inventory.fish[0]).toMatchObject({ quality, sellPrice })
   })
 
   it('does not deduct bait when the fish bag is full', async () => {
@@ -69,6 +73,7 @@ describe('fishing handlers', () => {
     game.inventory.fish = Array.from({ length: 100 }, (_, index) => ({
       id: `fish-${index}`,
       fishId: 'crucian' as const,
+      quality: 'white' as const,
       weightKg: 0.4,
       sellPrice: 3,
       caughtAt: index,

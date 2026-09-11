@@ -1155,33 +1155,59 @@ input[type="range"] {
   z-index: 20;
   inset: 0;
   display: grid;
+  grid-template-rows: minmax(0, 1fr);
   place-items: center;
   padding: 20px;
+  overflow: auto;
   background: rgba(20, 46, 45, .54);
   backdrop-filter: blur(6px);
 }
 
 .fishing-catch-card {
-  width: min(380px, 90%);
+  width: min(380px, 100%);
+  min-width: 0;
+  max-height: 100%;
+  overflow: auto;
   padding: 24px;
   border: 1px solid rgba(255, 255, 255, .7);
   border-radius: 24px;
-  background: #fffdf3;
+  color: #243431;
+  background: #fff;
   box-shadow: 0 24px 60px rgba(22, 56, 48, .3);
   text-align: center;
 }
 
+.fishing-catch-card--gold { background: #f2cf68; color: #382d15; }
+.fishing-catch-card--red { background: #b83245; color: #fff; }
+
 .fishing-catch-card > img {
-  width: 210px;
-  max-width: 80%;
+  display: block;
+  width: min(210px, 85%);
+  height: 140px;
+  margin: 12px auto;
+  object-fit: contain;
   filter: drop-shadow(0 10px 8px rgba(45, 69, 52, .18));
 }
 
-.fishing-catch-card h2 { margin: 4px 0 8px; }
-.fishing-catch-card dl { display: flex; justify-content: center; gap: 28px; margin: 16px 0; }
+.fishing-catch-card h2 { margin: 4px 0 8px; color: inherit; font-size: 24px; overflow-wrap: anywhere; }
+.fishing-catch-card dl { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px 28px; margin: 16px 0 24px; }
 .fishing-catch-card dl div { display: grid; gap: 3px; }
-.fishing-catch-card dt { color: #7d887e; font-size: 12px; }
+.fishing-catch-card dt { color: inherit; opacity: .8; font-size: 12px; }
 .fishing-catch-card dd { margin: 0; font-weight: 700; }
+.fishing-catch-quality { margin: 0; font-size: 18px; font-weight: 700; }
+.fishing-catch-multiplier { margin: 14px 0 0; font-size: 15px; font-weight: 700; }
+.fishing-catch-card .primary-button { color: #fff; background: #243431; border-color: #243431; }
+.fishing-catch-card .primary-button:hover { background: #354e47; }
+.fishing-catch-card--red .primary-button { color: #96263a; background: #fff; border-color: #fff; }
+.fishing-catch-card--red .primary-button:hover { background: #ffe9ec; }
+.fishing-catch-card .primary-button:focus-visible { outline: 3px solid currentColor; outline-offset: 4px; }
+
+.fishing-quality { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 6px; font-size: 12px; font-weight: 700; }
+.fishing-quality::before { content: ''; width: 10px; height: 10px; flex: 0 0 10px; border: 1px solid #9ba9a3; border-radius: 2px; background: #fff; }
+.fishing-quality--gold { color: #805900; }
+.fishing-quality--gold::before { border-color: #a97b13; background: #e8bf49; }
+.fishing-quality--red { color: #b83245; }
+.fishing-quality--red::before { border-color: #b83245; background: #d34355; }
 
 .fishing-catalog-backdrop {
   position: absolute;

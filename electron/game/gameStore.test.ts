@@ -556,6 +556,34 @@ describe('withGame serialization', () => {
 })
 
 describe('fishing save migration', () => {
+  it('defaults legacy and unknown qualities to white without changing stored prices', () => {
+    const raw = createDefaultGameState(1_000) as any
+    raw.inventory.fish = [undefined, 'invalid', 'gold', 'red'].map((quality, index) => ({
+      id: `quality-${index}`, fishId: 'crucian', weightKg: 0.4,
+      quality, sellPrice: 3 * (index + 1), caughtAt: 1_000,
+    }))
+    const parsed = parseGamePayload(JSON.stringify(raw), 2_000)
+    expect(parsed.inventory.fish.map(({ quality, sellPrice }) => ({ quality, sellPrice }))).toEqual([
+      { quality: 'white', sellPrice: 3 },
+      { quality: 'white', sellPrice: 6 },
+      { quality: 'gold', sellPrice: 9 },
+      { quality: 'red', sellPrice: 12 },
+    ])
+  })
+
+  it('preserves quality and the final sale price across repeated save loads', () => {
+    const dir = makeDir()
+    const game = createDefaultGameState(1_000)
+    game.inventory.fish = [{
+      id: 'red-catch', fishId: 'crucian', quality: 'red',
+      weightKg: 0.4, sellPrice: 9, caughtAt: 1_000,
+    }]
+    saveGameAtomic(dir, game)
+    const loaded = loadGame(dir, 2_000)
+    saveGameAtomic(dir, loaded)
+    expect(loadGame(dir, 3_000).inventory.fish).toEqual(game.inventory.fish)
+  })
+
   it('migrates a version 1 save without changing wallet or farm', () => {
     const raw = createDefaultGameState(1_000) as any
     raw.version = 1

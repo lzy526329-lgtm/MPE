@@ -10,6 +10,7 @@ import { supplyCatalogIconHtml, formatSupplyHygieneLabel } from './supplyAssets'
 import { decorCatalogIconHtml } from './decorAssets'
 import { openFeedFoodPicker } from './feedFoodPicker'
 import { getFishCatalogEntry, fishRarityLabel } from '../electron/fishing/fishCatalog'
+import { FISH_QUALITY_CONFIG } from '../electron/fishing/fishQuality'
 import { getFishImagePath } from './fishingAssets'
 import {
   escapeHtml,
@@ -191,6 +192,7 @@ function renderFishItems(
         <div class="backpack-fish-card-body">
           <span class="fishing-rarity fishing-rarity--${fish.rarity}">${fishRarityLabel(fish.rarity)}</span>
           <h2>${escapeHtml(fish.name)}</h2>
+          <span class="fishing-quality fishing-quality--${item.quality}">${FISH_QUALITY_CONFIG[item.quality].label}品质</span>
           <dl>
             <div><dt>重量</dt><dd>${item.weightKg.toFixed(2)} kg</dd></div>
             <div><dt>售价</dt><dd>${item.sellPrice} 金币</dd></div>

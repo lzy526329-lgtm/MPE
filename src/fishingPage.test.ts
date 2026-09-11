@@ -15,6 +15,22 @@ import {
 import type { FishingUiState } from './fishingStateMachine'
 
 describe('fishing page', () => {
+  it.each([
+    ['white', '白色', 1], ['gold', '金色', 2], ['red', '红色', 3],
+  ] as const)('renders a %s catch background and its quality price', (quality, label, multiplier) => {
+    const view = toGameViewState(createDefaultGameState(1_000))
+    const html = renderFishingPage(view, {
+      phase: 'caught',
+      catch: { id: 'quality-catch', fishId: 'crucian', quality, weightKg: 0.4, sellPrice: 3 * multiplier, caughtAt: 1_000 },
+    }, 'basic', '')
+    expect(html).toContain(`fishing-catch-card--${quality}`)
+    expect(html).toContain(`${label}品质`)
+    expect(html).toContain(`售价 ×${multiplier}`)
+    expect(html).toContain(`${3 * multiplier} 金币`)
+    expect(html).toContain('data-fishing-result-close')
+    expect(renderFishingPage(view, { phase: 'idle' }, 'basic', '')).not.toContain('fishing-catch-backdrop')
+  })
+
   it('renders cast controls and selected bait while idle', () => {
     const view = toGameViewState(createDefaultGameState(1_000))
     view.inventory.baits.basic = 2

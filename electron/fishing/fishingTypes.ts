@@ -23,10 +23,12 @@ export type FishId =
   | 'angelfish'
   | 'paleChub'
 export type FishRarity = 'common' | 'uncommon' | 'rare' | 'precious'
+export type FishQuality = 'white' | 'gold' | 'red'
 
 export type FishCatch = {
   id: string
   fishId: FishId
+  quality: FishQuality
   weightKg: number
   sellPrice: number
   caughtAt: number

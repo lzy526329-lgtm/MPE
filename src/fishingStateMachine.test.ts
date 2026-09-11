@@ -52,7 +52,7 @@ describe('fishing UI state machine', () => {
     const resolving: FishingUiState = { phase: 'resolving', token: 't1' }
     const caught = reduceFishingState(resolving, {
       type: 'REEL_CAUGHT',
-      catch: { id: 'a', fishId: 'crucian', weightKg: 0.4, sellPrice: 3, caughtAt: 1 },
+      catch: { id: 'a', fishId: 'crucian', quality: 'white', weightKg: 0.4, sellPrice: 3, caughtAt: 1 },
     })
     expect(caught.phase).toBe('caught')
     expect(reduceFishingState(caught, { type: 'RESET' })).toEqual({ phase: 'idle' })

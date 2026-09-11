@@ -42,7 +42,7 @@ describe('fishing session manager', () => {
   })
 
   it('randomly turns the line red and breaks at the end of the two-second buffer', () => {
-    const rolls = [0, 0, 0, 0.99, 0]
+    const rolls = [0, 0, 0, 0, 0.99, 0]
     const { manager, setNow } = setup(() => rolls.shift() ?? 0)
     const cast = manager.start(7, 'basic')
 
@@ -67,7 +67,7 @@ describe('fishing session manager', () => {
     [0.8999, false],
     [0.9, true],
   ])('uses the upper ten percent of random rolls for red lines: %s', (roll, triggersRed) => {
-    const rolls = [0, 0, 0, roll]
+    const rolls = [0, 0, 0, 0, roll]
     const { manager, setNow } = setup(() => rolls.shift() ?? 0)
     const cast = manager.start(7, 'basic')
     setNow(cast.biteAt)
@@ -78,7 +78,7 @@ describe('fishing session manager', () => {
   })
 
   it('lets a red line recover at three seconds and isolates sessions by owner', () => {
-    const rolls = [0, 0, 0, 0.99, 0, 0, 0]
+    const rolls = [0, 0, 0, 0, 0.99, 0, 0, 0]
     const { manager, setNow } = setup(() => rolls.shift() ?? 0)
     const recovered = manager.start(7, 'basic')
     setNow(recovered.biteAt)
@@ -144,7 +144,7 @@ describe('fishing session manager', () => {
   })
 
   it('still expires after the usable reeling time runs out', () => {
-    const rolls = [0, 0, 0, 0.99, 0]
+    const rolls = [0, 0, 0, 0, 0.99, 0]
     const { manager, setNow } = setup(() => rolls.shift() ?? 0)
     const cast = manager.start(7, 'basic')
     setNow(cast.biteAt)

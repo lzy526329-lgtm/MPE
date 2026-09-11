@@ -17,6 +17,7 @@ describe('fishingEngine', () => {
     expect(createFishCatch('crucian', 1_000, 'catch-1', () => 0)).toEqual({
       id: 'catch-1',
       fishId: 'crucian',
+      quality: 'white',
       weightKg: 0.2,
       sellPrice: 2,
       caughtAt: 1_000,
@@ -27,9 +28,26 @@ describe('fishingEngine', () => {
     expect(createFishCatch('goldenKoi', 2_000, 'catch-2', () => 1)).toEqual({
       id: 'catch-2',
       fishId: 'goldenKoi',
+      quality: 'red',
       weightKg: 2,
-      sellPrice: 45,
+      sellPrice: 135,
       caughtAt: 2_000,
+    })
+  })
+
+  it.each([
+    [0, 'white', 29],
+    [0.799999, 'white', 29],
+    [0.8, 'gold', 58],
+    [0.949999, 'gold', 58],
+    [0.95, 'red', 87],
+    [1, 'red', 87],
+  ] as const)('assigns quality independently of weight for roll %s', (roll, quality, sellPrice) => {
+    const rolls = [0.5, roll]
+    expect(createFishCatch('tuna', 1_000, 'quality-catch', () => rolls.shift()!)).toMatchObject({
+      quality,
+      sellPrice,
+      weightKg: 152.5,
     })
   })
 })

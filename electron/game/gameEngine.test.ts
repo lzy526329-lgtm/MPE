@@ -154,6 +154,7 @@ describe('fishing economy', () => {
     before.inventory.fish = [{
       id: 'fish-1',
       fishId: 'crucian',
+      quality: 'gold',
       weightKg: 0.4,
       sellPrice: 4,
       caughtAt: 1_000,
@@ -167,8 +168,8 @@ describe('fishing economy', () => {
   it('sells all catches in one atomic mutation', () => {
     const before = createDefaultGameState(1_000)
     before.inventory.fish = [
-      { id: 'a', fishId: 'crucian', weightKg: 0.4, sellPrice: 4, caughtAt: 1 },
-      { id: 'b', fishId: 'tuna', weightKg: 1, sellPrice: 15, caughtAt: 2 },
+      { id: 'a', fishId: 'crucian', quality: 'gold', weightKg: 0.4, sellPrice: 4, caughtAt: 1 },
+      { id: 'b', fishId: 'tuna', quality: 'red', weightKg: 1, sellPrice: 15, caughtAt: 2 },
     ]
     const result = sellAllFish(before)
     expect(result.game.wallet.coins).toBe(119)

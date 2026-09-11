@@ -1,5 +1,6 @@
 import { getBaitCatalogEntry } from '../electron/fishing/baitCatalog'
 import { getFishCatalogEntry, getFishIds, fishRarityLabel } from '../electron/fishing/fishCatalog'
+import { FISH_QUALITY_CONFIG } from '../electron/fishing/fishQuality'
 import {
   LINE_TENSION_WARNING,
   TENSION_RECOVERY_MS,
@@ -178,13 +179,15 @@ export function renderFishingPage(
   const catchModal = state.phase === 'caught'
     ? (() => {
         const fish = getFishCatalogEntry(state.catch.fishId)
+        const quality = FISH_QUALITY_CONFIG[state.catch.quality]
         return `
           <div class="fishing-catch-backdrop" role="presentation">
-            <section class="fishing-catch-card" role="dialog" aria-modal="true" aria-label="钓获结果">
-              <p class="eyebrow">NEW CATCH</p>
+            <section class="fishing-catch-card fishing-catch-card--${state.catch.quality}" role="dialog" aria-modal="true" aria-label="钓获结果">
+              <p class="fishing-catch-quality">${quality.label}品质</p>
               <img src="${getFishImagePath(state.catch.fishId)}" alt="${escapeHtml(fish.name)}" />
               <h2>${escapeHtml(fish.name)}</h2>
               <span class="fishing-rarity fishing-rarity--${fish.rarity}">${fishRarityLabel(fish.rarity)}</span>
+              <p class="fishing-catch-multiplier">售价 ×${quality.priceMultiplier}</p>
               <dl>
                 <div><dt>重量</dt><dd>${state.catch.weightKg.toFixed(2)} kg</dd></div>
                 <div><dt>售价</dt><dd>${state.catch.sellPrice} 金币</dd></div>

@@ -70,7 +70,7 @@ describe('createGameHandlers', () => {
 
     const game = createDefaultGameState(1_000)
     game.inventory.fish = [
-      { id: 'fish-1', fishId: 'crucian', weightKg: 0.4, sellPrice: 4, caughtAt: 1 },
+      { id: 'fish-1', fishId: 'crucian', quality: 'white', weightKg: 0.4, sellPrice: 4, caughtAt: 1 },
     ]
     saveGameAtomic(dir, game)
     const sold = await handlers.sellFish('fish-1')

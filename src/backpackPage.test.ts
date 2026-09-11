@@ -61,8 +61,8 @@ describe('backpack page rendering', () => {
       inventory: {
         ...state.inventory,
         fish: [
-          { id: 'a', fishId: 'crucian', weightKg: 0.4, sellPrice: 3, caughtAt: 1 },
-          { id: 'b', fishId: 'crucian', weightKg: 0.8, sellPrice: 4, caughtAt: 2 },
+          { id: 'a', fishId: 'crucian', quality: 'gold', weightKg: 0.4, sellPrice: 6, caughtAt: 1 },
+          { id: 'b', fishId: 'crucian', quality: 'red', weightKg: 0.8, sellPrice: 12, caughtAt: 2 },
         ],
       },
     }
@@ -79,7 +79,9 @@ describe('backpack page rendering', () => {
     expect(html).not.toContain('fishing-rarity--common">common</span>')
     expect(html).toContain('data-sell-fish="a"')
     expect(html).toContain('data-sell-fish="b"')
-    expect(html).toContain('全部出售 · 7 金币')
+    expect(html).toContain('金色品质')
+    expect(html).toContain('红色品质')
+    expect(html).toContain('全部出售 · 18 金币')
   })
 
   it('renders only seeds with a positive count', () => {

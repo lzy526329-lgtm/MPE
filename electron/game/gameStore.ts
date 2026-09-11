@@ -12,6 +12,7 @@ import type { HouseDecorPlacement, HouseSurface } from '../farm/farmTypes'
 import { parsePlacedDecors } from '../farm/decorEngine'
 import { getFishCatalogEntry, isFishId } from '../fishing/fishCatalog'
 import type { FishCatch, FishId } from '../fishing/fishingTypes'
+import { normalizeFishQuality } from '../fishing/fishQuality'
 
 export type PersistableMutation = { ok: boolean; game: GameState }
 export type GameMutator<T extends PersistableMutation> = (state: GameState) => T | Promise<T>
@@ -127,6 +128,7 @@ function normalizeFishCatch(value: unknown): FishCatch | null {
   return {
     id: value.id,
     fishId: value.fishId,
+    quality: normalizeFishQuality(value.quality),
     weightKg: value.weightKg,
     sellPrice: value.sellPrice,
     caughtAt: value.caughtAt,

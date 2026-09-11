@@ -1,6 +1,7 @@
 import { FISH_RARITIES, getBaitCatalogEntry } from './baitCatalog'
 import { getFishCatalogEntry, getFishIdsByRarity } from './fishCatalog'
-import type { BaitId, FishCatch, FishId, FishRarity } from './fishingTypes'
+import { FISH_QUALITIES, FISH_QUALITY_CONFIG } from './fishQuality'
+import type { BaitId, FishCatch, FishId, FishQuality, FishRarity } from './fishingTypes'
 
 function clampRoll(value: number): number {
   if (!Number.isFinite(value)) return 0
@@ -33,6 +34,16 @@ export function chooseFish(baitId: BaitId, rng: () => number = Math.random): Fis
   return getFishIdsByRarity(rarity).at(-1)!
 }
 
+function chooseFishQuality(rng: () => number): FishQuality {
+  const roll = clampRoll(rng()) * 100
+  let threshold = 0
+  for (const quality of FISH_QUALITIES) {
+    threshold += FISH_QUALITY_CONFIG[quality].chancePercent
+    if (roll < threshold) return quality
+  }
+  return 'red'
+}
+
 export function createFishCatch(
   fishId: FishId,
   now: number,
@@ -47,11 +58,14 @@ export function createFishCatch(
       ? 0
       : (weightKg - fish.weightMin) / (fish.weightMax - fish.weightMin)
   const multiplier = 0.8 + position * 0.7
+  const quality = chooseFishQuality(rng)
+  const basePrice = Math.max(1, Math.round(fish.basePrice * multiplier))
   return {
     id,
     fishId,
+    quality,
     weightKg,
-    sellPrice: Math.max(1, Math.round(fish.basePrice * multiplier)),
+    sellPrice: basePrice * FISH_QUALITY_CONFIG[quality].priceMultiplier,
     caughtAt: now,
   }
 }
