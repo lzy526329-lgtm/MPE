@@ -6,6 +6,7 @@ import { createGameApi, GameApiError, type GameApi } from './api'
 import { getGameApiBaseUrl } from './config'
 import { createSessionStore, type SessionStore } from './sessionStore'
 import { createSyncCoordinator, type SyncCoordinator } from './syncCoordinator'
+import { createAccountIpcHandler, getTrustedMainWindow } from './trustedRenderer'
 import type { AccountResult, AuthResult, GameAccountBridge, GameAccountState, LoginRequest, RegisterRequest } from './types'
 
 type HandlerOptions = { api: GameApi; store: SessionStore; sync: SyncCoordinator; deviceName: string }
@@ -99,19 +100,20 @@ export function createGameAccountHandlers({ api, store, sync, deviceName }: Hand
 }
 
 let disposeRegistration: (() => void) | undefined
-export function registerGameAccountIpc(getMain: () => BrowserWindow | null): () => void {
+export function registerGameAccountIpc(getMain: () => BrowserWindow | null, isTrustedUrl: (url: string) => boolean): () => void {
   if (disposeRegistration) return disposeRegistration
   const userDataPath = app.getPath('userData')
   const api = createGameApi(getGameApiBaseUrl(app.isPackaged, { GAME_API_BASE_URL: process.env.GAME_API_BASE_URL }))
   const store = createSessionStore(userDataPath, safeStorage)
+  const authorization = { getMain, isTrustedUrl }
   const sync = createSyncCoordinator({
     userDataPath, api, sessionStore: store,
-    publish: state => getMain()?.webContents.send('game-account:state-changed', state),
-    onCloudApplied: game => getMain()?.webContents.send('game:state-changed', toGameViewState(game)),
+    publish: state => getTrustedMainWindow(authorization)?.webContents.send('game-account:state-changed', state),
+    onCloudApplied: game => getTrustedMainWindow(authorization)?.webContents.send('game:state-changed', toGameViewState(game)),
   })
   const handlers = createGameAccountHandlers({ api, store, sync, deviceName: hostname().slice(0, 100) })
   for (const [name, handler] of Object.entries(handlers)) {
-    ipcMain.handle(`game-account:${name}`, (_event, input: unknown) => (handler as (input: unknown) => Promise<unknown>)(input))
+    ipcMain.handle(`game-account:${name}`, createAccountIpcHandler(handler as (input: unknown) => Promise<unknown>, authorization))
   }
   const unsubscribe = onGameSaved(event => { if (event.userDataPath === userDataPath) sync.markDirty() })
   disposeRegistration = () => {

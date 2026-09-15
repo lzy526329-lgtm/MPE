@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, session, shell } from 'electron'
 import { registerPetIpc, restorePetIfNeeded, isPetOpen, onPetEnabledChange } from './pet'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { compressImage, type CompressRequest } from './compress'
 import { cutoutImage, type CutoutRequest } from './cutout'
 import {
@@ -29,6 +30,7 @@ import { registerAppPrefsIpc, syncOpenAtLoginFromPrefs } from './appPrefs'
 import { registerFarmIpc } from './farm/farmIpc'
 import { registerGameIpc } from './game/gameIpc'
 import { registerGameAccountIpc } from './gameAccount/ipc'
+import { createTrustedAppUrl, guardMainWindowNavigation } from './gameAccount/trustedRenderer'
 import { registerFishingIpc } from './fishing/fishingIpc'
 import { registerHouseIpc } from './house/houseIpc'
 import { createAppTray, destroyAppTray, isAppQuitting, markAppQuitting, requestAppQuit } from './tray'
@@ -60,6 +62,12 @@ let win: BrowserWindow | null
 let trayApi: { refresh: () => void } | null = null
 
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
+const mainDocumentPath = path.join(process.env.DIST!, 'index.html')
+const isTrustedMainUrl = createTrustedAppUrl({
+  appFileUrl: pathToFileURL(mainDocumentPath).href,
+  isPackaged: app.isPackaged,
+  devServerUrl: VITE_DEV_SERVER_URL,
+})
 
 function createWindow(show = false) {
   if (win && !win.isDestroyed()) {
@@ -82,6 +90,7 @@ function createWindow(show = false) {
       nodeIntegration: false,
     },
   })
+  guardMainWindowNavigation(win.webContents, isTrustedMainUrl)
 
   // 点关闭时隐藏到托盘，不退出（托盘「退出 MPT」才真正退出）
   win.on('close', (event) => {
@@ -95,10 +104,10 @@ function createWindow(show = false) {
     win = null
   })
 
-  if (VITE_DEV_SERVER_URL) {
+  if (!app.isPackaged && VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL)
   } else {
-    win.loadFile(path.join(process.env.DIST!, 'index.html'))
+    win.loadFile(mainDocumentPath)
   }
   return win
 }
@@ -307,7 +316,7 @@ if (!gotSingleInstanceLock) {
     registerPetIpc(() => win, ensureMainWindow)
     registerFarmIpc(() => win)
     registerGameIpc(() => win)
-    const disposeGameAccount = registerGameAccountIpc(() => win)
+    const disposeGameAccount = registerGameAccountIpc(() => win, isTrustedMainUrl)
     app.once('will-quit', disposeGameAccount)
     registerFishingIpc(() => win)
     registerHouseIpc(() => win)
