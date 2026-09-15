@@ -4,6 +4,7 @@ import type { ServerResponse } from 'node:http'
 import { defineConfig, type Plugin } from 'vite'
 import electron from 'vite-plugin-electron/simple'
 import { scanPetCharacters } from './electron/petCharacters'
+import { getGameApiBaseUrl } from './electron/gameAccount/config'
 
 // 原生模块和自带 WASM/可执行文件的依赖必须保持外部引用。
 const nativeExternals = ['sharp', '7zip-bin', 'node-unrar-js', 'electron-updater']
@@ -54,7 +55,7 @@ function petCharactersPlugin(): Plugin {
   }
 }
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   resolve: {
     alias: {
       url: path.resolve(__dirname, 'src/shims/node-url.ts'),
@@ -76,6 +77,7 @@ export default defineConfig({
       main: {
         entry: 'electron/main.ts',
         vite: {
+          define: { 'process.env.GAME_API_BASE_URL': JSON.stringify(getGameApiBaseUrl(command === 'build')) },
           build: {
             rollupOptions: { external: nativeExternals },
           },
@@ -102,4 +104,4 @@ export default defineConfig({
       },
     },
   ],
-})
+}))

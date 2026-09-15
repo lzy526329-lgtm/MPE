@@ -44,6 +44,12 @@ const defaultFileOps: GameStoreFileOps = {
 }
 
 let gameQueue: Promise<void> = Promise.resolve()
+const saveListeners = new Set<(event: { userDataPath: string }) => void>()
+
+export function onGameSaved(listener: (event: { userDataPath: string }) => void): () => void {
+  saveListeners.add(listener)
+  return () => { saveListeners.delete(listener) }
+}
 
 function resolveFileOps(fileOps: Partial<GameStoreFileOps>): GameStoreFileOps {
   return { ...defaultFileOps, ...fileOps }
@@ -335,6 +341,9 @@ export function saveGameAtomic(
       }
     }
     throw error
+  }
+  for (const listener of saveListeners) {
+    try { listener({ userDataPath }) } catch { /* Observers cannot fail a completed local save. */ }
   }
 }
 

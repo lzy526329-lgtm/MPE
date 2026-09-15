@@ -18,6 +18,7 @@ import { buySeed, createDefaultGameState } from './gameEngine'
 import { foodCounts } from './gameCatalog'
 import {
   loadGame,
+  onGameSaved,
   parseGamePayload,
   peekWalletCoins,
   readGameState,
@@ -27,6 +28,22 @@ import {
 } from './gameStore'
 
 const dirs: string[] = []
+
+it('notifies observers only after an atomic save succeeds and isolates observer failures', () => {
+  const dir = makeDir()
+  const seen: number[] = []
+  const unsubscribe = onGameSaved(({ userDataPath }) => {
+    if (userDataPath === dir) {
+      seen.push(JSON.parse(readFileSync(join(dir, 'game.json'), 'utf8')).wallet.coins)
+      throw new Error('observer failed')
+    }
+  })
+  try {
+    expect(() => saveGameAtomic(dir, createDefaultGameState(1_000))).not.toThrow()
+    expect(() => saveGameAtomic(dir, createDefaultGameState(1_000), { renameSync: () => { throw new Error('disk failure') } })).toThrow('disk failure')
+    expect(seen).toEqual([100])
+  } finally { unsubscribe() }
+})
 
 function makeDir(): string {
   const dir = mkdtempSync(join(tmpdir(), 'mpt-game-'))

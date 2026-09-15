@@ -42,8 +42,28 @@ import type { CutoutRequest, CutoutResult } from './cutout'
 import type { CropId, PlacedDecor, HouseDecorPlacement, HouseSurface } from './farm/farmTypes'
 import type { BaitId, GameActionResult, GameViewState, FoodId, SupplyId, DecorId, FurnitureId } from './game/gameTypes'
 import type { FishingCastResult, FishingReelResult } from './fishing/fishingIpc'
+import type { GameAccountBridge, GameAccountState } from './gameAccount/types'
+
+const gameAccountBridge: GameAccountBridge = {
+  gameAccountGetState: () => ipcRenderer.invoke('game-account:gameAccountGetState'),
+  gameAccountSendEmailCode: request => ipcRenderer.invoke('game-account:gameAccountSendEmailCode', request),
+  gameAccountRegister: request => ipcRenderer.invoke('game-account:gameAccountRegister', request),
+  gameAccountLogin: request => ipcRenderer.invoke('game-account:gameAccountLogin', request),
+  gameAccountLogout: () => ipcRenderer.invoke('game-account:gameAccountLogout'),
+  gameAccountMe: () => ipcRenderer.invoke('game-account:gameAccountMe'),
+  gameAccountChangePassword: request => ipcRenderer.invoke('game-account:gameAccountChangePassword', request),
+  gameAccountResetPassword: request => ipcRenderer.invoke('game-account:gameAccountResetPassword', request),
+  gameAccountSyncNow: () => ipcRenderer.invoke('game-account:gameAccountSyncNow'),
+  gameAccountResolveConflict: choice => ipcRenderer.invoke('game-account:gameAccountResolveConflict', choice),
+  onGameAccountStateChanged: callback => {
+    const listener = (_event: Electron.IpcRendererEvent, state: GameAccountState) => callback(state)
+    ipcRenderer.on('game-account:state-changed', listener)
+    return () => { ipcRenderer.removeListener('game-account:state-changed', listener) }
+  },
+}
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  ...gameAccountBridge,
   platform: process.platform,
   compressImage: (request: CompressRequest): Promise<CompressResult> =>
     ipcRenderer.invoke('image:compress', request),

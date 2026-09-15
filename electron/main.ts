@@ -28,6 +28,7 @@ import { registerUpdaterIpc } from './updater'
 import { registerAppPrefsIpc, syncOpenAtLoginFromPrefs } from './appPrefs'
 import { registerFarmIpc } from './farm/farmIpc'
 import { registerGameIpc } from './game/gameIpc'
+import { registerGameAccountIpc } from './gameAccount/ipc'
 import { registerFishingIpc } from './fishing/fishingIpc'
 import { registerHouseIpc } from './house/houseIpc'
 import { createAppTray, destroyAppTray, isAppQuitting, markAppQuitting, requestAppQuit } from './tray'
@@ -306,6 +307,8 @@ if (!gotSingleInstanceLock) {
     registerPetIpc(() => win, ensureMainWindow)
     registerFarmIpc(() => win)
     registerGameIpc(() => win)
+    const disposeGameAccount = registerGameAccountIpc(() => win)
+    app.once('will-quit', disposeGameAccount)
     registerFishingIpc(() => win)
     registerHouseIpc(() => win)
     registerUpdaterIpc(() => win)

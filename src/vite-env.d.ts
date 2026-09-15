@@ -43,10 +43,11 @@ import type { FarmActionResult } from '../electron/farm/farmEngine'
 import type { CropId, PlacedDecor } from '../electron/farm/farmTypes'
 import type { BaitId, FoodId, GameActionResult, GameViewState, SupplyId, DecorId } from '../electron/game/gameTypes'
 import type { FishingCastResult, FishingReelResult } from '../electron/fishing/fishingIpc'
+import type { GameAccountBridge } from '../electron/gameAccount/types'
 
 declare global {
   interface Window {
-    electronAPI: {
+    electronAPI: GameAccountBridge & {
       platform: NodeJS.Platform
       compressImage: (request: CompressRequest) => Promise<CompressResult>
       cutoutImage: (request: CutoutRequest) => Promise<CutoutResult>

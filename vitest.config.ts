@@ -5,6 +5,7 @@ export default defineConfig({
     include: [
       'electron/*.test.ts',
       'electron/game/**/*.test.ts',
+      'electron/gameAccount/**/*.test.ts',
       'electron/farm/**/*.test.ts',
       'electron/fishing/**/*.test.ts',
       'electron/house/**/*.test.ts',
