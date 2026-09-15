@@ -8,6 +8,10 @@ const navigation = {
 
 vi.mock('./appNavigation', () => ({
   getCurrentPage: () => navigation.currentPage,
+  navigateToPage: (pageId: string) => {
+    navigation.currentPage = pageId
+    navigation.listener?.(pageId)
+  },
   onPageChange: (listener: (pageId: string) => void) => {
     navigation.listener = listener
     return () => undefined
@@ -53,11 +57,13 @@ type FakeRoot = {
   }
   set: (name: string, value: string) => void
   value: (name: string) => string
+  renderCount: () => number
   click: (action: string) => void
 }
 
 function fakeRoot(): FakeRoot {
   let html = ''
+  let renders = 0
   let listener: ((event: { target: unknown; preventDefault: () => void }) => void) | null = null
   let fields = new Map<string, { value: string }>()
   const root = {
@@ -66,6 +72,7 @@ function fakeRoot(): FakeRoot {
     },
     set innerHTML(value: string) {
       html = value
+      renders += 1
       fields = new Map([...value.matchAll(/data-account-field="([^"]+)"/g)].map((match) => [match[1], { value: '' }]))
     },
     addEventListener: (_event: string, nextListener: (event: { target: unknown; preventDefault: () => void }) => void) => {
@@ -80,6 +87,7 @@ function fakeRoot(): FakeRoot {
     root,
     set: (name, value) => fields.set(name, { value }),
     value: (name) => fields.get(name)?.value ?? '',
+    renderCount: () => renders,
     click: (action) => listener?.({ target: new ElementStub(action), preventDefault: () => undefined }),
   }
 }
@@ -122,9 +130,12 @@ describe('account page', () => {
     navigation.listener = null
   })
 
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
 
-  it('offers guests local play and entry points for login and registration', async () => {
+  it('offers guests local play and returns to the home page when continuing locally', async () => {
     const { dom } = await mount()
 
     expect(dom.root.innerHTML).toContain('先以游客身份继续')
@@ -133,6 +144,9 @@ describe('account page', () => {
     expect(dom.root.innerHTML).toContain('登录账号')
     dom.click('show-register')
     expect(dom.root.innerHTML).toContain('注册账号')
+    dom.click('show-guest')
+    dom.click('continue-guest')
+    expect(navigation.currentPage).toBe('pet-settings-page')
   })
 
   it('sends a registration code, shows a countdown, and registers validated fields', async () => {
@@ -151,6 +165,32 @@ describe('account page', () => {
     await vi.waitFor(() => expect(api.gameAccountRegister).toHaveBeenCalledWith({ email: 'player@example.com', code: '123456', nickname: '小明', password: 'Password1' }))
     expect(dom.root.innerHTML).toContain('player@example.com')
     expect(dom.root.innerHTML).toContain('已同步')
+  })
+
+  it('clears the resend countdown at zero and stops it while the account page is hidden', async () => {
+    vi.useFakeTimers()
+    const { dom, api } = await mount()
+    dom.click('show-register')
+    dom.set('email', 'player@example.com')
+    dom.click('send-register-code')
+    await vi.waitFor(() => expect(api.gameAccountSendEmailCode).toHaveBeenCalledTimes(1))
+    expect(dom.root.innerHTML).toContain('60 秒后可重发')
+
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(dom.root.innerHTML).toContain('发送验证码')
+    expect(vi.getTimerCount()).toBe(0)
+
+    dom.click('send-register-code')
+    await vi.waitFor(() => expect(api.gameAccountSendEmailCode).toHaveBeenCalledTimes(2))
+    const rendersBeforeExit = dom.renderCount()
+    navigation.listener?.('pet-settings-page')
+    await vi.advanceTimersByTimeAsync(2_000)
+    expect(dom.renderCount()).toBe(rendersBeforeExit)
+
+    navigation.listener?.('account-page')
+    await vi.runAllTicks()
+    dom.click('show-register')
+    expect(dom.root.innerHTML).toContain('发送验证码')
   })
 
   it('submits login and password reset only after basic local validation', async () => {

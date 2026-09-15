@@ -1,5 +1,6 @@
 import type { AccountResult, GameAccountState, SaveSummary, SyncStatus } from '../electron/gameAccount/types'
-import { getCurrentPage, onPageChange } from './appNavigation'
+import { APP_HOME_PAGE } from './appPages'
+import { getCurrentPage, navigateToPage, onPageChange } from './appNavigation'
 
 type AccountView = 'guest' | 'login' | 'register' | 'forgot' | 'change-password'
 
@@ -207,11 +208,11 @@ export function mountAccountPage(): void {
     countdown = 60
     const tick = () => {
       countdown = Math.max(0, countdown - 1)
+      if (countdown === 0) countdownTimer = null
       render()
-      if (countdown > 0) {
-        countdownTimer = setTimeout(tick, 1000)
-        ;(countdownTimer as unknown as { unref?: () => void }).unref?.()
-      }
+      if (countdown === 0) return
+      countdownTimer = setTimeout(tick, 1000)
+      ;(countdownTimer as unknown as { unref?: () => void }).unref?.()
     }
     countdownTimer = setTimeout(tick, 1000)
     ;(countdownTimer as unknown as { unref?: () => void }).unref?.()
@@ -309,7 +310,7 @@ export function mountAccountPage(): void {
     else if (action === 'show-register') show('register')
     else if (action === 'show-forgot') show('forgot')
     else if (action === 'show-guest') show('guest')
-    else if (action === 'continue-guest') { message = '正在以游客身份继续，本地进度不会上传。'; render() }
+    else if (action === 'continue-guest') navigateToPage(APP_HOME_PAGE)
     else if (action === 'send-register-code') void sendCode('register')
     else if (action === 'send-reset-code') void sendCode('reset_password')
     else if (action === 'show-change-password') { changingPassword = true; message = null; render() }
@@ -347,6 +348,10 @@ export function mountAccountPage(): void {
   window.electronAPI.onGameAccountStateChanged(setState)
   onPageChange((pageId) => {
     if (pageId === 'account-page') void load()
+    else {
+      stopCountdown()
+      countdown = 0
+    }
   })
   if (getCurrentPage() === 'account-page') void load()
   else render()
