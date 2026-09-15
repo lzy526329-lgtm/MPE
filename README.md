@@ -33,6 +33,24 @@ sudo xattr -cr /Applications/MPT.app
 
 性格会影响衰减倍率与走动习惯（火象更易饿、土象更稳等）。成长值 / 金币已建档，玩法仍在扩展。
 
+## 玩家账号与云存档
+
+主管理窗口提供账号入口。游客可继续本地游玩；登录后自动绑定当前 `game.json`，离线继续保存，联网后重试。已有不同云存档或多设备修订冲突时，需要选择本地或云端版本。选择云端前会备份本地文件；退出、封禁和会话失效不删除游戏进度。
+
+开发时默认使用 `http://localhost:8088`，可通过 `GAME_API_BASE_URL` 指定本地测试服务。安装版构建必须显式设置 HTTPS 地址，否则构建失败：
+
+```bash
+GAME_API_BASE_URL=https://YOUR_GAME_API_HOST npm run build:app
+```
+
+地址是 API 所在的服务根地址，不含 `/api/game`；客户端会追加路径。禁止在地址内放用户名、密码、查询参数或片段。此配置在构建时写入 Electron 主进程，安装后仅修改 shell 环境不会替换构建地址。localhost HTTP 仅用于开发，不能用于正式安装版。SMTP、数据库连接和 `GAME_EMAIL_CODE_SECRET` 只配置在服务端，不能放进桌宠环境或渲染进程。
+
+发布顺序为：服务端新增五张玩家表的数据库迁移、服务端与 SMTP 配置、管理后台、桌宠客户端。发布前在测试环境确认邮件注册、首次绑定、离线恢复、双设备冲突、封禁和解封重登。游戏配置和玩法继续由本地代码管理。
+
+`npm test` 包含账号 API、会话、同步、界面及本地文件保护测试；`electron/gameAccount/e2e-fixtures.ts` 提供完整版本 2 测试存档，`e2e.test.ts` 验证响应协议经过真实 API 客户端和同步协调器后的行为，使用假传输和临时文件，不发送实际网络请求。
+
+安装版通过 `file://` 加载 `dist/index.html` 与 `dist/pet.html`。构建后核对 HTML、动态资源和图片均为相对路径并实际存在；在 macOS 可使用 `CSC_IDENTITY_AUTO_DISCOVERY=false ./node_modules/.bin/electron-builder --mac --dir --publish never` 生成未签名的本地检查包，不触发发布。
+
 ## AI 对话
 
 入口：右键宠物 → **与我对话**，或主窗口侧边栏。
