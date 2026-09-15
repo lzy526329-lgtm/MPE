@@ -231,6 +231,26 @@ describe('account page', () => {
     expect(vi.getTimerCount()).toBe(0)
   })
 
+  it('ignores a delayed email-code rejection after leaving the account page', async () => {
+    vi.useFakeTimers()
+    const pending = deferred<{ ok: true; data: { email: string; purpose: string } }>()
+    const { dom, api } = await mount()
+    api.gameAccountSendEmailCode.mockReturnValueOnce(pending.promise)
+    dom.click('show-register')
+    dom.set('email', 'player@example.com')
+    dom.click('send-register-code')
+    await vi.waitFor(() => expect(api.gameAccountSendEmailCode).toHaveBeenCalledTimes(1))
+
+    const rendersBeforeExit = dom.renderCount()
+    navigation.listener?.('pet-settings-page')
+    pending.reject(new Error('offline'))
+    await vi.runAllTicks()
+
+    expect(dom.renderCount()).toBe(rendersBeforeExit)
+    expect(dom.root.innerHTML).not.toContain('验证码暂时不可用')
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
   it('ignores an older overlapping email-code response', async () => {
     vi.useFakeTimers()
     const first = deferred<{ ok: true; data: { email: string; purpose: string } }>()
