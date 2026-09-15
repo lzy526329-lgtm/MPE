@@ -92,6 +92,16 @@ function fakeRoot(): FakeRoot {
   }
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise
+    reject = rejectPromise
+  })
+  return { promise, resolve, reject }
+}
+
 async function mount(options: { state?: GameAccountState } = {}) {
   vi.resetModules()
   const dom = fakeRoot()
@@ -200,6 +210,46 @@ describe('account page', () => {
     dom.click('register')
     await vi.waitFor(() => expect(api.gameAccountRegister).toHaveBeenCalledTimes(1))
     expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('ignores a delayed email-code response after leaving the account page', async () => {
+    vi.useFakeTimers()
+    const pending = deferred<{ ok: true; data: { email: string; purpose: string } }>()
+    const { dom, api } = await mount()
+    api.gameAccountSendEmailCode.mockReturnValueOnce(pending.promise)
+    dom.click('show-register')
+    dom.set('email', 'player@example.com')
+    dom.click('send-register-code')
+    await vi.waitFor(() => expect(api.gameAccountSendEmailCode).toHaveBeenCalledTimes(1))
+
+    const rendersBeforeExit = dom.renderCount()
+    navigation.listener?.('pet-settings-page')
+    pending.resolve({ ok: true, data: { email: 'player@example.com', purpose: 'register' } })
+    await vi.runAllTicks()
+
+    expect(dom.renderCount()).toBe(rendersBeforeExit)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('ignores an older overlapping email-code response', async () => {
+    vi.useFakeTimers()
+    const first = deferred<{ ok: true; data: { email: string; purpose: string } }>()
+    const { dom, api } = await mount()
+    api.gameAccountSendEmailCode.mockImplementationOnce(() => first.promise)
+    dom.click('show-register')
+    dom.set('email', 'player@example.com')
+    dom.click('send-register-code')
+    await vi.waitFor(() => expect(api.gameAccountSendEmailCode).toHaveBeenCalledTimes(1))
+
+    dom.click('send-register-code')
+    await vi.waitFor(() => expect(api.gameAccountSendEmailCode).toHaveBeenCalledTimes(2))
+    expect(dom.root.innerHTML).toContain('60 秒后可重发')
+    const rendersAfterSecondRequest = dom.renderCount()
+    first.resolve({ ok: true, data: { email: 'player@example.com', purpose: 'register' } })
+    await vi.runAllTicks()
+
+    expect(dom.renderCount()).toBe(rendersAfterSecondRequest)
+    expect(dom.root.innerHTML).toContain('60 秒后可重发')
   })
 
   it('submits login and password reset only after basic local validation', async () => {

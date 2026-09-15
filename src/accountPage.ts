@@ -183,6 +183,7 @@ export function mountAccountPage(): void {
   const draftFieldNames = ['email', 'code', 'nickname', 'password', 'old-password', 'new-password']
   const draft = new Map<string, string>()
   let countdownTimer: ReturnType<typeof setTimeout> | null = null
+  let emailCodeRequestGeneration = 0
 
   const preserveDraft = () => {
     for (const name of draftFieldNames) {
@@ -218,6 +219,13 @@ export function mountAccountPage(): void {
     ;(countdownTimer as unknown as { unref?: () => void }).unref?.()
   }
 
+  const invalidateEmailCodeRequests = () => {
+    emailCodeRequestGeneration += 1
+  }
+
+  const isCurrentEmailCodeRequest = (generation: number) =>
+    generation === emailCodeRequestGeneration && getCurrentPage() === 'account-page'
+
   const render = () => {
     preserveDraft()
     if (loading && !state) {
@@ -236,6 +244,7 @@ export function mountAccountPage(): void {
   }
 
   const setState = (next: GameAccountState) => {
+    invalidateEmailCodeRequests()
     stopCountdown()
     countdown = 0
     state = next
@@ -263,6 +272,7 @@ export function mountAccountPage(): void {
   }
 
   const show = (nextView: AccountView) => {
+    invalidateEmailCodeRequests()
     view = nextView
     message = null
     countdown = 0
@@ -271,21 +281,29 @@ export function mountAccountPage(): void {
   }
 
   const sendCode = async (purpose: 'register' | 'reset_password') => {
+    const requestGeneration = ++emailCodeRequestGeneration
     const email = field('email')
     if (!isValidEmail(email)) {
       message = '请输入有效的邮箱地址。'
       render()
       return
     }
-    const result = await window.electronAPI.gameAccountSendEmailCode({ email, purpose })
-    if (!result.ok) {
-      message = result.error.message
+    try {
+      const result = await window.electronAPI.gameAccountSendEmailCode({ email, purpose })
+      if (!isCurrentEmailCodeRequest(requestGeneration)) return
+      if (!result.ok) {
+        message = result.error.message
+        render()
+        return
+      }
+      startCountdown()
+      message = '验证码已发送，请查收邮箱。'
       render()
-      return
+    } catch {
+      if (!isCurrentEmailCodeRequest(requestGeneration)) return
+      message = '验证码暂时不可用，请稍后重试。'
+      render()
     }
-    startCountdown()
-    message = '验证码已发送，请查收邮箱。'
-    render()
   }
 
   const load = async () => {
@@ -351,6 +369,7 @@ export function mountAccountPage(): void {
   onPageChange((pageId) => {
     if (pageId === 'account-page') void load()
     else {
+      invalidateEmailCodeRequests()
       stopCountdown()
       countdown = 0
     }
