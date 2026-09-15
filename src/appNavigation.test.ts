@@ -27,4 +27,21 @@ describe('personal house navigation', () => {
     navigateToPage('pet-settings-page')
     expect(elements['#open-pet-home'].hidden).toBe(true)
   })
+
+  it('opens the account page from the shared workspace navigation', () => {
+    const elements: Record<string, { hidden: boolean; textContent: string }> = {}
+    for (const id of ['workspace-toolbar', 'workspace-title', 'pet-settings-nav', 'open-pet-chat', 'open-pet-home']) {
+      elements[`#${id}`] = { hidden: true, textContent: '' }
+    }
+    const pages = ['pet-settings-page', 'account-page'].map((id) => ({ id, hidden: true }))
+    vi.stubGlobal('document', {
+      querySelector: (selector: string) => elements[selector] ?? null,
+      querySelectorAll: () => pages,
+    })
+
+    navigateToPage('account-page')
+
+    expect(pages.find((page) => page.id === 'account-page')?.hidden).toBe(false)
+    expect(elements['#workspace-title'].textContent).toBe('账号与同步')
+  })
 })

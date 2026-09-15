@@ -5,6 +5,7 @@ export type AppPageId =
   | 'farm-page'
   | 'shop-page'
   | 'backpack-page'
+  | 'account-page'
   | 'fishing-page'
   | 'image-page'
   | 'cutout-page'
@@ -27,6 +28,7 @@ export const APP_PAGE_TITLES: Record<AppPageId, string> = {
   'farm-page': '农场',
   'shop-page': '商店',
   'backpack-page': '背包',
+  'account-page': '账号与同步',
   'fishing-page': '鱼塘',
   'image-page': '图片压缩',
   'cutout-page': '图片抠图',

@@ -16,6 +16,7 @@ import { mountFarmPage } from './farmPage'
 import { mountShopPage } from './shopPage'
 import { mountBackpackPage } from './backpackPage'
 import { mountFishingPage } from './fishingPage'
+import { mountAccountPage } from './accountPage'
 import { setupAppNavigation, navigateToPage } from './appNavigation'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
@@ -48,6 +49,7 @@ app.innerHTML = `
       <button class="nav-item pet-chat-sidebar-btn" id="open-fishing" type="button">鱼塘</button>
       <button class="nav-item pet-chat-sidebar-btn" id="open-shop" type="button">商店</button>
       <button class="nav-item pet-chat-sidebar-btn" id="open-backpack" type="button">背包</button>
+      <button class="nav-item pet-chat-sidebar-btn" id="open-account" type="button">账号与同步</button>
       <p class="local-tip">所有工具均在本地完成，不上传文件。</p>
     </aside>
 
@@ -1031,6 +1033,17 @@ app.innerHTML = `
         <div class="panel" id="backpack-root"></div>
       </section>
 
+      <section class="tool-page" id="account-page" hidden>
+        <header>
+          <div>
+            <p class="eyebrow">账号</p>
+            <h1>账号与同步</h1>
+            <p class="subtitle">管理登录状态，并选择如何保存游戏进度。</p>
+          </div>
+        </header>
+        <div class="panel" id="account-root"></div>
+      </section>
+
       <section class="tool-page" id="pet-settings-page">
         <header>
           <div>
@@ -1515,6 +1528,7 @@ mountFarmPage()
 mountShopPage()
 mountBackpackPage()
 mountFishingPage()
+mountAccountPage()
 setupAppNavigation()
 
 document.querySelector<HTMLButtonElement>('#open-pet-chat')?.addEventListener('click', () => {
@@ -1534,4 +1548,7 @@ document.querySelector<HTMLButtonElement>('#open-shop')?.addEventListener('click
 })
 document.querySelector<HTMLButtonElement>('#open-backpack')?.addEventListener('click', () => {
   navigateToPage('backpack-page')
+})
+document.querySelector<HTMLButtonElement>('#open-account')?.addEventListener('click', () => {
+  navigateToPage('account-page')
 })
