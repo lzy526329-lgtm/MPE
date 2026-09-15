@@ -43,6 +43,10 @@ import type { CropId, PlacedDecor, HouseDecorPlacement, HouseSurface } from './f
 import type { BaitId, GameActionResult, GameViewState, FoodId, SupplyId, DecorId, FurnitureId } from './game/gameTypes'
 import type { FishingCastResult, FishingReelResult } from './fishing/fishingIpc'
 import type { GameAccountBridge, GameAccountState } from './gameAccount/types'
+import { installExternalLinkHandler } from './gameAccount/externalLinks'
+
+const removeExternalLinkHandler = installExternalLinkHandler(document, url => ipcRenderer.invoke('app:open-external-link', url))
+window.addEventListener('unload', removeExternalLinkHandler, { once: true })
 
 const gameAccountBridge: GameAccountBridge = {
   gameAccountGetState: () => ipcRenderer.invoke('game-account:gameAccountGetState'),

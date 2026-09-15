@@ -30,7 +30,7 @@ import { registerAppPrefsIpc, syncOpenAtLoginFromPrefs } from './appPrefs'
 import { registerFarmIpc } from './farm/farmIpc'
 import { registerGameIpc } from './game/gameIpc'
 import { registerGameAccountIpc } from './gameAccount/ipc'
-import { createTrustedAppUrl, guardMainWindowNavigation } from './gameAccount/trustedRenderer'
+import { createTrustedAppUrl, createTrustedExternalLinkHandler, guardMainWindowNavigation } from './gameAccount/trustedRenderer'
 import { registerFishingIpc } from './fishing/fishingIpc'
 import { registerHouseIpc } from './house/houseIpc'
 import { createAppTray, destroyAppTray, isAppQuitting, markAppQuitting, requestAppQuit } from './tray'
@@ -317,6 +317,10 @@ if (!gotSingleInstanceLock) {
     registerFarmIpc(() => win)
     registerGameIpc(() => win)
     const disposeGameAccount = registerGameAccountIpc(() => win, isTrustedMainUrl)
+    ipcMain.handle('app:open-external-link', createTrustedExternalLinkHandler(
+      { getMain: () => win, isTrustedUrl: isTrustedMainUrl },
+      url => shell.openExternal(url),
+    ))
     app.once('will-quit', disposeGameAccount)
     registerFishingIpc(() => win)
     registerHouseIpc(() => win)

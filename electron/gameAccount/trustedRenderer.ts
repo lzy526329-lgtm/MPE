@@ -1,4 +1,5 @@
 import type { WebContents } from 'electron'
+import { externalHttpUrl } from './externalLinks'
 
 type AccountFrame = { readonly url: string; readonly parent: unknown | null }
 type AccountWebContents = { readonly mainFrame: AccountFrame; getURL: () => string; isDestroyed: () => boolean }
@@ -52,6 +53,17 @@ export function createAccountIpcHandler<TInput, TResult>(handler: (input: TInput
     if (!isTrustedSender(event, authorization)) throw new Error('Untrusted account IPC sender')
     return result
   }
+}
+
+export function createTrustedExternalLinkHandler(authorization: AccountAuthorization, openExternal: (url: string) => Promise<void>) {
+  return createAccountIpcHandler(async (destination: unknown) => {
+    const url = externalHttpUrl(destination)
+    if (!url) return false
+    try {
+      await openExternal(url)
+      return true
+    } catch { return false }
+  }, authorization)
 }
 
 export function guardMainWindowNavigation(contents: Pick<WebContents, 'on' | 'setWindowOpenHandler'>, isTrustedUrl: (url: string) => boolean): void {
