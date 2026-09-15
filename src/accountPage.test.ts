@@ -191,6 +191,15 @@ describe('account page', () => {
     await vi.runAllTicks()
     dom.click('show-register')
     expect(dom.root.innerHTML).toContain('发送验证码')
+
+    dom.set('email', 'player@example.com')
+    dom.click('send-register-code')
+    await vi.waitFor(() => expect(api.gameAccountSendEmailCode).toHaveBeenCalledTimes(3))
+    dom.set('code', '123456')
+    dom.set('password', 'Password1')
+    dom.click('register')
+    await vi.waitFor(() => expect(api.gameAccountRegister).toHaveBeenCalledTimes(1))
+    expect(vi.getTimerCount()).toBe(0)
   })
 
   it('submits login and password reset only after basic local validation', async () => {

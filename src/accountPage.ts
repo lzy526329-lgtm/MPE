@@ -236,6 +236,8 @@ export function mountAccountPage(): void {
   }
 
   const setState = (next: GameAccountState) => {
+    stopCountdown()
+    countdown = 0
     state = next
     loading = false
     if (!next.account) {
