@@ -100,7 +100,7 @@ function loginMarkup(message: string | null): string {
 }
 
 function registerMarkup(message: string | null, countdown: number): string {
-  const codeAction = countdown > 0 ? `<button class="secondary-button" type="button" disabled>${countdown} 秒后可重发</button>` : '<button class="secondary-button" type="button" data-account-action="send-register-code">发送验证码</button>'
+  const codeAction = countdown > 0 ? `<button class="secondary-button" type="button" data-account-countdown disabled>${countdown} 秒后可重发</button>` : '<button class="secondary-button" type="button" data-account-action="send-register-code">发送验证码</button>'
   return `
     <section class="account-form-shell" aria-labelledby="account-register-title">
       <div class="account-form-heading"><p class="account-kicker">账号与同步</p><h2 id="account-register-title">注册账号</h2><p>验证码将发送到邮箱；昵称可稍后修改。</p></div>
@@ -117,7 +117,7 @@ function registerMarkup(message: string | null, countdown: number): string {
 }
 
 function forgotMarkup(message: string | null, countdown: number): string {
-  const codeAction = countdown > 0 ? `<button class="secondary-button" type="button" disabled>${countdown} 秒后可重发</button>` : '<button class="secondary-button" type="button" data-account-action="send-reset-code">发送验证码</button>'
+  const codeAction = countdown > 0 ? `<button class="secondary-button" type="button" data-account-countdown disabled>${countdown} 秒后可重发</button>` : '<button class="secondary-button" type="button" data-account-action="send-reset-code">发送验证码</button>'
   return `
     <section class="account-form-shell" aria-labelledby="account-forgot-title">
       <div class="account-form-heading"><p class="account-kicker">账号与同步</p><h2 id="account-forgot-title">重置密码</h2><p>验证邮箱后设置新密码，其他已登录设备会退出。</p></div>
@@ -210,7 +210,9 @@ export function mountAccountPage(): void {
     const tick = () => {
       countdown = Math.max(0, countdown - 1)
       if (countdown === 0) countdownTimer = null
-      render()
+      const countdownButton = root.querySelector<HTMLButtonElement>('[data-account-countdown]')
+      if (countdownButton && countdown > 0) countdownButton.textContent = `${countdown} 秒后可重发`
+      else render()
       if (countdown === 0) return
       countdownTimer = setTimeout(tick, 1000)
       ;(countdownTimer as unknown as { unref?: () => void }).unref?.()
@@ -234,6 +236,7 @@ export function mountAccountPage(): void {
     }
     if (state?.account) {
       root.innerHTML = authenticatedMarkup(state, message, changingPassword)
+      restoreDraft()
       return
     }
     if (view === 'login') root.innerHTML = loginMarkup(message)
@@ -244,6 +247,11 @@ export function mountAccountPage(): void {
   }
 
   const setState = (next: GameAccountState) => {
+    const previousAccount = state?.account
+    const sameAccount = previousAccount && next.account && previousAccount.userId === next.account.userId
+    if (!sameAccount) {
+      for (const name of draftFieldNames) draft.delete(name)
+    }
     invalidateEmailCodeRequests()
     stopCountdown()
     countdown = 0
