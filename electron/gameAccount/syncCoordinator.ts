@@ -39,7 +39,7 @@ export function createSyncCoordinator(options: Options) {
 
   function getState(): GameAccountState {
     const session = store.getSession()
-    const account = session ? { userId: session.userId, email: session.email, nickname: session.nickname, deviceId: session.deviceId, lastRevision: session.lastRevision, status: session.status } : null
+    const account = session ? { userId: session.userId, uid: session.uid, email: session.email, nickname: session.nickname, deviceId: session.deviceId, lastRevision: session.lastRevision, status: session.status } : null
     return { account, status: account ? status : 'local-only', conflict: conflict ? { ...conflict, local: { ...conflict.local }, cloud: { ...conflict.cloud } } : null, error: error ? { ...error } : null }
   }
   function publish() { options.publish?.(getState()) }

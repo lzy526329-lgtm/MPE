@@ -27,7 +27,7 @@ it('carries HTTP envelopes through the API and sync coordinator into local persi
     return new Response(JSON.stringify({ code: reply.code, msg: reply.code === 'ACCOUNT_BANNED' ? 'test ban reason' : 'success', data: reply.data }), { status: reply.status })
   })
   const store = createSessionStore(dir, { isEncryptionAvailable: () => false, encryptString: () => Buffer.alloc(0), decryptString: () => '' })
-  store.setSession({ userId: 42, email: 'player@example.com', nickname: 'Player', status: 1, token: 'test-only-session', deviceId: store.getDeviceId(), lastRevision: 0 })
+  store.setSession({ userId: 42, uid: '123456789', email: 'player@example.com', nickname: 'Player', status: 1, token: 'test-only-session', deviceId: store.getDeviceId(), lastRevision: 0 })
   saveGameAtomic(dir, fixtures.local)
   const sync = createSyncCoordinator({ userDataPath: dir, api, sessionStore: store, now: () => fixtures.now })
   try {

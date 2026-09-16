@@ -1,6 +1,7 @@
-export type GameUser = { id: number | string; email: string; nickname: string | null; status: number }
+export type GameUser = { id: number | string; uid: string; email: string; nickname: string | null; status: number }
 export type GameAccountSession = {
   userId: number | string
+  uid: string
   email: string
   nickname: string | null
   token: string

@@ -27,7 +27,7 @@ function setup(guest = false) {
   cleanup.push(() => rmSync(dir, { recursive: true, force: true }))
   saveGameAtomic(dir, createDefaultGameState(1_000))
   const sessionStore = createSessionStore(dir, { isEncryptionAvailable: () => false, encryptString: () => Buffer.alloc(0), decryptString: () => '' })
-  if (!guest) sessionStore.setSession({ userId: 42, email: 'player@example.com', nickname: null, status: 1, token: 'secret', deviceId: sessionStore.getDeviceId(), lastRevision: 0 })
+  if (!guest) sessionStore.setSession({ userId: 42, uid: '123456789', email: 'player@example.com', nickname: null, status: 1, token: 'secret', deviceId: sessionStore.getDeviceId(), lastRevision: 0 })
   const api = {
     getSave: vi.fn<() => Promise<SaveResult>>().mockResolvedValue({ status: 'empty', save: null, summary: null }),
     putSave: vi.fn<(token: string, upload: SaveUpload) => Promise<SaveResult>>().mockImplementation(async (_token, upload) => cloud(JSON.parse(upload.payload).wallet.coins, upload.baseRevision + 1)),

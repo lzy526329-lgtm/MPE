@@ -22,7 +22,7 @@ export function createSessionStore(userDataPath: string, encryption: SessionEncr
     const account = data.account
     if (account && (typeof account.userId === 'number' || typeof account.userId === 'string') && typeof account.email === 'string' && Number.isSafeInteger(account.lastRevision) && account.lastRevision >= 0 && typeof data.encryptedToken === 'string' && canEncrypt()) {
       const token = encryption.decryptString(Buffer.from(data.encryptedToken, 'base64'))
-      if (token) session = { userId: account.userId, email: account.email, nickname: typeof account.nickname === 'string' ? account.nickname : null, status: Number(account.status), lastRevision: account.lastRevision, deviceId, token }
+      if (token) session = { userId: account.userId, uid: typeof account.uid === 'string' ? account.uid : '', email: account.email, nickname: typeof account.nickname === 'string' ? account.nickname : null, status: Number(account.status), lastRevision: account.lastRevision, deviceId, token }
       if (session) metadata = { checksum: typeof data.sync?.checksum === 'string' ? data.sync.checksum : null, pending: data.sync?.pending === true }
     }
   } catch {
@@ -30,7 +30,7 @@ export function createSessionStore(userDataPath: string, encryption: SessionEncr
   }
   function persist() {
     fs.mkdirSync(userDataPath, { recursive: true })
-    const account = session ? { userId: session.userId, email: session.email, nickname: session.nickname, status: session.status, lastRevision: session.lastRevision } : null
+    const account = session ? { userId: session.userId, uid: session.uid, email: session.email, nickname: session.nickname, status: session.status, lastRevision: session.lastRevision } : null
     let encryptedToken: string | undefined
     try {
       if (session && canEncrypt()) encryptedToken = encryption.encryptString(session.token).toString('base64')

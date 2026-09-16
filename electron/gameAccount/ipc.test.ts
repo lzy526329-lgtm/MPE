@@ -16,7 +16,7 @@ function setup() {
   cleanup.push(() => rmSync(dir, { recursive: true, force: true }))
   saveGameAtomic(dir, createDefaultGameState(1_000))
   const store = createSessionStore(dir, { isEncryptionAvailable: () => false, encryptString: () => Buffer.alloc(0), decryptString: () => '' })
-  const auth: AuthResult = { token: 'private-token', expiresAt: '2026-10-01T00:00:00Z', user: { id: 42, email: 'player@example.com', nickname: 'Player', status: 1 } }
+  const auth: AuthResult = { token: 'private-token', expiresAt: '2026-10-01T00:00:00Z', user: { id: 42, uid: '123456789', email: 'player@example.com', nickname: 'Player', status: 1 } }
   const api = {
     login: vi.fn().mockResolvedValue(auth), register: vi.fn().mockResolvedValue(auth),
     logout: vi.fn().mockResolvedValue({}), me: vi.fn().mockResolvedValue({ user: auth.user, save: null }),

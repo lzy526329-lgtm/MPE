@@ -99,8 +99,12 @@ function loginMarkup(message: string | null): string {
   `
 }
 
-function registerMarkup(message: string | null, countdown: number): string {
-  const codeAction = countdown > 0 ? `<button class="secondary-button" type="button" data-account-countdown disabled>${countdown} 秒后可重发</button>` : '<button class="secondary-button" type="button" data-account-action="send-register-code">发送验证码</button>'
+function registerMarkup(message: string | null, countdown: number, sendingCode: boolean): string {
+  const codeAction = countdown > 0
+    ? `<button class="secondary-button" type="button" data-account-countdown disabled>${countdown} 秒后可重发</button>`
+    : sendingCode
+      ? '<button class="secondary-button" type="button" disabled>发送中…</button>'
+      : '<button class="secondary-button" type="button" data-account-action="send-register-code">发送验证码</button>'
   return `
     <section class="account-form-shell" aria-labelledby="account-register-title">
       <div class="account-form-heading"><p class="account-kicker">账号与同步</p><h2 id="account-register-title">注册账号</h2><p>验证码将发送到邮箱；昵称可稍后修改。</p></div>
@@ -116,8 +120,12 @@ function registerMarkup(message: string | null, countdown: number): string {
   `
 }
 
-function forgotMarkup(message: string | null, countdown: number): string {
-  const codeAction = countdown > 0 ? `<button class="secondary-button" type="button" data-account-countdown disabled>${countdown} 秒后可重发</button>` : '<button class="secondary-button" type="button" data-account-action="send-reset-code">发送验证码</button>'
+function forgotMarkup(message: string | null, countdown: number, sendingCode: boolean): string {
+  const codeAction = countdown > 0
+    ? `<button class="secondary-button" type="button" data-account-countdown disabled>${countdown} 秒后可重发</button>`
+    : sendingCode
+      ? '<button class="secondary-button" type="button" disabled>发送中…</button>'
+      : '<button class="secondary-button" type="button" data-account-action="send-reset-code">发送验证码</button>'
   return `
     <section class="account-form-shell" aria-labelledby="account-forgot-title">
       <div class="account-form-heading"><p class="account-kicker">账号与同步</p><h2 id="account-forgot-title">重置密码</h2><p>验证邮箱后设置新密码，其他已登录设备会退出。</p></div>
@@ -139,7 +147,7 @@ function authenticatedMarkup(state: GameAccountState, message: string | null, ch
   return `
     <section class="account-dashboard" aria-labelledby="account-dashboard-title">
       <div class="account-identity">
-        <div><p class="account-kicker">账号与同步</p><h2 id="account-dashboard-title">${escapeHtml(identity)}</h2><p>${escapeHtml(account.email)}</p></div>
+        <div><p class="account-kicker">账号与同步</p><h2 id="account-dashboard-title">${escapeHtml(identity)}</h2><p>${escapeHtml(account.email)}</p>${account.uid ? `<p class="account-uid">UID：${escapeHtml(account.uid)}</p>` : ''}</div>
         <div class="account-status-row"><span class="account-status account-status--${state.status}">${syncStatusLabels[state.status]}</span><span>修订 ${escapeHtml(account.lastRevision)}</span></div>
       </div>
       ${formMessage(message)}
@@ -178,6 +186,7 @@ export function mountAccountPage(): void {
   let view: AccountView = 'guest'
   let message: string | null = null
   let countdown = 0
+  let sendingCode = false
   let changingPassword = false
   let loading = false
   const draftFieldNames = ['email', 'code', 'nickname', 'password', 'old-password', 'new-password']
@@ -240,8 +249,8 @@ export function mountAccountPage(): void {
       return
     }
     if (view === 'login') root.innerHTML = loginMarkup(message)
-    else if (view === 'register') root.innerHTML = registerMarkup(message, countdown)
-    else if (view === 'forgot') root.innerHTML = forgotMarkup(message, countdown)
+    else if (view === 'register') root.innerHTML = registerMarkup(message, countdown, sendingCode)
+    else if (view === 'forgot') root.innerHTML = forgotMarkup(message, countdown, sendingCode)
     else root.innerHTML = guestMarkup(message)
     restoreDraft()
   }
@@ -255,6 +264,7 @@ export function mountAccountPage(): void {
     invalidateEmailCodeRequests()
     stopCountdown()
     countdown = 0
+    sendingCode = false
     state = next
     loading = false
     if (!next.account) {
@@ -284,6 +294,7 @@ export function mountAccountPage(): void {
     view = nextView
     message = null
     countdown = 0
+    sendingCode = false
     stopCountdown()
     render()
   }
@@ -296,9 +307,13 @@ export function mountAccountPage(): void {
       render()
       return
     }
+    sendingCode = true
+    message = null
+    render()
     try {
       const result = await window.electronAPI.gameAccountSendEmailCode({ email, purpose })
       if (!isCurrentEmailCodeRequest(requestGeneration)) return
+      sendingCode = false
       if (!result.ok) {
         message = result.error.message
         render()
@@ -309,6 +324,7 @@ export function mountAccountPage(): void {
       render()
     } catch {
       if (!isCurrentEmailCodeRequest(requestGeneration)) return
+      sendingCode = false
       message = '验证码暂时不可用，请稍后重试。'
       render()
     }
@@ -380,6 +396,7 @@ export function mountAccountPage(): void {
       invalidateEmailCodeRequests()
       stopCountdown()
       countdown = 0
+      sendingCode = false
     }
   })
   if (getCurrentPage() === 'account-page') void load()

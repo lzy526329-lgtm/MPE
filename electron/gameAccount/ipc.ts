@@ -54,7 +54,7 @@ export function createGameAccountHandlers({ api, store, sync, deviceName }: Hand
       }
       if (result.user.status === 2) throw new GameApiError('ACCOUNT_BANNED', 'Account is banned', 403)
       const previous = store.getSession()
-      store.setSession({ userId: result.user.id, email: result.user.email, nickname: result.user.nickname, token: result.token, deviceId: store.getDeviceId(), lastRevision: 0, status: result.user.status })
+      store.setSession({ userId: result.user.id, uid: result.user.uid, email: result.user.email, nickname: result.user.nickname, token: result.token, deviceId: store.getDeviceId(), lastRevision: 0, status: result.user.status })
       store.setSyncMetadata({ checksum: null, pending: true })
       sync.sessionChanged()
       if (previous && previous.token !== result.token) void api.logout(previous.token).catch(() => {})
@@ -80,7 +80,7 @@ export function createGameAccountHandlers({ api, store, sync, deviceName }: Hand
     gameAccountMe: () => protectedCall(async token => {
       const result = await api.me(token)
       const session = store.getSession()
-      if (session?.token === token) store.setSession({ ...session, email: result.user.email, nickname: result.user.nickname, status: result.user.status })
+      if (session?.token === token) store.setSession({ ...session, uid: result.user.uid, email: result.user.email, nickname: result.user.nickname, status: result.user.status })
       return sync.getState()
     }),
     gameAccountChangePassword: input => protectedCall(async token => {

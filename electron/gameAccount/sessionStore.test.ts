@@ -10,7 +10,7 @@ const encryption = {
   encryptString: (value: string) => Buffer.from([...value].reverse().join('')),
   decryptString: (value: Buffer) => [...value.toString()].reverse().join(''),
 }
-const account = { userId: 42, email: 'player@example.com', nickname: null, token: 'secret-player-token', lastRevision: 3, status: 1 }
+const account = { userId: 42, uid: '123456789', email: 'player@example.com', nickname: null, token: 'secret-player-token', lastRevision: 3, status: 1 }
 function directory() {
   const dir = mkdtempSync(join(tmpdir(), 'account-session-'))
   dirs.push(dir)

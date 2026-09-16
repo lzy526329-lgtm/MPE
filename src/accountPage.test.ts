@@ -28,6 +28,7 @@ const guestState: GameAccountState = {
 const signedInState: GameAccountState = {
   account: {
     userId: 42,
+    uid: '123456789',
     email: 'player@example.com',
     nickname: '小明',
     deviceId: 'desktop-1',
@@ -164,6 +165,7 @@ describe('account page', () => {
     dom.click('show-register')
     dom.set('email', 'player@example.com')
     dom.click('send-register-code')
+    expect(dom.root.innerHTML).toContain('发送中…')
     await vi.waitFor(() => expect(api.gameAccountSendEmailCode).toHaveBeenCalledWith({ email: 'player@example.com', purpose: 'register' }))
     expect(dom.root.innerHTML).toContain('60 秒后可重发')
     expect(dom.value('email')).toBe('player@example.com')
@@ -175,6 +177,21 @@ describe('account page', () => {
     await vi.waitFor(() => expect(api.gameAccountRegister).toHaveBeenCalledWith({ email: 'player@example.com', code: '123456', nickname: '小明', password: 'Password1' }))
     expect(dom.root.innerHTML).toContain('player@example.com')
     expect(dom.root.innerHTML).toContain('已同步')
+  })
+
+  it('shows a sending indicator immediately while the verification email request is in flight', async () => {
+    const pending = deferred<{ ok: true; data: { email: string; purpose: string } }>()
+    const { dom, api } = await mount()
+    api.gameAccountSendEmailCode.mockReturnValueOnce(pending.promise)
+    dom.click('show-register')
+    dom.set('email', 'player@example.com')
+    dom.click('send-register-code')
+
+    expect(dom.root.innerHTML).toContain('发送中…')
+    expect(dom.root.innerHTML).not.toContain('发送验证码')
+
+    pending.resolve({ ok: true, data: { email: 'player@example.com', purpose: 'register' } })
+    await vi.waitFor(() => expect(dom.root.innerHTML).toContain('60 秒后可重发'))
   })
 
   it('clears the resend countdown at zero and stops it while the account page is hidden', async () => {
