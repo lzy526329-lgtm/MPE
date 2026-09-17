@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { navigateToPage, setupAppNavigation } from './appNavigation'
+import { navigateToPage, setupAppNavigation } from '../appNavigation'
 
 afterEach(() => vi.unstubAllGlobals())
 

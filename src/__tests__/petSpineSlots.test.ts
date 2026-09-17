@@ -5,7 +5,7 @@ import {
   buildExclusiveSlotPlan,
   playExclusiveAnimation,
   type ExclusiveSlotSnapshot,
-} from './petSpineSlots'
+} from '../petSpineSlots'
 
 const cupidLike: ExclusiveSlotSnapshot = {
   idleAnimation: 'idle',

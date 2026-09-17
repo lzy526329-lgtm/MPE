@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pickAnimationName, preferredSleepAnimation } from './petAnimationNames'
+import { pickAnimationName, preferredSleepAnimation } from '../petAnimationNames'
 
 describe('petAnimationNames', () => {
   it('picks the first candidate that exists', () => {

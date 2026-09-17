@@ -918,6 +918,14 @@ input[type="range"] {
   overflow-wrap: anywhere;
 }
 
+.account-message--success {
+  color: #2f7a4a;
+}
+
+.account-message--info {
+  color: #3b5bdb;
+}
+
 .account-dashboard {
   display: grid;
   gap: 18px;

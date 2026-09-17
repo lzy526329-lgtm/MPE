@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { APP_PAGE_TITLES, TOOL_PAGES } from './appPages'
+import { APP_PAGE_TITLES, TOOL_PAGES } from '../appPages'
 
 describe('game pages', () => {
   it('registers shop and backpack outside the tools submenu', () => {

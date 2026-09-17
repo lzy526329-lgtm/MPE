@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { getFishIds } from '../electron/fishing/fishCatalog'
-import { FISHING_ASSETS, getBaitImagePath, getFishImagePath } from './fishingAssets'
+import { getFishIds } from '../../electron/fishing/fishCatalog'
+import { FISHING_ASSETS, getBaitImagePath, getFishImagePath } from '../fishingAssets'
 
 describe('fishing asset URLs', () => {
   it.each([

@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { GameAccountState } from '../electron/gameAccount/types'
+import type { AccountResult, GameAccountState } from '../../electron/gameAccount/types'
 
 const navigation = {
   currentPage: 'account-page',
   listener: null as ((pageId: string) => void) | null,
 }
 
-vi.mock('./appNavigation', () => ({
+vi.mock('../appNavigation', () => ({
   getCurrentPage: () => navigation.currentPage,
   navigateToPage: (pageId: string) => {
     navigation.currentPage = pageId
@@ -129,7 +129,7 @@ async function mount(options: { state?: GameAccountState } = {}) {
     querySelector: (selector: string) => selector === '#account-root' ? dom.root : dom.root.querySelector(selector),
   })
   vi.stubGlobal('window', { electronAPI: api })
-  const { mountAccountPage } = await import('./accountPage')
+  const { mountAccountPage } = await import('../accountPage')
   mountAccountPage()
   await vi.waitFor(() => expect(dom.root.innerHTML).not.toContain('正在读取账号状态'))
   return { dom, api, accountEvents }
@@ -312,6 +312,7 @@ describe('account page', () => {
     expect(dom.root.innerHTML).toContain('已同步')
     dom.click('sync-now')
     await vi.waitFor(() => expect(api.gameAccountSyncNow).toHaveBeenCalledTimes(1))
+    await vi.waitFor(() => expect(dom.root.innerHTML).toContain('同步成功'))
 
     dom.click('show-change-password')
     dom.set('old-password', 'Password1')
@@ -337,6 +338,34 @@ describe('account page', () => {
     expect(dom.root.innerHTML).toContain('云端存档')
     dom.click('resolve-cloud')
     await vi.waitFor(() => expect(api.gameAccountResolveConflict).toHaveBeenCalledWith('cloud'))
+  })
+
+  it('shows in-progress, conflict, and failure feedback after manual sync', async () => {
+    const conflictState: GameAccountState = {
+      ...signedInState,
+      status: 'conflict',
+      conflict: {
+        cloudRevision: 7,
+        local: { coins: 21, farmTotalXp: 10, totalCaught: 3, clientUpdatedAt: '2026-09-15T08:00:00.000Z', sourceDeviceId: 'this-device' },
+        cloud: { coins: 18, farmTotalXp: 12, totalCaught: 5, clientUpdatedAt: '2026-09-14T08:00:00.000Z', sourceDeviceId: 'other-device' },
+      },
+    }
+    const pending = deferred<AccountResult>()
+    const first = await mount({ state: signedInState })
+    first.api.gameAccountSyncNow.mockReturnValue(pending.promise)
+    first.dom.click('sync-now')
+    await vi.waitFor(() => expect(first.dom.root.innerHTML).toContain('正在同步'))
+    pending.resolve({ ok: true, data: conflictState })
+    await vi.waitFor(() => expect(first.dom.root.innerHTML).toContain('发现存档冲突'))
+
+    const failed = await mount({ state: signedInState })
+    failed.api.gameAccountSyncNow.mockResolvedValue({
+      ok: true,
+      data: { ...signedInState, status: 'offline-pending', error: { code: 'NETWORK_ERROR', message: 'Unable to reach the game service' } },
+    })
+    failed.dom.click('sync-now')
+    await vi.waitFor(() => expect(failed.dom.root.innerHTML).toContain('网络异常'))
+    expect(failed.dom.root.innerHTML).toContain('account-message--error')
   })
 
   it('returns to the guest view with the server ban reason', async () => {

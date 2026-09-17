@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { decorCatalogIconStyle } from './decorAssets'
+import { decorCatalogIconStyle } from '../decorAssets'
 
 describe('decor asset paths', () => {
   it('keeps farm assets under farm and supports the new furniture directory', () => {

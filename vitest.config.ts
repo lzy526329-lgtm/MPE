@@ -11,7 +11,7 @@ export default defineConfig({
       'electron/house/**/*.test.ts',
       'electron/photoplus/**/*.test.ts',
       'electron/cutout/**/*.test.ts',
-      'src/**/*.test.ts',
+      'src/__tests__/**/*.test.ts',
     ],
   },
 })

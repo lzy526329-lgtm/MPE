@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import sharp from 'sharp'
-import { renderHouseRoom } from './petHomePage'
+import { renderHouseRoom } from '../petHomePage'
 
 describe('personal house artwork', () => {
   it('uses the transparent illustration with three independent hit surfaces', () => {
@@ -17,12 +17,12 @@ describe('personal house artwork', () => {
   })
 
   it('includes the new illustrated furniture groups', () => {
-    expect(readFileSync(new URL('./petHomePage.ts', import.meta.url), 'utf8')).toContain('bedsideTable')
-    expect(readFileSync(new URL('../electron/game/furnitureCatalog.json', import.meta.url), 'utf8')).toContain('家具/床-cutout.png')
+    expect(readFileSync(new URL('../petHomePage.ts', import.meta.url), 'utf8')).toContain('bedsideTable')
+    expect(readFileSync(new URL('../../electron/game/furnitureCatalog.json', import.meta.url), 'utf8')).toContain('家具/床-cutout.png')
   })
 
   it('ships a transparent square bitmap with intact wall and floor pixels', async () => {
-    const file = readFileSync(new URL('../public/house/room.png', import.meta.url))
+    const file = readFileSync(new URL('../../public/house/room.png', import.meta.url))
     const { data, info } = await sharp(file).raw().toBuffer({ resolveWithObject: true })
     expect(info.width).toBe(1536)
     expect(info.height).toBe(1536)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { houseSurfaceAt, constrainHousePoint } from './houseLayout'
+import { houseSurfaceAt, constrainHousePoint } from '../houseLayout'
 
 describe('illustrated room surfaces', () => {
   it('maps the two walls and diamond floor to the reference image', () => {

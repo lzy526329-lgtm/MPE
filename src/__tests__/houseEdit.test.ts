@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeHouseEdit } from './houseEdit'
+import { normalizeHouseEdit } from '../houseEdit'
 
 describe('house furniture editing', () => {
   it('clamps layer and keeps mirror state', () => {

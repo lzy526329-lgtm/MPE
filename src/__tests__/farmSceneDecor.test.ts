@@ -7,7 +7,7 @@ import {
   normalizeFarmDecor,
   normalizeFarmDecorDraft,
   renderFarmDecorHtml,
-} from './farmSceneDecor'
+} from '../farmSceneDecor'
 
 describe('farm scene decor', () => {
   it('lists scene decoration assets', () => {

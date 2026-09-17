@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 
-import { createDefaultGameState, toGameViewState } from '../electron/game/gameEngine'
+import { createDefaultGameState, toGameViewState } from '../../electron/game/gameEngine'
 import {
   getDisplayedFishingLineColor,
   getFishingLinePath,
@@ -11,8 +11,8 @@ import {
   nextTimedEvent,
   normalizePondPoint,
   renderFishingPage,
-} from './fishingPage'
-import type { FishingUiState } from './fishingStateMachine'
+} from '../fishingPage'
+import type { FishingUiState } from '../fishingStateMachine'
 
 describe('fishing page', () => {
   it.each([

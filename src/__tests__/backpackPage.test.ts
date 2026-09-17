@@ -1,21 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { GameViewState } from '../electron/game/gameTypes'
-import { withFoodCounts } from '../electron/game/foodCatalog'
-import { withSupplyCounts } from '../electron/game/supplyCatalog'
-import { withSeedCounts } from '../electron/farm/cropCatalog'
-import { withDecorCounts } from '../electron/game/decorCatalog'
+import type { GameViewState } from '../../electron/game/gameTypes'
+import { withFoodCounts } from '../../electron/game/foodCatalog'
+import { withSupplyCounts } from '../../electron/game/supplyCatalog'
+import { withSeedCounts } from '../../electron/farm/cropCatalog'
+import { withDecorCounts } from '../../electron/game/decorCatalog'
 import {
   canSellProduce,
   hasInventoryItems,
   renderBackpackPage,
-} from './backpackPage'
+} from '../backpackPage'
 
 const navigation = vi.hoisted(() => ({
   pageListener: null as ((pageId: string) => void) | null,
   navigateToPage: vi.fn(),
 }))
 
-vi.mock('./appNavigation', () => ({
+vi.mock('../appNavigation', () => ({
   getCurrentPage: () => 'pet-settings-page',
   navigateToPage: navigation.navigateToPage,
   onPageChange: (listener: (pageId: string) => void) => {
@@ -244,7 +244,7 @@ describe('backpack live synchronization', () => {
       },
     })
 
-    const { mountBackpackPage } = await import('./backpackPage')
+    const { mountBackpackPage } = await import('../backpackPage')
     mountBackpackPage()
     mountBackpackPage()
 
@@ -268,7 +268,7 @@ describe('backpack live synchronization', () => {
       electronAPI: { gameGetState, onGameStateChanged: () => () => undefined },
     })
 
-    const { mountBackpackPage } = await import('./backpackPage')
+    const { mountBackpackPage } = await import('../backpackPage')
     mountBackpackPage()
 
     expect(gameGetState).not.toHaveBeenCalled()
@@ -289,7 +289,7 @@ describe('backpack live synchronization', () => {
       },
     })
 
-    const { mountBackpackPage, openBackpackTab } = await import('./backpackPage')
+    const { mountBackpackPage, openBackpackTab } = await import('../backpackPage')
     mountBackpackPage()
     openBackpackTab('fish')
 
@@ -328,7 +328,7 @@ describe('backpack live synchronization', () => {
       },
     })
 
-    const { mountBackpackPage } = await import('./backpackPage')
+    const { mountBackpackPage } = await import('../backpackPage')
     mountBackpackPage()
     navigation.pageListener?.('backpack-page')
     expect(gameGetState).toHaveBeenCalledTimes(1)

@@ -1,17 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { GameErrorCode, GameViewState } from '../electron/game/gameTypes'
-import { withFoodCounts } from '../electron/game/foodCatalog'
-import { withSupplyCounts } from '../electron/game/supplyCatalog'
-import { withSeedCounts } from '../electron/farm/cropCatalog'
-import { withDecorCounts } from '../electron/game/decorCatalog'
-import { canBuySeed, formatGrowDuration, gameErrorMessage, renderShopPage } from './shopPage'
+import type { GameErrorCode, GameViewState } from '../../electron/game/gameTypes'
+import { withFoodCounts } from '../../electron/game/foodCatalog'
+import { withSupplyCounts } from '../../electron/game/supplyCatalog'
+import { withSeedCounts } from '../../electron/farm/cropCatalog'
+import { withDecorCounts } from '../../electron/game/decorCatalog'
+import { canBuySeed, formatGrowDuration, gameErrorMessage, renderShopPage } from '../shopPage'
 
 const navigation = vi.hoisted(() => ({
   currentPage: 'pet-settings-page',
   pageListener: null as ((pageId: string) => void) | null,
 }))
 
-vi.mock('./appNavigation', () => ({
+vi.mock('../appNavigation', () => ({
   getCurrentPage: () => navigation.currentPage,
   onPageChange: (listener: (pageId: string) => void) => {
     navigation.pageListener = listener
@@ -269,7 +269,7 @@ async function mountShop(options: {
     electronAPI: { gameGetState, gameBuySeed, onGameStateChanged },
   })
 
-  const { mountShopPage } = await import('./shopPage')
+  const { mountShopPage } = await import('../shopPage')
   mountShopPage()
 
   return { dom, gameGetState, gameBuySeed, onGameStateChanged, events }

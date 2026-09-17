@@ -5,7 +5,7 @@ import {
   fitFrameSize,
   fitSheetToCanvasLimits,
   validateSpriteSheetSize,
-} from './videoToSpritesheet'
+} from '../videoToSpritesheet'
 
 describe('videoToSpritesheet', () => {
   it('samples frame times by fps', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { canStartJump, rectsOverlap, stepJumpY } from './petJumpPhysics'
-import { resolveJumpRunConfig } from './petSkillDefaults'
+import { canStartJump, rectsOverlap, stepJumpY } from '../petJumpPhysics'
+import { resolveJumpRunConfig } from '../petSkillDefaults'
 
 describe('petJumpPhysics', () => {
   it('rectsOverlap detects AABB collision with padding', () => {

@@ -6,7 +6,7 @@ import {
   readSpriteSheetConfig,
   readSpriteSheetConfigFromGrid,
   suggestDefaultFrameSize,
-} from './spriteSheetPlayer'
+} from '../spriteSheetPlayer'
 
 describe('spriteSheetPlayer', () => {
   it('computes grid frames from sheet and frame size', () => {

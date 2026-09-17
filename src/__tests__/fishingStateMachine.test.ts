@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { reduceFishingState, type FishingUiState } from './fishingStateMachine'
-import { nextTimedEvent } from './fishingPage'
+import { reduceFishingState, type FishingUiState } from '../fishingStateMachine'
+import { nextTimedEvent } from '../fishingPage'
 
 describe('fishing UI state machine', () => {
   it('moves through casting, waiting, biting and resolving', () => {

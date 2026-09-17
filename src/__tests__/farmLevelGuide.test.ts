@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { totalXpForLevel } from '../electron/farm/farmLevel'
+import { totalXpForLevel } from '../../electron/farm/farmLevel'
 import {
   buildFarmLevelRewardPreviews,
   previewLevelUpRewards,
   wheatSeedsForLevel,
-} from '../electron/farm/farmLevelCatalog'
-import { renderFarmLevelGuide } from './farmLevelGuide'
+} from '../../electron/farm/farmLevelCatalog'
+import { renderFarmLevelGuide } from '../farmLevelGuide'
 
 describe('farmLevelGuide', () => {
   it('builds reward previews for every level up to the cap', () => {

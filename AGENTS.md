@@ -26,7 +26,7 @@ const imageUrl = `./${assetPath.split('/').map(encodeURIComponent).join('/')}`
 ### 验证要求
 
 - 确认图片文件存在，引用的目录名、文件名及大小写与实际文件一致。
-- 修改图片路径解析逻辑时，验证 Windows / macOS 的 `file://` 页面与开发服务器下的 URL 解析结果，确保资源仍位于应用资源目录内。可参考 `src/fishingAssets.test.ts`。
+- 修改图片路径解析逻辑时，验证 Windows / macOS 的 `file://` 页面与开发服务器下的 URL 解析结果，确保资源仍位于应用资源目录内。可参考 `src/__tests__/fishingAssets.test.ts`。
 - 构建后确认图片已进入 `dist/`，且生成的 URL 指向正确位置。开发服务器中显示正常不能替代安装版路径验证。
 
 ## 「执行 action」= 发正式版

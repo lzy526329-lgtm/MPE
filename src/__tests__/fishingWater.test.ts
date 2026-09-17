@@ -1,7 +1,7 @@
 import { createCanvas, loadImage } from '@napi-rs/canvas'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { drawFishingWater } from './fishingWater'
+import { drawFishingWater } from '../fishingWater'
 
 describe('pond artwork', () => {
   it.each(['pond-bg.svg', 'bobber.svg'])('loads %s as an image', async (asset) => {

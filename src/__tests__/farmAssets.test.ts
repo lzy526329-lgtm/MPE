@@ -16,7 +16,7 @@ import {
   plotSoilSrc,
   toolbarIconStyle,
   type PlotLayoutConfig,
-} from './farmAssets'
+} from '../farmAssets'
 
 describe('farm plot layout', () => {
   it('defines 24 absolute plot placements covering the meadow', () => {

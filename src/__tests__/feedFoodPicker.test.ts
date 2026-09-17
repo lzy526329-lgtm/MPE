@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import type { GameViewState } from '../electron/game/gameTypes'
-import { ownedFoodOffers, renderFeedFoodPicker } from './feedFoodPicker'
+import type { GameViewState } from '../../electron/game/gameTypes'
+import { ownedFoodOffers, renderFeedFoodPicker } from '../feedFoodPicker'
 
-import { withSupplyCounts } from '../electron/game/supplyCatalog'
-import { withDecorCounts } from '../electron/game/decorCatalog'
+import { withSupplyCounts } from '../../electron/game/supplyCatalog'
+import { withDecorCounts } from '../../electron/game/decorCatalog'
 
 const state: GameViewState = {
   wallet: { coins: 100 },
