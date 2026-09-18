@@ -69,6 +69,9 @@ function renderProfile(root: HTMLElement, status: PetStatus) {
   const personality = root.querySelector<HTMLElement>('#pet-profile-personality')
   const traits = root.querySelector<HTMLElement>('#pet-profile-traits')
   const coins = root.querySelector<HTMLElement>('#pet-profile-coins')
+  const overviewName = root.querySelector<HTMLElement>('#pet-overview-name')
+  const overviewLevel = root.querySelector<HTMLElement>('#pet-overview-level')
+  const overviewCoins = root.querySelector<HTMLElement>('#pet-overview-coins')
   if (
     !name ||
     !gender ||
@@ -100,6 +103,9 @@ function renderProfile(root: HTMLElement, status: PetStatus) {
     .map((trait) => `<span class="pet-trait-tag">${trait}</span>`)
     .join('')
   coins.textContent = String(profile.coins)
+  if (overviewName) overviewName.textContent = profile.name
+  if (overviewLevel) overviewLevel.textContent = `Lv.${progress.level}`
+  if (overviewCoins) overviewCoins.textContent = String(profile.coins)
 }
 
 function renderStatus(root: HTMLElement, status: PetStatus) {
@@ -116,6 +122,7 @@ function renderStatus(root: HTMLElement, status: PetStatus) {
   const healthFill = root.querySelector<HTMLElement>('#pet-health-fill')
   const moodFill = root.querySelector<HTMLElement>('#pet-mood-fill')
   const mood = root.querySelector<HTMLElement>('#pet-mood')
+  const overviewCopy = root.querySelector<HTMLElement>('#pet-overview-copy')
   if (
     !visible ||
     !walk ||
@@ -151,6 +158,7 @@ function renderStatus(root: HTMLElement, status: PetStatus) {
   healthFill.className = `pet-stat-fill ${barClass(status.health)}`
   moodFill.className = `pet-stat-fill ${barClass(status.mood)}`
   mood.textContent = status.resting ? '正在睡觉。点一下桌宠才能叫醒。' : moodText(status)
+  if (overviewCopy) overviewCopy.textContent = status.resting ? '正在休息，醒来后会告诉你刚才的梦。' : moodText(status)
 
   const restButton = root.querySelector<HTMLButtonElement>('#pet-rest')
   if (restButton) {
@@ -443,7 +451,9 @@ export type PetSettingsTab =
 
 export function switchPetSettingsTab(tab: PetSettingsTab) {
   document.querySelectorAll<HTMLButtonElement>('[data-pet-tab]').forEach((button) => {
-    button.classList.toggle('active', button.dataset.petTab === tab)
+    const isActive = button.dataset.petTab === tab
+    button.classList.toggle('active', isActive)
+    button.setAttribute('aria-selected', String(isActive))
   })
   const root = document.querySelector<HTMLElement>('#pet-settings-root')
   if (!root) return
@@ -458,7 +468,32 @@ export function mountPetSettingsPage() {
   if (!root) return
 
   root.innerHTML = `
-    <div class="pet-settings-content">
+    <div class="pet-settings-layout">
+      <aside class="pet-settings-sidebar" aria-label="宠物设置分类">
+        <div class="pet-settings-sidebar-heading">
+          <span class="pet-settings-sidebar-kicker">设置中心</span>
+          <strong>管理你的桌宠</strong>
+        </div>
+        <nav class="pet-settings-tabs" id="pet-settings-nav" role="tablist" aria-label="宠物设置">
+          <button class="nav-item active" type="button" role="tab" data-pet-tab="profile" aria-selected="true">基础信息</button>
+          <button class="nav-item" type="button" role="tab" data-pet-tab="character" aria-selected="false">形象</button>
+          <button class="nav-item" type="button" role="tab" data-pet-tab="appearance" aria-selected="false">外观与行为</button>
+          <button class="nav-item" type="button" role="tab" data-pet-tab="status" aria-selected="false">状态</button>
+          <button class="nav-item" type="button" role="tab" data-pet-tab="reminders" aria-selected="false">交流提醒</button>
+          <button class="nav-item" type="button" role="tab" data-pet-tab="about" aria-selected="false">关于与更新</button>
+        </nav>
+      </aside>
+      <div class="pet-settings-content">
+        <div class="pet-settings-overview" aria-label="宠物概览">
+          <div class="pet-overview-icon" aria-hidden="true">✦</div>
+          <div class="pet-overview-copy">
+            <span class="pet-overview-kicker">桌面伙伴</span>
+            <strong id="pet-overview-name">正在加载…</strong>
+            <p id="pet-overview-copy">正在读取状态…</p>
+          </div>
+          <div class="pet-overview-metric"><span>等级</span><strong id="pet-overview-level">—</strong></div>
+          <div class="pet-overview-metric"><span>金币</span><strong id="pet-overview-coins">—</strong></div>
+        </div>
         <section class="pet-settings-panel is-active" data-pet-panel="profile">
           <article class="pet-config-card">
             <h2>基础信息</h2>
@@ -593,21 +628,22 @@ export function mountPetSettingsPage() {
           <article class="pet-config-card">
             <h2>状态</h2>
             <p id="pet-mood">精神很好，状态在线。</p>
-            <div class="pet-stat">
+            <div class="pet-status-grid">
+            <div class="pet-stat pet-stat--satiety">
               <div class="pet-stat-label">
                 <span>饱食度</span>
                 <strong id="pet-satiety-value">100</strong>
               </div>
               <div class="pet-stat-bar"><div class="pet-stat-fill" id="pet-satiety-fill"></div></div>
             </div>
-            <div class="pet-stat">
+            <div class="pet-stat pet-stat--hygiene">
               <div class="pet-stat-label">
                 <span>卫生</span>
                 <strong id="pet-hygiene-value">100</strong>
               </div>
               <div class="pet-stat-bar"><div class="pet-stat-fill" id="pet-hygiene-fill"></div></div>
             </div>
-            <div class="pet-stat">
+            <div class="pet-stat pet-stat--health">
               <div class="pet-stat-label">
                 <span>健康</span>
                 <strong id="pet-health-value">100</strong>
@@ -615,13 +651,14 @@ export function mountPetSettingsPage() {
               <div class="pet-stat-bar"><div class="pet-stat-fill" id="pet-health-fill"></div></div>
               <p class="field-hint">数值越高越好。饱食度每小时约 -5，卫生每小时约 -2；过低时健康才会下降。</p>
             </div>
-            <div class="pet-stat">
+            <div class="pet-stat pet-stat--mood">
               <div class="pet-stat-label">
                 <span>心情</span>
                 <strong id="pet-mood-value">100</strong>
               </div>
               <div class="pet-stat-bar"><div class="pet-stat-fill" id="pet-mood-fill"></div></div>
               <p class="field-hint">由健康、饱食和卫生综合而成。玩游戏会提升心情，同时消耗饱食和卫生。</p>
+            </div>
             </div>
             <div class="pet-config-actions">
               <button class="primary-button" id="pet-feed" type="button">喂食</button>
@@ -720,6 +757,7 @@ export function mountPetSettingsPage() {
             <p class="field-hint" id="app-update-hint">仅打包安装后的应用可检查远程更新。</p>
           </article>
         </section>
+      </div>
     </div>
   `
 
