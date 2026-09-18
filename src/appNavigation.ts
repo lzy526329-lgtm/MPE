@@ -1,23 +1,30 @@
-import { APP_HOME_PAGE, APP_PAGE_TITLES, type AppPageId } from './appPages'
+import { APP_HOME_PAGE, getAppPageDefinition, type AppPageId } from './appPages'
 
 type PageListener = (pageId: AppPageId) => void
 
 let currentPage: AppPageId = APP_HOME_PAGE
 const listeners = new Set<PageListener>()
 
-function syncToolbar(pageId: AppPageId) {
+function syncNavigation(pageId: AppPageId) {
   const toolbar = document.querySelector<HTMLElement>('#workspace-toolbar')
   const title = document.querySelector<HTMLElement>('#workspace-title')
+  const eyebrow = document.querySelector<HTMLElement>('#workspace-eyebrow')
   const petNav = document.querySelector<HTMLElement>('#pet-settings-nav')
-  const petChatBtn = document.querySelector<HTMLElement>('#open-pet-chat')
-  const petHomeBtn = document.querySelector<HTMLElement>('#open-pet-home')
-  if (!toolbar || !title) return
+  const definition = getAppPageDefinition(pageId)
+  if (!definition) return
   const isHome = pageId === APP_HOME_PAGE
-  toolbar.hidden = isHome
-  title.textContent = APP_PAGE_TITLES[pageId] ?? ''
-  if (petNav) petNav.hidden = !isHome
-  if (petChatBtn) petChatBtn.hidden = !isHome
-  if (petHomeBtn) petHomeBtn.hidden = true
+  if (toolbar) toolbar.hidden = isHome
+  if (title) title.textContent = definition.title
+  if (eyebrow) eyebrow.textContent = definition.eyebrow
+  if (petNav) petNav.hidden = false
+
+  document.querySelectorAll<HTMLElement>('[data-page]').forEach((button) => {
+    const isActive = button.dataset.page === pageId
+    button.hidden = false
+    button.classList.toggle('active', isActive)
+    if (isActive) button.setAttribute('aria-current', 'page')
+    else button.removeAttribute('aria-current')
+  })
 }
 
 export function getCurrentPage() {
@@ -25,12 +32,12 @@ export function getCurrentPage() {
 }
 
 export function navigateToPage(pageId: AppPageId) {
-  if (!APP_PAGE_TITLES[pageId]) return
+  if (!getAppPageDefinition(pageId)) return
   currentPage = pageId
   document.querySelectorAll<HTMLElement>('.tool-page').forEach((page) => {
     page.hidden = page.id !== pageId
   })
-  syncToolbar(pageId)
+  syncNavigation(pageId)
   listeners.forEach((listener) => listener(pageId))
 }
 
@@ -43,8 +50,18 @@ export function setupAppNavigation() {
   document.querySelector<HTMLButtonElement>('#workspace-back')?.addEventListener('click', () => {
     navigateToPage(APP_HOME_PAGE)
   })
+
+  const globalNav = document.querySelector<HTMLElement>('#global-nav')
+    ?? document.querySelector<HTMLElement>('.sidebar')
+  globalNav?.addEventListener('click', (event) => {
+    const target = (event.target as HTMLElement).closest<HTMLElement>('[data-page]')
+    const pageId = target?.dataset.page as AppPageId | undefined
+    if (!pageId) return
+    navigateToPage(pageId)
+  })
+
   window.electronAPI?.onMainNavigate?.((pageId) => {
-    navigateToPage(pageId as AppPageId)
+    navigateToPage(getAppPageDefinition(pageId) ? pageId : APP_HOME_PAGE)
   })
   navigateToPage(APP_HOME_PAGE)
 }

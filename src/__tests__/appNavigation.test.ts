@@ -57,7 +57,7 @@ describe('global navigation', () => {
     const pages = ['pet-settings-page', 'account-page'].map((id) => ({ id, hidden: true }))
     vi.stubGlobal('document', {
       querySelector: (selector: string) => elements[selector] ?? null,
-      querySelectorAll: () => pages,
+      querySelectorAll: (selector: string) => selector === '[data-page]' ? [] : pages,
     })
 
     navigateToPage('account-page')
@@ -68,7 +68,10 @@ describe('global navigation', () => {
 
   it('ignores invalid page ids without changing the current page', () => {
     const pages = ['pet-settings-page', 'farm-page'].map((id) => ({ id, hidden: true }))
-    vi.stubGlobal('document', { querySelector: () => null, querySelectorAll: () => pages })
+    vi.stubGlobal('document', {
+      querySelector: () => null,
+      querySelectorAll: (selector: string) => selector === '[data-page]' ? [] : pages,
+    })
     navigateToPage('pet-settings-page')
     navigateToPage('not-a-page' as never)
     expect(getCurrentPage()).toBe('pet-settings-page')
