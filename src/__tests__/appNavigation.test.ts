@@ -1,37 +1,58 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { navigateToPage, setupAppNavigation } from '../appNavigation'
+import { getCurrentPage, navigateToPage, setupAppNavigation } from '../appNavigation'
+
+function makeButton(pageId: string) {
+  const classes = new Set<string>()
+  return {
+    hidden: true,
+    textContent: pageId,
+    dataset: { page: pageId },
+    classList: {
+      toggle: (name: string, active: boolean) => active ? classes.add(name) : classes.delete(name),
+      contains: (name: string) => classes.has(name),
+    },
+    attributes: new Map<string, string>(),
+    setAttribute(name: string, value: string) { this.attributes.set(name, value) },
+    removeAttribute(name: string) { this.attributes.delete(name) },
+    closest: () => this,
+  }
+}
 
 afterEach(() => vi.unstubAllGlobals())
 
-describe('personal house navigation', () => {
-  it('keeps the house entry hidden at startup and after switching pages', () => {
-    const elements: Record<string, { hidden: boolean; textContent: string }> = {}
-    for (const id of ['workspace-toolbar', 'workspace-title', 'pet-settings-nav', 'open-pet-chat', 'open-pet-home']) {
-      elements[`#${id}`] = { hidden: true, textContent: '' }
+describe('global navigation', () => {
+  it('keeps every menu entry visible and marks only the current page active', () => {
+    const elements: Record<string, any> = {}
+    for (const id of ['workspace-toolbar', 'workspace-title', 'workspace-eyebrow', 'workspace-back', 'pet-settings-nav']) {
+      elements[`#${id}`] = { hidden: true, textContent: '', setAttribute() {}, removeAttribute() {}, addEventListener() {} }
     }
-    const pages = ['pet-settings-page', 'pet-home-page', 'farm-page'].map((id) => ({ id, hidden: true }))
+    const buttons = ['pet-settings-page', 'farm-page', 'image-page', 'account-page'].map(makeButton)
+    const pages = ['pet-settings-page', 'pet-home-page', 'farm-page', 'image-page', 'account-page'].map((id) => ({ id, hidden: true }))
     vi.stubGlobal('document', {
       querySelector: (selector: string) => elements[selector] ?? null,
-      querySelectorAll: () => pages,
+      querySelectorAll: (selector: string) => selector === '[data-page]' ? buttons : pages,
     })
     vi.stubGlobal('window', { electronAPI: {} })
 
     setupAppNavigation()
-    expect(elements['#open-pet-home'].hidden).toBe(true)
+    expect(buttons.every((button) => button.hidden === false)).toBe(true)
     navigateToPage('farm-page')
-    expect(elements['#open-pet-home'].hidden).toBe(true)
+    expect(buttons.every((button) => button.hidden === false)).toBe(true)
+    expect(buttons.find((button) => button.dataset.page === 'farm-page')?.classList.contains('active')).toBe(true)
+    expect(buttons.filter((button) => button.dataset.page !== 'farm-page').every((button) => !button.classList.contains('active'))).toBe(true)
+    expect(elements['#pet-settings-nav'].hidden).toBe(false)
     navigateToPage('pet-home-page')
     expect(pages.find((page) => page.id === 'pet-home-page')?.hidden).toBe(false)
     expect(pages.find((page) => page.id === 'farm-page')?.hidden).toBe(true)
     expect(elements['#workspace-title'].textContent).toBe('个人小屋')
     navigateToPage('pet-settings-page')
-    expect(elements['#open-pet-home'].hidden).toBe(true)
+    expect(getCurrentPage()).toBe('pet-settings-page')
   })
 
   it('opens the account page from the shared workspace navigation', () => {
-    const elements: Record<string, { hidden: boolean; textContent: string }> = {}
-    for (const id of ['workspace-toolbar', 'workspace-title', 'pet-settings-nav', 'open-pet-chat', 'open-pet-home']) {
-      elements[`#${id}`] = { hidden: true, textContent: '' }
+    const elements: Record<string, any> = {}
+    for (const id of ['workspace-toolbar', 'workspace-title', 'workspace-eyebrow', 'workspace-back', 'pet-settings-nav']) {
+      elements[`#${id}`] = { hidden: true, textContent: '', setAttribute() {}, removeAttribute() {}, addEventListener() {} }
     }
     const pages = ['pet-settings-page', 'account-page'].map((id) => ({ id, hidden: true }))
     vi.stubGlobal('document', {
@@ -43,5 +64,13 @@ describe('personal house navigation', () => {
 
     expect(pages.find((page) => page.id === 'account-page')?.hidden).toBe(false)
     expect(elements['#workspace-title'].textContent).toBe('账号与同步')
+  })
+
+  it('ignores invalid page ids without changing the current page', () => {
+    const pages = ['pet-settings-page', 'farm-page'].map((id) => ({ id, hidden: true }))
+    vi.stubGlobal('document', { querySelector: () => null, querySelectorAll: () => pages })
+    navigateToPage('pet-settings-page')
+    navigateToPage('not-a-page' as never)
+    expect(getCurrentPage()).toBe('pet-settings-page')
   })
 })
