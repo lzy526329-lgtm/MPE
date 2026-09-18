@@ -61,7 +61,7 @@ export function setupAppNavigation() {
   })
 
   window.electronAPI?.onMainNavigate?.((pageId) => {
-    navigateToPage(getAppPageDefinition(pageId) ? pageId : APP_HOME_PAGE)
+    navigateToPage(getAppPageDefinition(pageId) ? pageId as AppPageId : APP_HOME_PAGE)
   })
   navigateToPage(APP_HOME_PAGE)
 }

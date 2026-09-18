@@ -17,9 +17,51 @@ import { mountShopPage } from './shopPage'
 import { mountBackpackPage } from './backpackPage'
 import { mountFishingPage } from './fishingPage'
 import { mountAccountPage } from './accountPage'
-import { setupAppNavigation, navigateToPage } from './appNavigation'
+import { APP_PAGE_DEFINITIONS, type AppPageGroup } from './appPages'
+import { setupAppNavigation } from './appNavigation'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
+
+const globalNavGroups: Array<{ key: AppPageGroup; label: string }> = [
+  { key: 'pet', label: '桌宠' },
+  { key: 'play', label: '玩法' },
+  { key: 'tool', label: '工具箱' },
+]
+
+const legacyNavIds: Record<string, string> = {
+  'pet-chat-page': 'open-pet-chat',
+  'pet-home-page': 'open-pet-home',
+  'farm-page': 'open-farm',
+  'fishing-page': 'open-fishing',
+  'shop-page': 'open-shop',
+  'backpack-page': 'open-backpack',
+  'account-page': 'open-account',
+}
+
+const renderGlobalNavGroup = (group: AppPageGroup, label: string) => {
+  const items = Object.values(APP_PAGE_DEFINITIONS).filter((definition) =>
+    definition.group === group && definition.showInGlobalNav,
+  )
+  return `
+    <div class="nav-group" data-nav-group="${group}">
+      <p class="nav-group-title">${label}</p>
+      <div class="nav-group-items">
+        ${items.map((definition) => `
+          <button
+            class="nav-item"
+            id="${legacyNavIds[definition.id] ?? `open-${definition.id.replace(/-page$/, '')}`}"
+            type="button"
+            data-page="${definition.id}"
+            aria-label="${definition.navLabel}"
+          >${definition.navLabel}</button>
+        `).join('')}
+      </div>
+    </div>
+  `
+}
+
+const renderedGlobalNav = globalNavGroups.map(({ key, label }) => renderGlobalNavGroup(key, label)).join('')
+const renderedAccountNav = renderGlobalNavGroup('account', '账号')
 
 app.innerHTML = `
   <div class="app-shell">
@@ -35,28 +77,22 @@ app.innerHTML = `
         <p class="pet-sidebar-title">以宠物为中心</p>
         <p class="pet-sidebar-copy">在桌面右键宠物，可以打开设置、照顾宠物、使用工具箱，或直接和它对话。</p>
       </div>
-      <nav class="pet-settings-nav" id="pet-settings-nav" aria-label="宠物设置">
-        <button class="nav-item active" type="button" data-pet-tab="profile">基础信息</button>
-        <button class="nav-item" type="button" data-pet-tab="character">形象</button>
-        <button class="nav-item" type="button" data-pet-tab="appearance">外观与行为</button>
-        <button class="nav-item" type="button" data-pet-tab="status">状态</button>
-        <button class="nav-item" type="button" data-pet-tab="reminders">交流提醒</button>
-        <button class="nav-item" type="button" data-pet-tab="about">关于与更新</button>
+      <nav class="global-nav" id="global-nav" aria-label="主导航">
+        ${renderedGlobalNav}
       </nav>
-      <button class="nav-item pet-chat-sidebar-btn" id="open-pet-chat" type="button">与我对话</button>
-      <button class="nav-item pet-chat-sidebar-btn" id="open-pet-home" type="button" hidden>个人小屋</button>
-      <button class="nav-item pet-chat-sidebar-btn" id="open-farm" type="button">农场</button>
-      <button class="nav-item pet-chat-sidebar-btn" id="open-fishing" type="button">鱼塘</button>
-      <button class="nav-item pet-chat-sidebar-btn" id="open-shop" type="button">商店</button>
-      <button class="nav-item pet-chat-sidebar-btn" id="open-backpack" type="button">背包</button>
-      <button class="nav-item pet-chat-sidebar-btn" id="open-account" type="button">账号与同步</button>
-      <p class="local-tip">所有工具均在本地完成，不上传文件。</p>
+      <div class="sidebar-bottom">
+        ${renderedAccountNav}
+        <p class="local-tip">所有工具均在本地完成，不上传文件。</p>
+      </div>
     </aside>
 
     <main class="workspace">
       <div class="workspace-toolbar" id="workspace-toolbar" hidden>
         <button class="secondary-button workspace-back" id="workspace-back" type="button">← 返回宠物设置</button>
-        <span class="workspace-title" id="workspace-title"></span>
+        <div class="workspace-toolbar-copy">
+          <span class="workspace-eyebrow" id="workspace-eyebrow"></span>
+          <span class="workspace-title" id="workspace-title"></span>
+        </div>
       </div>
       <section class="tool-page" id="image-page" hidden>
         <header>
@@ -1530,25 +1566,3 @@ mountBackpackPage()
 mountFishingPage()
 mountAccountPage()
 setupAppNavigation()
-
-document.querySelector<HTMLButtonElement>('#open-pet-chat')?.addEventListener('click', () => {
-  navigateToPage('pet-chat-page')
-})
-document.querySelector<HTMLButtonElement>('#open-pet-home')?.addEventListener('click', () => {
-  navigateToPage('pet-home-page')
-})
-document.querySelector<HTMLButtonElement>('#open-farm')?.addEventListener('click', () => {
-  navigateToPage('farm-page')
-})
-document.querySelector<HTMLButtonElement>('#open-fishing')?.addEventListener('click', () => {
-  navigateToPage('fishing-page')
-})
-document.querySelector<HTMLButtonElement>('#open-shop')?.addEventListener('click', () => {
-  navigateToPage('shop-page')
-})
-document.querySelector<HTMLButtonElement>('#open-backpack')?.addEventListener('click', () => {
-  navigateToPage('backpack-page')
-})
-document.querySelector<HTMLButtonElement>('#open-account')?.addEventListener('click', () => {
-  navigateToPage('account-page')
-})

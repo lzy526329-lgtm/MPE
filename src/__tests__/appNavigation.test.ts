@@ -12,9 +12,9 @@ function makeButton(pageId: string) {
       contains: (name: string) => classes.has(name),
     },
     attributes: new Map<string, string>(),
-    setAttribute(name: string, value: string) { this.attributes.set(name, value) },
-    removeAttribute(name: string) { this.attributes.delete(name) },
-    closest: () => this,
+    setAttribute(this: { attributes: Map<string, string> }, name: string, value: string) { this.attributes.set(name, value) },
+    removeAttribute(this: { attributes: Map<string, string> }, name: string) { this.attributes.delete(name) },
+    closest() { return this },
   }
 }
 
