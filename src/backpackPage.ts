@@ -115,28 +115,19 @@ function renderDecorItems(state: GameViewState): string {
     .join('')
 }
 
-function renderSupplyItems(state: GameViewState, busySupplyId: string | null): string {
+function renderSupplyItems(state: GameViewState, _busySupplyId: string | null): string {
   return state.supplyOffers
     .filter((offer) => (state.inventory.supplies[offer.supplyId] ?? 0) > 0)
     .map((offer) => {
       const owned = state.inventory.supplies[offer.supplyId] ?? 0
-      const using = busySupplyId === offer.supplyId
-      const disabled = busySupplyId !== null
 
       return `
-      <article class="backpack-item-card backpack-item-card--sellable">
+      <article class="backpack-item-card">
         ${supplyCatalogIconHtml(getSupplyImagePath(offer.supplyId), 'backpack-item-icon')}
         <div class="backpack-item-body">
           <h2>${escapeHtml(offer.name)}</h2>
           <strong>× ${owned}</strong>
           <span class="backpack-item-satiety">${escapeHtml(formatSupplyHygieneLabel(offer.hygiene))}</span>
-        </div>
-        <div class="backpack-item-action">
-          <button
-            class="primary-button backpack-sell-button"
-            type="button"
-            data-use-supply="${escapeHtml(offer.supplyId)}"${disabled ? ' disabled' : ''}
-          >${using ? '洗澡中…' : '给宠物洗澡'}</button>
         </div>
       </article>
     `
@@ -262,13 +253,6 @@ export function renderBackpackPage(
           `}
       </section>
       <section class="game-pane${activeTab === 'food' ? '' : ' hidden'}" data-game-pane="food">
-        <div class="backpack-food-toolbar">
-          <button
-            class="primary-button backpack-feed-open-button"
-            type="button"
-            data-open-feed-picker${hasFood ? '' : ' disabled'}
-          >喂食宠物</button>
-        </div>
         ${hasFood
           ? `<div class="backpack-item-grid">${renderFoodItems(state)}</div>`
           : `

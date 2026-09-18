@@ -23,7 +23,7 @@ afterEach(() => vi.unstubAllGlobals())
 describe('global navigation', () => {
   it('keeps every menu entry visible and marks only the current page active', () => {
     const elements: Record<string, any> = {}
-    for (const id of ['workspace-toolbar', 'workspace-title', 'workspace-eyebrow', 'workspace-back', 'pet-settings-nav']) {
+    for (const id of ['workspace-toolbar', 'workspace-title', 'workspace-eyebrow', 'pet-settings-nav']) {
       elements[`#${id}`] = { hidden: true, textContent: '', setAttribute() {}, removeAttribute() {}, addEventListener() {} }
     }
     const buttons = ['pet-settings-page', 'farm-page', 'image-page', 'account-page'].map(makeButton)
@@ -51,7 +51,7 @@ describe('global navigation', () => {
 
   it('opens the account page from the shared workspace navigation', () => {
     const elements: Record<string, any> = {}
-    for (const id of ['workspace-toolbar', 'workspace-title', 'workspace-eyebrow', 'workspace-back', 'pet-settings-nav']) {
+    for (const id of ['workspace-toolbar', 'workspace-title', 'workspace-eyebrow', 'pet-settings-nav']) {
       elements[`#${id}`] = { hidden: true, textContent: '', setAttribute() {}, removeAttribute() {}, addEventListener() {} }
     }
     const pages = ['pet-settings-page', 'account-page'].map((id) => ({ id, hidden: true }))
@@ -74,6 +74,33 @@ describe('global navigation', () => {
     })
     navigateToPage('pet-settings-page')
     navigateToPage('not-a-page' as never)
+    expect(getCurrentPage()).toBe('pet-settings-page')
+  })
+
+  it('delegates menu clicks and falls back for invalid main-process navigation', () => {
+    let clickHandler: ((event: { target: unknown }) => void) | undefined
+    let mainNavigateHandler: ((pageId: string) => void) | undefined
+    const buttons = ['pet-settings-page', 'farm-page'].map(makeButton)
+    const globalNav = {
+      addEventListener: (_type: string, handler: (event: { target: unknown }) => void) => {
+        clickHandler = handler
+      },
+    }
+    const pages = ['pet-settings-page', 'farm-page'].map((id) => ({ id, hidden: true }))
+    vi.stubGlobal('document', {
+      querySelector: (selector: string) => selector === '#global-nav' ? globalNav : null,
+      querySelectorAll: (selector: string) => selector === '[data-page]' ? buttons : pages,
+    })
+    vi.stubGlobal('window', {
+      electronAPI: {
+        onMainNavigate: (handler: (pageId: string) => void) => { mainNavigateHandler = handler },
+      },
+    })
+
+    setupAppNavigation()
+    clickHandler?.({ target: buttons[1] })
+    expect(getCurrentPage()).toBe('farm-page')
+    mainNavigateHandler?.('unknown-page')
     expect(getCurrentPage()).toBe('pet-settings-page')
   })
 })

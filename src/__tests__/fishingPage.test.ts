@@ -53,7 +53,7 @@ describe('fishing page', () => {
 
   it('lets the fishing page use the available workspace width', () => {
     const css = readFileSync('src/style.css', 'utf8')
-    expect(css).toMatch(/\.tool-page--fishing > header,\s*#fishing-page \.panel\s*\{[\s\S]*?max-width:\s*none/)
+    expect(css).toMatch(/#fishing-page \.panel\s*\{[\s\S]*?max-width:\s*none/)
   })
 
   it('places the hud and status text outside the pond', () => {

@@ -73,22 +73,16 @@ app.innerHTML = `
           <span>MY PET</span>
         </div>
       </div>
-      <div class="pet-sidebar-card">
-        <p class="pet-sidebar-title">以宠物为中心</p>
-        <p class="pet-sidebar-copy">在桌面右键宠物，可以打开设置、照顾宠物、使用工具箱，或直接和它对话。</p>
-      </div>
       <nav class="global-nav" id="global-nav" aria-label="主导航">
         ${renderedGlobalNav}
       </nav>
       <div class="sidebar-bottom">
         ${renderedAccountNav}
-        <p class="local-tip">所有工具均在本地完成，不上传文件。</p>
       </div>
     </aside>
 
     <main class="workspace">
       <div class="workspace-toolbar" id="workspace-toolbar" hidden>
-        <button class="secondary-button workspace-back" id="workspace-back" type="button">← 返回宠物设置</button>
         <div class="workspace-toolbar-copy">
           <span class="workspace-eyebrow" id="workspace-eyebrow"></span>
           <span class="workspace-title" id="workspace-title"></span>
@@ -97,8 +91,6 @@ app.innerHTML = `
       <section class="tool-page" id="image-page" hidden>
         <header>
           <div>
-            <p class="eyebrow">图像工具</p>
-            <h1>图片压缩</h1>
             <p class="subtitle">减小图片体积，同时尽可能保持清晰度。</p>
           </div>
         </header>
@@ -165,8 +157,6 @@ app.innerHTML = `
       <section class="tool-page" id="cutout-page" hidden>
         <header>
           <div>
-            <p class="eyebrow">图像工具</p>
-            <h1>图片抠图</h1>
             <p class="subtitle">去除白底、棋盘格等纯色背景，导出透明 PNG。适合 AI 出图素材。</p>
           </div>
         </header>
@@ -253,8 +243,6 @@ app.innerHTML = `
       <section class="tool-page" id="spritesheet-page" hidden>
         <header>
           <div>
-            <p class="eyebrow">图像工具</p>
-            <h1>序列帧预览</h1>
             <p class="subtitle">导入雪碧图，设置单帧尺寸与帧率，本地预览横条、竖条或网格排列的动画。</p>
           </div>
         </header>
@@ -329,8 +317,6 @@ app.innerHTML = `
       <section class="tool-page" id="video-frames-page" hidden>
         <header>
           <div>
-            <p class="eyebrow">视频工具</p>
-            <h1>视频转序列帧</h1>
             <p class="subtitle">从本地视频按帧率抽帧，合成为雪碧图 PNG，可继续到序列帧预览播放。</p>
           </div>
         </header>
@@ -422,8 +408,6 @@ app.innerHTML = `
       <section class="tool-page" id="watermark-page" hidden>
         <header>
           <div>
-            <p class="eyebrow">视频工具</p>
-            <h1>视频去水印</h1>
             <p class="subtitle">粘贴抖音或快手分享链接，解析无水印地址并保存到本地。</p>
           </div>
         </header>
@@ -502,8 +486,6 @@ app.innerHTML = `
       <section class="tool-page" id="photoplus-page" hidden>
         <header>
           <div>
-            <p class="eyebrow">图像工具</p>
-            <h1>拉取图片</h1>
             <p class="subtitle">粘贴 PhotoPlus 相册链接，按日期/专辑文件夹下载到桌面。</p>
           </div>
         </header>
@@ -553,8 +535,6 @@ app.innerHTML = `
       <section class="tool-page" id="archive-page" hidden>
         <header>
           <div>
-            <p class="eyebrow">文件工具</p>
-            <h1>文件解压</h1>
             <p class="subtitle">快速解压常见压缩包，文件不会上传到网络。</p>
           </div>
         </header>
@@ -623,8 +603,6 @@ app.innerHTML = `
       <section class="tool-page" id="pdf-page" hidden>
         <header>
           <div>
-            <p class="eyebrow">文档工具</p>
-            <h1>PDF 工具箱</h1>
             <p class="subtitle">本地完成 PDF 合并、拆分、转图片、压缩和图片转 PDF，不上传文件。</p>
           </div>
         </header>
@@ -807,8 +785,6 @@ app.innerHTML = `
       <section class="tool-page" id="compression-page" hidden>
         <header>
           <div>
-            <p class="eyebrow">文件工具</p>
-            <h1>文件压缩</h1>
             <p class="subtitle">将多个文件或整个文件夹压缩为一个归档文件。</p>
           </div>
         </header>
@@ -889,8 +865,6 @@ app.innerHTML = `
       <section class="tool-page" id="disk-clean-page" hidden>
         <header>
           <div>
-            <p class="eyebrow">系统工具</p>
-            <h1>磁盘瘦身</h1>
             <p class="subtitle">扫描并清理系统缓存、临时文件、垃圾文件，安全释放磁盘空间。</p>
           </div>
           <button class="primary-button dc-scan-top-btn" id="dc-scan-btn" type="button">开始扫描</button>
@@ -921,8 +895,6 @@ app.innerHTML = `
       <section class="tool-page" id="sysinfo-page" hidden>
         <header>
           <div>
-            <p class="eyebrow">系统工具</p>
-            <h1>电脑信息</h1>
             <p class="subtitle">查看本机硬件配置与存储使用情况。</p>
           </div>
           <button class="secondary-button sysinfo-refresh-btn" id="sysinfo-refresh" type="button">刷新</button>
@@ -933,12 +905,6 @@ app.innerHTML = `
         </div>
       </section>
       <section class="tool-page tool-page--home" id="pet-home-page" hidden>
-        <header>
-          <div>
-            <p class="eyebrow">MY PET</p>
-            <h1>个人小屋</h1>
-          </div>
-        </header>
         <div class="panel home-panel" id="pet-home-root"></div>
       </section>
 
@@ -1028,52 +994,24 @@ app.innerHTML = `
       </section>
 
       <section class="tool-page" id="farm-page" hidden>
-        <header>
-          <div>
-            <p class="eyebrow">桌宠玩法</p>
-            <h1>农场</h1>
-          </div>
-        </header>
         <div class="panel" id="farm-root"></div>
       </section>
 
       <section class="tool-page tool-page--fishing" id="fishing-page" hidden>
-        <header>
-          <div>
-            <p class="eyebrow">桌宠玩法</p>
-            <h1>鱼塘</h1>
-          </div>
-        </header>
         <div class="panel" id="fishing-root"></div>
       </section>
 
       <section class="tool-page" id="shop-page" hidden>
-        <header>
-          <div>
-            <p class="eyebrow">桌宠玩法</p>
-            <h1>商店</h1>
-            <p class="subtitle">用金币购买种子，供农场种植使用。</p>
-          </div>
-        </header>
         <div class="panel" id="shop-root"></div>
       </section>
 
       <section class="tool-page" id="backpack-page" hidden>
-        <header>
-          <div>
-            <p class="eyebrow">桌宠玩法</p>
-            <h1>背包</h1>
-            <p class="subtitle">查看当前金币与库存。</p>
-          </div>
-        </header>
         <div class="panel" id="backpack-root"></div>
       </section>
 
       <section class="tool-page" id="account-page" hidden>
         <header>
           <div>
-            <p class="eyebrow">账号</p>
-            <h1>账号与同步</h1>
             <p class="subtitle">管理登录状态，并选择如何保存游戏进度。</p>
           </div>
         </header>
@@ -1085,7 +1023,6 @@ app.innerHTML = `
           <div>
             <p class="eyebrow">MY PET</p>
             <h1>宠物设置</h1>
-            <p class="subtitle">在左侧选择分类，右侧查看与修改对应设置。</p>
           </div>
         </header>
         <div class="panel" id="pet-settings-root"></div>

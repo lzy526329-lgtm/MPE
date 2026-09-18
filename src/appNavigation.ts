@@ -47,12 +47,8 @@ export function onPageChange(listener: PageListener) {
 }
 
 export function setupAppNavigation() {
-  document.querySelector<HTMLButtonElement>('#workspace-back')?.addEventListener('click', () => {
-    navigateToPage(APP_HOME_PAGE)
-  })
-
-  const globalNav = document.querySelector<HTMLElement>('#global-nav')
-    ?? document.querySelector<HTMLElement>('.sidebar')
+  const globalNav = document.querySelector<HTMLElement>('.sidebar')
+    ?? document.querySelector<HTMLElement>('#global-nav')
   globalNav?.addEventListener('click', (event) => {
     const target = (event.target as HTMLElement).closest<HTMLElement>('[data-page]')
     const pageId = target?.dataset.page as AppPageId | undefined

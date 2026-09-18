@@ -353,7 +353,7 @@ function renderReminderList(root: HTMLElement, reminders: PetReminderItem[], edi
 
   if (!reminders.length) {
     list.innerHTML = '<p class="field-hint">还没有提醒，在下方填写后点击「添加提醒」。</p>'
-    hint.textContent = '可创建多条提醒，例如喝水、休息、开会等。'
+    hint.textContent = ''
     return
   }
 
@@ -497,7 +497,6 @@ export function mountPetSettingsPage() {
         <section class="pet-settings-panel is-active" data-pet-panel="profile">
           <article class="pet-config-card">
             <h2>基础信息</h2>
-            <p>首次打开时会随机生成名字、性别与性格。喂食、清洁、休息、小游戏和对话都会积累亲密度。</p>
             <div class="pet-profile-grid">
               <label class="field">
                 <span>名称</span>
@@ -572,7 +571,6 @@ export function mountPetSettingsPage() {
         <section class="pet-settings-panel" data-pet-panel="character" hidden>
           <article class="pet-config-card">
             <h2>形象</h2>
-            <p>每个角色一个文件夹。以后把新动画放到 <code>donghua/角色id/</code>，包含 <code>.skel</code>、<code>.atlas</code>、<code>.png</code> 和可选的 <code>meta.json</code>。</p>
             <div id="pet-character-list">
               <div class="pet-character-grid" id="pet-characters"></div>
             </div>
@@ -649,7 +647,6 @@ export function mountPetSettingsPage() {
                 <strong id="pet-health-value">100</strong>
               </div>
               <div class="pet-stat-bar"><div class="pet-stat-fill" id="pet-health-fill"></div></div>
-              <p class="field-hint">数值越高越好。饱食度每小时约 -5，卫生每小时约 -2；过低时健康才会下降。</p>
             </div>
             <div class="pet-stat pet-stat--mood">
               <div class="pet-stat-label">
@@ -657,7 +654,6 @@ export function mountPetSettingsPage() {
                 <strong id="pet-mood-value">100</strong>
               </div>
               <div class="pet-stat-bar"><div class="pet-stat-fill" id="pet-mood-fill"></div></div>
-              <p class="field-hint">由健康、饱食和卫生综合而成。玩游戏会提升心情，同时消耗饱食和卫生。</p>
             </div>
             </div>
             <div class="pet-config-actions">
@@ -665,13 +661,11 @@ export function mountPetSettingsPage() {
               <button class="secondary-button" id="pet-clean" type="button">洗澡</button>
               <button class="secondary-button" id="pet-rest" type="button">休息</button>
             </div>
-            <p class="field-hint">休息会循环睡觉，健康慢慢涨；点桌宠才能叫醒，醒来会讲刚才的梦。</p>
           </article>
         </section>
         <section class="pet-settings-panel" data-pet-panel="reminders" hidden>
           <article class="pet-config-card">
             <h2>交流提醒</h2>
-            <p>可创建多条提醒。支持循环、仅一次、指定日期一次、每天定点提醒。</p>
             <div class="pet-reminder-list" id="pet-reminder-list"></div>
             <h3 class="pet-reminder-form-title">新建 / 编辑提醒</h3>
             <div class="pet-reminder-grid">
@@ -720,7 +714,7 @@ export function mountPetSettingsPage() {
               <button class="secondary-button" id="pet-reminder-cancel" type="button" hidden>取消编辑</button>
               <button class="secondary-button" id="pet-reminder-confirm-now" type="button">确认待处理提醒</button>
             </div>
-            <p class="field-hint" id="pet-reminder-hint">可创建多条提醒。</p>
+            <p class="field-hint" id="pet-reminder-hint"></p>
           </article>
         </section>
         <section class="pet-settings-panel" data-pet-panel="about" hidden>
@@ -1058,10 +1052,6 @@ export function mountPetSettingsPage() {
   const installBtn = root.querySelector<HTMLButtonElement>('#app-install-update')
   const isMac = window.electronAPI?.platform === 'darwin'
 
-  if (introEl && isMac) {
-    introEl.textContent =
-      '检查更新后下载 DMG。因 Mac 未签名，需打开安装包拖到「应用程序」覆盖安装（无法静默自动替换）。'
-  }
   if (installBtn && isMac) {
     installBtn.textContent = '打开安装包'
   }

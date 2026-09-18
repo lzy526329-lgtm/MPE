@@ -109,7 +109,7 @@ describe('backpack page rendering', () => {
     expect(html).not.toContain('backpack-item-card')
   })
 
-  it('renders owned food and a feed picker entry in the food tab', () => {
+  it('renders owned food without feed actions in the food tab', () => {
     const withFood: GameViewState = {
       ...state,
       inventory: { ...state.inventory, food: withFoodCounts({ cookie: 2 }) },
@@ -121,15 +121,24 @@ describe('backpack page rendering', () => {
     expect(html).toContain('× 2')
     expect(html).toContain('./foods/%E9%A5%BC%E5%B9%B2.png')
     expect(html).toContain('+12 饱食度')
-    expect(html).toContain('data-open-feed-picker')
-    expect(html).toContain('喂食宠物')
+    expect(html).not.toContain('data-open-feed-picker')
+    expect(html).not.toContain('喂食宠物')
     expect(html).not.toContain('data-use-food')
   })
 
-  it('disables feed picker when there is no food', () => {
-    const html = renderBackpackPage(state, { ...defaultOptions, activeTab: 'food' })
+  it('renders owned supplies without pet care actions in the supplies tab', () => {
+    const withSupplies: GameViewState = {
+      ...state,
+      inventory: { ...state.inventory, supplies: withSupplyCounts({ bodyWash: 2 }) },
+    }
 
-    expect(html).toContain('data-open-feed-picker disabled')
+    const html = renderBackpackPage(withSupplies, { ...defaultOptions, activeTab: 'supplies' })
+
+    expect(html).toContain('沐浴露')
+    expect(html).toContain('× 2')
+    expect(html).toContain('+40 卫生')
+    expect(html).not.toContain('给宠物洗澡')
+    expect(html).not.toContain('data-use-supply')
   })
 
   it('renders the exact empty food state', () => {

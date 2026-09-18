@@ -4800,7 +4800,7 @@ select:focus {
   height: auto;
   margin-inline: auto;
   border-radius: 12px;
-  overflow: auto;
+  overflow: hidden;
   background: #6a9e4a center / 100% 100% no-repeat;
   cursor: pointer;
 }
@@ -6105,5 +6105,368 @@ select:focus {
 
   .game-wallet {
     align-self: flex-end;
+  }
+}
+
+/* Backpack visual refinement: calmer spacing and clearer information hierarchy. */
+#backpack-root {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+#backpack-root .game-page-shell { gap: 24px; }
+#backpack-root .game-page-topbar { align-items: flex-start; gap: 24px; }
+
+#backpack-root .game-tabs {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 2px;
+  padding: 5px;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+}
+
+#backpack-root .game-tab {
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  color: #71717a;
+  font-size: 15px;
+  font-weight: 600;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+#backpack-root .game-tab:hover { color: #18181b; background: #f4f4f5; }
+#backpack-root .game-tab.active { color: #fff; background: #18181b; box-shadow: none; }
+
+#backpack-root .game-wallet {
+  flex: none;
+  min-height: 54px;
+  min-width: 150px;
+  justify-content: center;
+  padding: 10px 16px;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  color: #3f3f46;
+  background: #fafafa;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+#backpack-root .game-wallet > span { color: #d97706; }
+
+#backpack-root .backpack-fish-toolbar {
+  min-height: 72px;
+  margin-bottom: 20px;
+  padding: 16px 18px;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  color: #52525b;
+  background: #fafafa;
+  font-size: 14px;
+}
+
+#backpack-root .backpack-fish-toolbar .primary-button {
+  min-height: 40px;
+  margin-top: 0;
+  padding: 0 16px;
+  border-radius: 6px;
+  background: #18181b;
+}
+
+#backpack-root .backpack-fish-toolbar .primary-button:hover { background: #3f3f46; }
+
+#backpack-root .backpack-fish-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+#backpack-root .backpack-fish-card {
+  grid-template-columns: 132px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  min-height: 196px;
+  padding: 22px;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+}
+
+#backpack-root .backpack-fish-card > img { width: 132px; height: 104px; }
+
+#backpack-root .backpack-fish-card-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+#backpack-root .backpack-fish-card h2 {
+  margin: 0;
+  color: #18181b;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+#backpack-root .backpack-fish-card .fishing-rarity,
+#backpack-root .backpack-fish-card .fishing-quality { line-height: 1.4; }
+
+#backpack-root .backpack-fish-card dl {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+#backpack-root .backpack-fish-card dl div {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  font-size: 13px;
+}
+
+#backpack-root .backpack-fish-card dt { color: #a1a1aa; }
+#backpack-root .backpack-fish-card dd { color: #3f3f46; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+#backpack-root .backpack-fish-card > .secondary-button {
+  align-self: center;
+  min-width: 64px;
+  min-height: 40px;
+  margin-top: 0;
+  padding: 0 14px;
+  border-color: #d4d4d8;
+  border-radius: 6px;
+  color: #3f3f46;
+  background: #fff;
+  font-size: 13px;
+}
+
+#backpack-root .backpack-fish-card > .secondary-button:hover {
+  border-color: #18181b;
+  color: #18181b;
+  background: #fafafa;
+}
+
+#backpack-root .backpack-item-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+#backpack-root .backpack-item-price {
+  align-self: center;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+#backpack-root .backpack-item-action .backpack-sell-button {
+  align-self: center;
+  min-width: 92px;
+  min-height: 36px;
+  margin-top: 0;
+  padding: 0 12px;
+  border: 1px solid #18181b;
+  border-radius: 6px;
+  color: #fff;
+  background: #18181b;
+  font-size: 13px;
+}
+
+#backpack-root .backpack-item-action .backpack-sell-button:hover {
+  background: #3f3f46;
+}
+
+#backpack-root .backpack-item-action .backpack-sell-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 1024px) {
+  #backpack-root .backpack-fish-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 768px) {
+  #backpack-root .game-page-topbar { gap: 12px; }
+  #backpack-root .game-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  #backpack-root .game-wallet { align-self: stretch; width: 100%; }
+  #backpack-root .backpack-fish-card { grid-template-columns: 112px minmax(0, 1fr) auto; gap: 14px; padding: 18px; }
+  #backpack-root .backpack-fish-card > img { width: 112px; height: 88px; }
+}
+
+@media (max-width: 520px) {
+  #backpack-root .game-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #backpack-root .backpack-fish-card { grid-template-columns: 1fr auto; gap: 14px; }
+  #backpack-root .backpack-fish-card > img { grid-column: 1 / -1; justify-self: center; width: 180px; height: 104px; }
+  #backpack-root .backpack-fish-card-body { grid-column: 1; }
+  #backpack-root .backpack-fish-card > .secondary-button { grid-column: 2; grid-row: 2; }
+}
+
+/* Shop palette alignment: reuse the backpack's restrained monochrome system. */
+#shop-root .game-page-shell {
+  gap: 24px;
+}
+
+#shop-root .game-page-topbar {
+  align-items: flex-start;
+  gap: 24px;
+}
+
+#shop-root .game-tabs {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 2px;
+  padding: 5px;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+}
+
+#shop-root .game-tab {
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  color: #71717a;
+  font-size: 15px;
+  font-weight: 600;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+#shop-root .game-tab:hover {
+  color: #18181b;
+  background: #f4f4f5;
+}
+
+#shop-root .game-tab.active {
+  color: #fff;
+  background: #18181b;
+  box-shadow: none;
+}
+
+#shop-root .game-wallet {
+  flex: none;
+  min-height: 54px;
+  min-width: 150px;
+  justify-content: center;
+  padding: 10px 16px;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  color: #3f3f46;
+  background: #fafafa;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+#shop-root .game-wallet > span {
+  color: #d97706;
+}
+
+#shop-root .shop-offer-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+#shop-root .shop-offer-card {
+  gap: 16px;
+  min-height: 0;
+  padding: 16px;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+}
+
+#shop-root .shop-offer-heading {
+  gap: 12px;
+}
+
+#shop-root .shop-offer-icon,
+#shop-root .farm-catalog-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 8px;
+  background: #f4f4f5;
+}
+
+#shop-root .shop-offer-heading h2 {
+  margin-bottom: 4px;
+  color: #18181b;
+  font-size: 17px;
+  line-height: 1.2;
+}
+
+#shop-root .shop-offer-heading p,
+#shop-root .shop-offer-grow {
+  color: #71717a;
+}
+
+#shop-root .shop-offer-action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+#shop-root .shop-offer-action > strong {
+  align-self: center;
+  color: #52525b;
+  font-size: 15px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+#shop-root .shop-buy-button {
+  min-width: 92px;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 6px;
+  background: #18181b;
+  font-size: 13px;
+}
+
+#shop-root .shop-buy-button:hover {
+  background: #3f3f46;
+}
+
+#shop-root .shop-buy-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 1024px) {
+  #shop-root .shop-offer-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  #shop-root .game-page-topbar {
+    gap: 12px;
+  }
+
+  #shop-root .game-tabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  #shop-root .game-wallet {
+    align-self: stretch;
+    width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  #shop-root .game-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #shop-root .shop-offer-grid {
+    grid-template-columns: 1fr;
   }
 }
