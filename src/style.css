@@ -1033,6 +1033,126 @@ input[type="range"] {
   .account-security .account-actions { justify-content: flex-start; text-align: left; }
 }
 
+#account-root .account-form-shell {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 28px;
+  border-color: #e4e4e7;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+}
+
+#account-root .account-form-heading,
+#account-root .account-form-fields {
+  max-width: 100%;
+}
+
+#account-root .account-form-heading h2 {
+  color: #18181b;
+  font-size: 24px;
+}
+
+#account-root .account-kicker {
+  color: #71717a;
+}
+
+#account-root .account-form-heading > p {
+  color: #71717a;
+}
+
+#account-root .account-form-fields {
+  gap: 16px;
+  margin-top: 24px;
+}
+
+#account-root .account-form-fields .field,
+#account-root .account-code-row .field {
+  gap: 7px;
+  color: #52525b;
+}
+
+#account-root .account-form-fields input {
+  min-height: 40px;
+  border-color: #d4d4d8;
+  border-radius: 6px;
+  background: #fff;
+}
+
+#account-root .account-form-fields input:focus {
+  border-color: #18181b;
+  box-shadow: 0 0 0 3px rgba(24, 24, 27, 0.08);
+}
+
+#account-root .account-code-row {
+  align-items: start;
+  gap: 10px;
+}
+
+#account-root .account-code-row .secondary-button {
+  align-self: start;
+  min-height: 40px;
+  margin-top: 27px;
+  border-color: #d4d4d8;
+  border-radius: 6px;
+  color: #3f3f46;
+  background: #fff;
+}
+
+#account-root .account-code-row .secondary-button:hover {
+  border-color: #18181b;
+  color: #18181b;
+  background: #fafafa;
+}
+
+#account-root .account-actions {
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+#account-root .account-actions .account-primary {
+  min-width: 112px;
+  min-height: 40px;
+  margin-top: 0;
+  padding: 0 16px;
+  border: 1px solid #18181b;
+  border-radius: 6px;
+  color: #fff;
+  background: #18181b;
+  box-shadow: none;
+  font-size: 14px;
+}
+
+#account-root .account-actions .account-primary:hover {
+  background: #3f3f46;
+}
+
+#account-root .account-actions .account-text-action {
+  align-self: center;
+  margin: 0;
+  color: #52525b;
+}
+
+#account-root .account-actions .account-text-action:hover {
+  color: #18181b;
+}
+
+@media (max-width: 640px) {
+  #account-root .account-form-shell {
+    padding: 20px;
+  }
+
+  #account-root .account-code-row {
+    grid-template-columns: 1fr;
+  }
+
+  #account-root .account-code-row .secondary-button {
+    width: 100%;
+    margin-top: 0;
+  }
+}
+
 @media (max-width: 900px) {
   .sidebar {
     width: 180px;
@@ -6468,5 +6588,213 @@ select:focus {
 
   #shop-root .shop-offer-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Pet profile density refinement: compact information, no duplicated wallet metric. */
+#pet-settings-page .pet-settings-content {
+  gap: 12px;
+}
+
+#pet-settings-page .pet-settings-overview {
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+#pet-settings-page .pet-overview-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  box-shadow: none;
+  font-size: 20px;
+}
+
+#pet-settings-page .pet-config-card {
+  padding: 16px;
+  border-radius: 10px;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+#pet-settings-page .pet-config-card h2 {
+  margin-bottom: 10px;
+  font-size: 17px;
+}
+
+#pet-settings-page .pet-profile-grid {
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+#pet-settings-page .pet-profile-item {
+  min-height: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+#pet-settings-page .pet-profile-item span {
+  font-size: 11px;
+}
+
+#pet-settings-page .pet-profile-item strong {
+  font-size: 14px;
+}
+
+#pet-settings-page .pet-growth-bar {
+  height: 6px;
+}
+
+#pet-settings-page .pet-trait-list {
+  gap: 6px;
+}
+
+#pet-settings-page .pet-trait-tag {
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+/* Profile panel refinement: flatter hierarchy and tighter information grouping. */
+#pet-settings-page [data-pet-panel='profile'] > .pet-config-card:first-child {
+  padding: 20px;
+  border-color: #e4e4e7;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(39, 38, 59, 0.04);
+}
+
+#pet-settings-page [data-pet-panel='profile'] > .pet-config-card:first-child h2 {
+  margin-bottom: 16px;
+  font-size: 20px;
+}
+
+#pet-settings-page [data-pet-panel='profile'] .pet-profile-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+#pet-settings-page [data-pet-panel='profile'] .pet-profile-grid > .field,
+#pet-settings-page [data-pet-panel='profile'] .pet-profile-item {
+  min-width: 0;
+  min-height: 0;
+  padding: 11px 12px;
+  border: 1px solid #f0f0f2;
+  border-radius: 9px;
+  background: #fafafa;
+}
+
+#pet-settings-page [data-pet-panel='profile'] .pet-profile-grid > .field {
+  gap: 6px;
+}
+
+#pet-settings-page [data-pet-panel='profile'] .pet-profile-grid > .field input {
+  min-height: 36px;
+  padding: 0 10px;
+  border-color: #d4d4d8;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 14px;
+}
+
+#pet-settings-page [data-pet-panel='profile'] .pet-profile-item--wide {
+  grid-column: 1 / -1;
+}
+
+#pet-settings-page [data-pet-panel='profile'] .pet-profile-item--wide:first-of-type {
+  padding: 13px 14px;
+  border-color: #e7e9f0;
+  background: #f7f8fb;
+}
+
+#pet-settings-page [data-pet-panel='profile'] .pet-profile-item span {
+  font-size: 11px;
+  font-weight: 650;
+}
+
+#pet-settings-page [data-pet-panel='profile'] .pet-profile-item strong {
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#pet-settings-page [data-pet-panel='profile'] .pet-growth-bar {
+  height: 7px;
+  margin-top: 2px;
+  background: #e5e7eb;
+}
+
+#pet-settings-page [data-pet-panel='profile'] .pet-growth-meta {
+  margin-top: 1px;
+  font-size: 11px;
+}
+
+#pet-settings-page [data-pet-panel='profile'] .pet-trait-list {
+  gap: 5px;
+  margin-top: 2px;
+}
+
+#pet-settings-page [data-pet-panel='profile'] .pet-trait-tag {
+  padding: 3px 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 5px;
+  color: #52525b;
+  background: #f4f4f5;
+  font-size: 11px;
+}
+
+#pet-settings-page [data-pet-panel='profile'] .pet-config-actions {
+  margin-top: 2px;
+}
+
+#pet-settings-page [data-pet-panel='profile'] #pet-profile-save {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid #18181b;
+  border-radius: 6px;
+  background: #18181b;
+  box-shadow: none;
+  font-size: 13px;
+}
+
+#pet-settings-page [data-pet-panel='profile'] #pet-profile-save:hover {
+  background: #3f3f46;
+}
+
+#pet-settings-page [data-pet-panel='profile'] > .pet-config-card:first-child > .field-hint {
+  margin-top: 10px;
+  color: #a1a1aa;
+  font-size: 11px;
+}
+
+@media (max-width: 760px) {
+  #pet-settings-page [data-pet-panel='profile'] .pet-profile-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Keep the identity row compact instead of stretching to the tallest grid item. */
+#pet-settings-page [data-pet-panel='profile'] .pet-profile-grid > .field,
+#pet-settings-page [data-pet-panel='profile'] .pet-profile-grid > .pet-profile-item:not(.pet-profile-item--wide) {
+  align-self: start;
+  min-height: 0;
+  height: fit-content;
+  box-sizing: border-box;
+}
+
+#pet-settings-page [data-pet-panel='profile'] .pet-profile-grid > .field input {
+  height: 34px;
+  min-height: 34px;
+}
+
+#pet-settings-page [data-pet-panel='profile'] .pet-profile-grid > .pet-profile-item:not(.pet-profile-item--wide) {
+  min-height: 72px;
+}
+
+@media (max-width: 760px) {
+  #pet-settings-page [data-pet-panel='profile'] .pet-profile-grid > .pet-profile-item:not(.pet-profile-item--wide) {
+    min-height: 0;
   }
 }

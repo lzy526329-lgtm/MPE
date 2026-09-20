@@ -131,7 +131,7 @@ function registerMarkup(message: string | null, countdown: number, sendingCode: 
       <div class="account-form-fields">
         <label class="field"><span>邮箱</span><input data-account-field="email" type="email" autocomplete="email" placeholder="name@example.com" /></label>
         <div class="account-code-row"><label class="field"><span>六位验证码</span><input data-account-field="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000" /></label>${codeAction}</div>
-        <label class="field"><span>昵称 <em>可选</em></span><input data-account-field="nickname" maxlength="50" autocomplete="nickname" placeholder="显示名称" /></label>
+        <label class="field"><span>昵称</span><input data-account-field="nickname" maxlength="50" autocomplete="nickname" placeholder="请输入昵称" required /></label>
         <label class="field"><span>密码</span><input data-account-field="password" type="password" autocomplete="new-password" placeholder="至少 8 位" /></label>
       </div>
       ${formMessage(message)}
@@ -419,8 +419,8 @@ export function mountAccountPage(): void {
       const code = field('code')
       const nickname = field('nickname')
       const password = field('password')
-      if (!isValidEmail(email) || !isValidCode(code) || !isValidPassword(password)) { notice('请填写有效邮箱、六位验证码和至少 8 位密码。'); render(); return }
-      void window.electronAPI.gameAccountRegister({ email, code, password, ...(nickname ? { nickname } : {}) }).then(applyResult).catch(() => { notice('注册暂时不可用，请稍后重试。'); render() })
+      if (!isValidEmail(email) || !isValidCode(code) || !nickname || !isValidPassword(password)) { notice('请填写邮箱、昵称、六位验证码和至少 8 位密码。'); render(); return }
+      void window.electronAPI.gameAccountRegister({ email, code, nickname, password }).then(applyResult).catch(() => { notice('注册暂时不可用，请稍后重试。'); render() })
     } else if (action === 'reset-password') {
       const email = field('email')
       const code = field('code')

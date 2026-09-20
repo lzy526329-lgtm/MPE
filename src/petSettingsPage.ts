@@ -61,14 +61,12 @@ function renderProfile(root: HTMLElement, status: PetStatus) {
   const name = root.querySelector<HTMLInputElement>('#pet-profile-name')
   const gender = root.querySelector<HTMLElement>('#pet-profile-gender')
   const title = root.querySelector<HTMLElement>('#pet-profile-title')
-  const level = root.querySelector<HTMLElement>('#pet-profile-level')
   const growthFill = root.querySelector<HTMLElement>('#pet-profile-growth-fill')
   const growthMeta = root.querySelector<HTMLElement>('#pet-profile-growth-meta')
   const birthday = root.querySelector<HTMLElement>('#pet-profile-birthday')
   const createdAt = root.querySelector<HTMLElement>('#pet-profile-created-at')
   const personality = root.querySelector<HTMLElement>('#pet-profile-personality')
   const traits = root.querySelector<HTMLElement>('#pet-profile-traits')
-  const coins = root.querySelector<HTMLElement>('#pet-profile-coins')
   const overviewName = root.querySelector<HTMLElement>('#pet-overview-name')
   const overviewLevel = root.querySelector<HTMLElement>('#pet-overview-level')
   const overviewCoins = root.querySelector<HTMLElement>('#pet-overview-coins')
@@ -76,14 +74,12 @@ function renderProfile(root: HTMLElement, status: PetStatus) {
     !name ||
     !gender ||
     !title ||
-    !level ||
     !growthFill ||
     !growthMeta ||
     !birthday ||
     !createdAt ||
     !personality ||
-    !traits ||
-    !coins
+    !traits
   ) {
     return
   }
@@ -92,7 +88,6 @@ function renderProfile(root: HTMLElement, status: PetStatus) {
   gender.textContent = GENDER_LABELS[profile.gender]
   title.textContent = profile.title
   const progress = petGrowthProgress(profile.growth)
-  level.textContent = `Lv.${progress.level}`
   const pct = progress.required > 0 ? Math.round((progress.current / progress.required) * 100) : 100
   growthFill.style.width = `${pct}%`
   growthMeta.textContent = `${progress.current} / ${progress.required} · 累计 ${progress.totalGrowth.toLocaleString()}`
@@ -102,7 +97,6 @@ function renderProfile(root: HTMLElement, status: PetStatus) {
   traits.innerHTML = profile.personality.traits
     .map((trait) => `<span class="pet-trait-tag">${trait}</span>`)
     .join('')
-  coins.textContent = String(profile.coins)
   if (overviewName) overviewName.textContent = profile.name
   if (overviewLevel) overviewLevel.textContent = `Lv.${progress.level}`
   if (overviewCoins) overviewCoins.textContent = String(profile.coins)
@@ -499,7 +493,7 @@ export function mountPetSettingsPage() {
             <h2>基础信息</h2>
             <div class="pet-profile-grid">
               <label class="field">
-                <span>名称</span>
+                <span>宠物名称</span>
                 <input id="pet-profile-name" type="text" maxlength="12" />
               </label>
               <div class="pet-profile-item">
@@ -509,10 +503,6 @@ export function mountPetSettingsPage() {
               <div class="pet-profile-item">
                 <span>称号</span>
                 <strong id="pet-profile-title">-</strong>
-              </div>
-              <div class="pet-profile-item">
-                <span>等级</span>
-                <strong id="pet-profile-level">Lv.0</strong>
               </div>
               <div class="pet-profile-item pet-profile-item--wide">
                 <span>成长</span>
@@ -529,10 +519,6 @@ export function mountPetSettingsPage() {
                 <span>初遇时间</span>
                 <strong id="pet-profile-created-at">-</strong>
               </div>
-              <div class="pet-profile-item">
-                <span>金币</span>
-                <strong id="pet-profile-coins">0</strong>
-              </div>
               <div class="pet-profile-item pet-profile-item--wide">
                 <span>性格</span>
                 <strong id="pet-profile-personality">-</strong>
@@ -543,7 +529,7 @@ export function mountPetSettingsPage() {
               </div>
             </div>
             <div class="pet-config-actions">
-              <button class="primary-button" id="pet-profile-save" type="button">保存名称</button>
+              <button class="primary-button" id="pet-profile-save" type="button">保存宠物名称</button>
             </div>
             <p class="field-hint">元素性格：${ELEMENT_EMOJI.fire}火象 ${ELEMENT_EMOJI.earth}土象 ${ELEMENT_EMOJI.air}风象 ${ELEMENT_EMOJI.water}水象。不同元素会影响状态变化速度。</p>
           </article>

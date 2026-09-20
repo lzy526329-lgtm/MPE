@@ -43,7 +43,7 @@ const page = (
 export const APP_PAGE_DEFINITIONS: Readonly<Record<AppPageId, AppPageDefinition>> = Object.freeze({
   'pet-settings-page': page('pet-settings-page', '宠物设置', '桌宠', 'pet'),
   'pet-chat-page': page('pet-chat-page', '与宠物对话', '桌宠', 'pet'),
-  'pet-home-page': page('pet-home-page', '个人小屋', '桌宠', 'pet'),
+  'pet-home-page': page('pet-home-page', '个人小屋', '桌宠', 'pet', false),
   'farm-page': page('farm-page', '农场', '玩法', 'play'),
   'fishing-page': page('fishing-page', '鱼塘', '玩法', 'play'),
   'shop-page': page('shop-page', '商店', '玩法', 'play'),
