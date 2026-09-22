@@ -90,3 +90,15 @@ npm run dev
 ```
 
 打包见 [RELEASE.md](./RELEASE.md)。玩法与 AI 设计细节见 [docs/pet-gameplay.md](./docs/pet-gameplay.md)、[docs/pet-ai-system.md](./docs/pet-ai-system.md)。
+
+## License
+- Source Code: PolyForm Noncommercial License 1.0.0
+- Image / Art / Game Assets: Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)
+
+### Important
+This project is **NOT PERMITTED FOR ANY COMMERCIAL USE**.
+You are free to use, copy and modify this project for personal learning and non-commercial purposes only.
+
+Commercial use of any part of this repository requires a separate commercial license from the author.
+If you need commercial authorization, please contact the author.
+
