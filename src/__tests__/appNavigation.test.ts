@@ -26,8 +26,8 @@ describe('global navigation', () => {
     for (const id of ['workspace-toolbar', 'workspace-title', 'workspace-eyebrow', 'pet-settings-nav']) {
       elements[`#${id}`] = { hidden: true, textContent: '', setAttribute() {}, removeAttribute() {}, addEventListener() {} }
     }
-    const buttons = ['pet-settings-page', 'farm-page', 'image-page', 'account-page'].map(makeButton)
-    const pages = ['pet-settings-page', 'pet-home-page', 'farm-page', 'image-page', 'account-page'].map((id) => ({ id, hidden: true }))
+    const buttons = ['pet-settings-page', 'farm-page', 'image-page', 'account-page', 'friend-page'].map(makeButton)
+    const pages = ['pet-settings-page', 'pet-home-page', 'farm-page', 'image-page', 'account-page', 'friend-page'].map((id) => ({ id, hidden: true }))
     vi.stubGlobal('document', {
       querySelector: (selector: string) => elements[selector] ?? null,
       querySelectorAll: (selector: string) => selector === '[data-page]' ? buttons : pages,
@@ -64,6 +64,23 @@ describe('global navigation', () => {
 
     expect(pages.find((page) => page.id === 'account-page')?.hidden).toBe(false)
     expect(elements['#workspace-title'].textContent).toBe('账号与同步')
+  })
+
+  it('opens the friend page from the account menu', () => {
+    const elements: Record<string, any> = {}
+    for (const id of ['workspace-toolbar', 'workspace-title', 'workspace-eyebrow', 'pet-settings-nav']) {
+      elements[`#${id}`] = { hidden: true, textContent: '', setAttribute() {}, removeAttribute() {}, addEventListener() {} }
+    }
+    const pages = ['pet-settings-page', 'friend-page'].map((id) => ({ id, hidden: true }))
+    vi.stubGlobal('document', {
+      querySelector: (selector: string) => elements[selector] ?? null,
+      querySelectorAll: (selector: string) => selector === '[data-page]' ? [] : pages,
+    })
+
+    navigateToPage('friend-page')
+
+    expect(pages.find((page) => page.id === 'friend-page')?.hidden).toBe(false)
+    expect(elements['#workspace-title'].textContent).toBe('好友')
   })
 
   it('ignores invalid page ids without changing the current page', () => {

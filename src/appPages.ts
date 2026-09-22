@@ -6,6 +6,7 @@ export type AppPageId =
   | 'shop-page'
   | 'backpack-page'
   | 'account-page'
+  | 'friend-page'
   | 'fishing-page'
   | 'image-page'
   | 'cutout-page'
@@ -49,6 +50,7 @@ export const APP_PAGE_DEFINITIONS: Readonly<Record<AppPageId, AppPageDefinition>
   'shop-page': page('shop-page', '商店', '玩法', 'play'),
   'backpack-page': page('backpack-page', '背包', '玩法', 'play'),
   'account-page': page('account-page', '账号与同步', '账号', 'account'),
+  'friend-page': page('friend-page', '好友', '账号', 'account'),
   'image-page': page('image-page', '图片压缩', '工具箱', 'tool'),
   'cutout-page': page('cutout-page', '图片抠图', '工具箱', 'tool'),
   'watermark-page': page('watermark-page', '视频去水印', '工具箱', 'tool'),

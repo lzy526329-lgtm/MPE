@@ -23,6 +23,8 @@ describe('game pages', () => {
     expect(getAppPageDefinition('farm-page')?.group).toBe('play')
     expect(getAppPageDefinition('image-page')?.group).toBe('tool')
     expect(getAppPageDefinition('account-page')?.group).toBe('account')
+    expect(getAppPageDefinition('friend-page')?.title).toBe('好友')
+    expect(getAppPageDefinition('friend-page')?.group).toBe('account')
     expect(getAppPageDefinition('pet-settings-page')?.showInGlobalNav).toBe(true)
   })
 })

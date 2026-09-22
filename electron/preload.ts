@@ -42,7 +42,7 @@ import type { CutoutRequest, CutoutResult } from './cutout'
 import type { CropId, PlacedDecor, HouseDecorPlacement, HouseSurface } from './farm/farmTypes'
 import type { BaitId, GameActionResult, GameViewState, FoodId, SupplyId, DecorId, FurnitureId } from './game/gameTypes'
 import type { FishingCastResult, FishingReelResult } from './fishing/fishingIpc'
-import type { GameAccountBridge, GameAccountState } from './gameAccount/types'
+import type { GameAccountBridge, GamePresenceEvent, GameAccountState } from './gameAccount/types'
 import { installExternalLinkHandler } from './gameAccount/externalLinks'
 
 const removeExternalLinkHandler = installExternalLinkHandler(document, url => ipcRenderer.invoke('app:open-external-link', url))
@@ -59,10 +59,21 @@ const gameAccountBridge: GameAccountBridge = {
   gameAccountResetPassword: request => ipcRenderer.invoke('game-account:gameAccountResetPassword', request),
   gameAccountSyncNow: () => ipcRenderer.invoke('game-account:gameAccountSyncNow'),
   gameAccountResolveConflict: choice => ipcRenderer.invoke('game-account:gameAccountResolveConflict', choice),
+  gameAccountListFriends: () => ipcRenderer.invoke('game-account:gameAccountListFriends'),
+  gameAccountSearchFriend: uid => ipcRenderer.invoke('game-account:gameAccountSearchFriend', uid),
+  gameAccountSendFriendRequest: uid => ipcRenderer.invoke('game-account:gameAccountSendFriendRequest', uid),
+  gameAccountRespondFriendRequest: (requestId, action) => ipcRenderer.invoke('game-account:gameAccountRespondFriendRequest', { requestId, action }),
+  gameAccountRemoveFriend: userId => ipcRenderer.invoke('game-account:gameAccountRemoveFriend', userId),
+  gameAccountUpdateFriendRemark: (userId, remark) => ipcRenderer.invoke('game-account:gameAccountUpdateFriendRemark', { userId, remark }),
   onGameAccountStateChanged: callback => {
     const listener = (_event: Electron.IpcRendererEvent, state: GameAccountState) => callback(state)
     ipcRenderer.on('game-account:state-changed', listener)
     return () => { ipcRenderer.removeListener('game-account:state-changed', listener) }
+  },
+  onGameAccountPresenceChanged: callback => {
+    const listener = (_event: Electron.IpcRendererEvent, event: GamePresenceEvent) => callback(event)
+    ipcRenderer.on('game-account:presence-changed', listener)
+    return () => { ipcRenderer.removeListener('game-account:presence-changed', listener) }
   },
 }
 

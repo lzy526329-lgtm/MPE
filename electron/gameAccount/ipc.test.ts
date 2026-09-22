@@ -24,20 +24,52 @@ function setup() {
     sendEmailCode: vi.fn().mockResolvedValue({ email: 'player@example.com', purpose: 'register' }),
     getSave: vi.fn().mockRejectedValue(new Error('offline')),
     putSave: vi.fn(), resolveSave: vi.fn(),
+    listFriends: vi.fn().mockResolvedValue({ friends: [], incomingRequests: [], outgoingRequests: [] }),
+    searchFriend: vi.fn().mockResolvedValue({ user: { id: 7, uid: '123456789', nickname: 'Friend' }, relation: 'none' }),
+    sendFriendRequest: vi.fn().mockResolvedValue({ request: { id: 1, requesterId: 42, recipientId: 7, status: 'pending' }, user: { id: 7, uid: '123456789', nickname: 'Friend' } }),
+    respondFriendRequest: vi.fn().mockResolvedValue({ status: 'accepted', request: { id: 1, requesterId: 42, recipientId: 7, status: 'accepted' } }),
+    removeFriend: vi.fn().mockResolvedValue({}),
+    updateFriendRemark: vi.fn().mockResolvedValue({ remark: '小王' }),
   }
   const sync = createSyncCoordinator({ userDataPath: dir, api, sessionStore: store })
   cleanup.push(() => sync.dispose())
-  const handlers = createGameAccountHandlers({ api, store, sync, deviceName: 'Test desktop' })
-  return { api, handlers, store, dir, auth }
+  const realtime = { start: vi.fn(), stop: vi.fn() }
+  const handlers = createGameAccountHandlers({ api, store, sync, realtime, deviceName: 'Test desktop' })
+  return { api, handlers, store, dir, auth, realtime }
 }
 afterEach(() => cleanup.splice(0).reverse().forEach(fn => fn()))
 
 it('returns only safe account data to the renderer and forces the main-process device identity', async () => {
-  const { handlers, api, store } = setup()
+  const { handlers, api, store, realtime } = setup()
   const result = await handlers.gameAccountLogin({ email: 'player@example.com', password: 'Password1', deviceId: 'attacker', token: 'injected' } as never)
   expect(result).toMatchObject({ ok: true, data: { account: { userId: 42, email: 'player@example.com' } } })
   expect(JSON.stringify(result)).not.toContain('private-token')
   expect(api.login.mock.calls[0][0]).toEqual({ email: 'player@example.com', password: 'Password1', deviceId: store.getDeviceId(), deviceName: 'Test desktop' })
+  expect(realtime.start).toHaveBeenCalledTimes(1)
+})
+
+it('stops realtime presence when logging out', async () => {
+  const { handlers, realtime } = setup()
+  await handlers.gameAccountLogin({ email: 'player@example.com', password: 'Password1' })
+  await handlers.gameAccountLogout()
+  expect(realtime.stop).toHaveBeenCalledTimes(1)
+})
+
+it('routes friend operations through the authenticated main-process session', async () => {
+  const { handlers, api } = setup()
+  await handlers.gameAccountLogin({ email: 'player@example.com', password: 'Password1' })
+  await handlers.gameAccountSearchFriend('123456789')
+  await handlers.gameAccountSendFriendRequest('123456789')
+  await handlers.gameAccountRespondFriendRequest(1, 'accept')
+  await handlers.gameAccountListFriends()
+  await handlers.gameAccountRemoveFriend(7)
+  await handlers.gameAccountUpdateFriendRemark(7, '小王')
+  expect(api.searchFriend).toHaveBeenCalledWith('private-token', '123456789')
+  expect(api.sendFriendRequest).toHaveBeenCalledWith('private-token', '123456789')
+  expect(api.respondFriendRequest).toHaveBeenCalledWith('private-token', 1, 'accept')
+  expect(api.listFriends).toHaveBeenCalledWith('private-token')
+  expect(api.removeFriend).toHaveBeenCalledWith('private-token', 7)
+  expect(api.updateFriendRemark).toHaveBeenCalledWith('private-token', 7, '小王')
 })
 
 it('does not restore a login that finishes after a user has logged out', async () => {

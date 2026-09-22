@@ -119,6 +119,11 @@ async function mount(options: { state?: GameAccountState } = {}) {
     gameAccountResetPassword: vi.fn().mockResolvedValue({ ok: true, data: guestState }),
     gameAccountSyncNow: vi.fn().mockResolvedValue({ ok: true, data: signedInState }),
     gameAccountResolveConflict: vi.fn().mockResolvedValue({ ok: true, data: signedInState }),
+    gameAccountListFriends: vi.fn().mockResolvedValue({ ok: true, data: { friends: [], incomingRequests: [], outgoingRequests: [] } }),
+    gameAccountSearchFriend: vi.fn().mockResolvedValue({ ok: true, data: { user: { id: 7, uid: '123456789', nickname: '好友' }, relation: 'none' } }),
+    gameAccountSendFriendRequest: vi.fn().mockResolvedValue({ ok: true, data: { request: { id: 1, requesterId: 42, recipientId: 7, status: 'pending' }, user: { id: 7, uid: '123456789', nickname: '好友' } } }),
+    gameAccountRespondFriendRequest: vi.fn().mockResolvedValue({ ok: true, data: { status: 'accepted', request: { id: 1, requesterId: 7, recipientId: 42, status: 'accepted' } } }),
+    gameAccountRemoveFriend: vi.fn().mockResolvedValue({ ok: true, data: {} }),
     onGameAccountStateChanged: vi.fn((listener: (next: GameAccountState) => void) => {
       accountEvents.listener = listener
       return () => undefined
@@ -324,6 +329,12 @@ describe('account page', () => {
     dom.click('change-password')
     await vi.waitFor(() => expect(api.gameAccountChangePassword).toHaveBeenCalledWith({ oldPassword: 'Password1', newPassword: 'Password2' }))
     expect(dom.root.innerHTML).toContain('先以游客身份继续')
+  })
+
+  it('keeps friend management on the standalone friend page', async () => {
+    const { dom } = await mount({ state: signedInState })
+    expect(dom.root.innerHTML).not.toContain('通过 UID 添加好友')
+    expect(dom.root.innerHTML).not.toContain('data-account-action="load-friends"')
   })
 
   it('requires a deliberate local or cloud choice when saves conflict', async () => {

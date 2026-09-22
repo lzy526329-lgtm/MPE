@@ -17,6 +17,7 @@ import { mountShopPage } from './shopPage'
 import { mountBackpackPage } from './backpackPage'
 import { mountFishingPage } from './fishingPage'
 import { mountAccountPage } from './accountPage'
+import { mountFriendPage } from './friendPage'
 import { APP_PAGE_DEFINITIONS, type AppPageGroup } from './appPages'
 import { setupAppNavigation } from './appNavigation'
 
@@ -36,6 +37,7 @@ const legacyNavIds: Record<string, string> = {
   'shop-page': 'open-shop',
   'backpack-page': 'open-backpack',
   'account-page': 'open-account',
+  'friend-page': 'open-friend',
 }
 
 const renderGlobalNavGroup = (group: AppPageGroup, label: string) => {
@@ -1018,6 +1020,15 @@ app.innerHTML = `
         <div class="panel" id="account-root"></div>
       </section>
 
+      <section class="tool-page" id="friend-page" hidden>
+        <header>
+          <div>
+            <p class="subtitle">通过 UID 添加好友，处理好友申请。</p>
+          </div>
+        </header>
+        <div class="panel" id="friend-root"></div>
+      </section>
+
       <section class="tool-page" id="pet-settings-page">
         <header>
           <div>
@@ -1502,4 +1513,5 @@ mountShopPage()
 mountBackpackPage()
 mountFishingPage()
 mountAccountPage()
+mountFriendPage()
 setupAppNavigation()

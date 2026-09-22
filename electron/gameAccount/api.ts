@@ -1,4 +1,4 @@
-import type { AuthResult, ChangePasswordRequest, Device, EmailCodeRequest, GameUser, LoginRequest, RegisterRequest, ResetPasswordRequest, SaveResolution, SaveResult, SaveUpload } from './types'
+import type { AuthResult, ChangePasswordRequest, Device, EmailCodeRequest, FriendList, FriendSearchResult, GameUser, LoginRequest, RegisterRequest, ResetPasswordRequest, SaveResolution, SaveResult, SaveUpload } from './types'
 
 export class GameApiError extends Error {
   constructor(public code: string, message: string, public status = 0, public data?: unknown) {
@@ -42,6 +42,12 @@ export function createGameApi(baseUrl: string, transport: GameTransport = fetch)
     getSave: (token: string) => request<SaveResult>('/save', 'GET', undefined, token),
     putSave: (token: string, input: SaveUpload) => request<SaveResult>('/save', 'PUT', input, token),
     resolveSave: (token: string, input: SaveResolution) => request<SaveResult>('/save/resolve', 'POST', input, token),
+    listFriends: (token: string) => request<FriendList>('/friends', 'GET', undefined, token),
+    searchFriend: (token: string, uid: string) => request<FriendSearchResult>(`/friends/search?uid=${encodeURIComponent(uid)}`, 'GET', undefined, token),
+    sendFriendRequest: (token: string, uid: string) => request<{ request: FriendList['outgoingRequests'][number]; user: FriendList['friends'][number] }>('/friends/requests', 'POST', { uid }, token),
+    respondFriendRequest: (token: string, requestId: number | string, action: 'accept' | 'reject') => request<{ status: string; request: FriendList['incomingRequests'][number] }>(`/friends/requests/${encodeURIComponent(String(requestId))}/respond`, 'POST', { action }, token),
+    removeFriend: (token: string, userId: number | string) => request<Record<string, never>>(`/friends/${encodeURIComponent(String(userId))}`, 'DELETE', undefined, token),
+    updateFriendRemark: (token: string, userId: number | string, remark: string) => request<{ remark: string }>(`/friends/${encodeURIComponent(String(userId))}`, 'PATCH', { remark }, token),
   }
 }
 export type GameApi = ReturnType<typeof createGameApi>
