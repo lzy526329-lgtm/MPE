@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { getCurrentPage, navigateToPage, setupAppNavigation } from '../appNavigation'
+import { TOOL_PAGES } from '../appPages'
 
 function makeButton(pageId: string) {
   const classes = new Set<string>()
@@ -21,6 +22,29 @@ function makeButton(pageId: string) {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('global navigation', () => {
+  it('keeps the toolbox selected for all tool pages and returns through the toolbar', () => {
+    let backClick: (() => void) | undefined
+    const back = { hidden: true, addEventListener: (_type: string, listener: () => void) => { backClick = listener } }
+    const toolbox = makeButton('toolbox-page')
+    const pages = ['pet-settings-page', 'toolbox-page', ...TOOL_PAGES].map(id => ({ id, hidden: true }))
+    vi.stubGlobal('document', {
+      querySelector: (selector: string) => selector === '#workspace-toolbox-back' ? back : null,
+      querySelectorAll: (selector: string) => selector === '[data-page]' ? [toolbox] : pages,
+    })
+    vi.stubGlobal('window', { electronAPI: {} })
+    setupAppNavigation()
+    expect(back.hidden).toBe(true)
+    for (const id of TOOL_PAGES) {
+      navigateToPage(id)
+      expect(pages.filter(page => !page.hidden).map(page => page.id)).toEqual([id])
+      expect(toolbox.classList.contains('active')).toBe(true)
+      expect(back.hidden).toBe(false)
+      backClick?.()
+      expect(getCurrentPage()).toBe('toolbox-page')
+      expect(back.hidden).toBe(true)
+    }
+  })
+
   it('keeps every menu entry visible and marks only the current page active', () => {
     const elements: Record<string, any> = {}
     for (const id of ['workspace-toolbar', 'workspace-title', 'workspace-eyebrow', 'pet-settings-nav']) {

@@ -45,10 +45,10 @@ function isTrustedSender(event: AccountIpcEvent, authorization: AccountAuthoriza
   } catch { return false }
 }
 
-export function createAccountIpcHandler<TInput, TResult>(handler: (input: TInput) => Promise<TResult>, authorization: AccountAuthorization) {
-  return async (event: AccountIpcEvent, input: TInput): Promise<TResult> => {
+export function createAccountIpcHandler<TInput, TResult>(handler: (input: TInput, ...args: unknown[]) => Promise<TResult>, authorization: AccountAuthorization) {
+  return async (event: AccountIpcEvent, input: TInput, ...args: unknown[]): Promise<TResult> => {
     if (!isTrustedSender(event, authorization)) throw new Error('Untrusted account IPC sender')
-    const result = await handler(input)
+    const result = await handler(input, ...args)
     // A request may finish after the original document has navigated or closed.
     if (!isTrustedSender(event, authorization)) throw new Error('Untrusted account IPC sender')
     return result

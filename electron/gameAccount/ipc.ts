@@ -1,6 +1,6 @@
 import { app, ipcMain, safeStorage, type BrowserWindow } from 'electron'
 import { hostname } from 'node:os'
-import { onGameSaved } from '../game/gameStore'
+import { applyServerWalletCoins, onGameSaved } from '../game/gameStore'
 import { toGameViewState } from '../game/gameEngine'
 import { createGameApi, GameApiError, type GameApi } from './api'
 import { getGameApiBaseUrl } from './config'
@@ -8,10 +8,10 @@ import { createGameRealtime, getGameWebSocketUrl } from './realtime'
 import { createSessionStore, type SessionStore } from './sessionStore'
 import { createSyncCoordinator, type SyncCoordinator } from './syncCoordinator'
 import { createAccountIpcHandler, getTrustedMainWindow } from './trustedRenderer'
-import type { AccountResult, AuthResult, GameAccountBridge, GameAccountState, LoginRequest, RegisterRequest } from './types'
+import type { AccountResult, AnimalFlipAction, AuthResult, GameAccountBridge, GameAccountState, LoginRequest, RegisterRequest } from './types'
 
-type HandlerOptions = { api: GameApi; store: SessionStore; sync: SyncCoordinator; deviceName: string; realtime?: { start: () => void; stop: () => void; refresh?: () => void } }
-type AccountHandlers = Omit<GameAccountBridge, 'onGameAccountStateChanged'>
+type HandlerOptions = { api: any; store: SessionStore; sync: SyncCoordinator; deviceName: string; userDataPath?: string; realtime?: { start: () => void; stop: () => void; refresh?: () => void; send?: (message: Record<string, unknown>) => boolean } }
+type AccountHandlers = Omit<GameAccountBridge, 'onGameAccountStateChanged' | 'onAnimalFlipRoomEvent'>
 function textField(input: unknown, field: string, optional = false): string {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new GameApiError('VALIDATION_ERROR', 'Invalid request')
   const value = (input as Record<string, unknown>)[field]
@@ -25,12 +25,22 @@ function uidField(input: unknown): string {
   return input
 }
 
+function positiveId(input: unknown): number | string {
+  if ((typeof input !== 'number' && typeof input !== 'string') || !Number.isSafeInteger(Number(input)) || Number(input) <= 0) throw new GameApiError('VALIDATION_ERROR', 'Invalid room or friend id')
+  return input
+}
+function requestIdField(input: unknown, optional = false): string | undefined {
+  if (input === undefined && optional) return undefined
+  if (typeof input !== 'string' || input.length < 1 || input.length > 160) throw new GameApiError('VALIDATION_ERROR', 'Invalid request id')
+  return input
+}
+
 function remarkField(input: unknown): string {
   if (typeof input !== 'string' || [...input].length > 50) throw new GameApiError('VALIDATION_ERROR', 'Invalid friend remark')
   return input
 }
 
-export function createGameAccountHandlers({ api, store, sync, deviceName, realtime }: HandlerOptions): AccountHandlers {
+export function createGameAccountHandlers({ api, store, sync, deviceName, userDataPath, realtime }: HandlerOptions): AccountHandlers {
   let authGeneration = 0
   async function run<T>(work: () => Promise<T>, token?: string): Promise<AccountResult<T>> {
     try { return { ok: true, data: await work() } } catch (cause) {
@@ -50,6 +60,14 @@ export function createGameAccountHandlers({ api, store, sync, deviceName, realti
       if (!token) throw new GameApiError('AUTH_INVALID', 'Please log in')
       return work(token)
     }, token)
+  }
+  async function applyRoomWallet(result: any): Promise<any> {
+    const session = store.getSession()
+    const member = result?.room?.members?.find((item: any) => String(item.userId) === String(session?.userId))
+    if (userDataPath && Number.isSafeInteger(member?.balance) && member.balance >= 0) {
+      await applyServerWalletCoins(userDataPath, member.balance)
+    }
+    return result
   }
   function clear() {
     authGeneration++
@@ -130,13 +148,32 @@ export function createGameAccountHandlers({ api, store, sync, deviceName, realti
       if ((typeof value !== 'number' && typeof value !== 'string') || !Number.isSafeInteger(Number(value)) || Number(value) <= 0 || (action !== 'accept' && action !== 'reject')) {
         throw new GameApiError('VALIDATION_ERROR', 'Invalid friend request')
       }
-      return api.respondFriendRequest(token, value, action).then(result => { realtime?.refresh?.(); return result })
+      return api.respondFriendRequest(token, value, action).then((result: unknown) => { realtime?.refresh?.(); return result })
     }),
     gameAccountRemoveFriend: input => protectedCall(token => {
       if ((typeof input !== 'number' && typeof input !== 'string') || !Number.isSafeInteger(Number(input)) || Number(input) <= 0) {
         throw new GameApiError('VALIDATION_ERROR', 'Invalid friend id')
       }
-      return api.removeFriend(token, input).then(result => { realtime?.refresh?.(); return result })
+      return api.removeFriend(token, input).then((result: unknown) => { realtime?.refresh?.(); return result })
+    }),
+    gameAccountCreateAnimalFlipRoom: (input, requestArgument) => protectedCall(token => api.createAnimalFlipRoom(token, positiveId(input), requestIdField(requestArgument, true)).then(applyRoomWallet)),
+    gameAccountJoinAnimalFlipRoom: (input, requestArgument) => protectedCall(token => {
+      if (typeof input !== 'string' || !/^\d{6}$/.test(input)) throw new GameApiError('VALIDATION_ERROR', 'Invalid room code')
+      return api.joinAnimalFlipRoom(token, input, requestIdField(requestArgument, true)).then(applyRoomWallet)
+    }),
+    gameAccountGetAnimalFlipRoom: input => protectedCall(token => api.getAnimalFlipRoom(token, positiveId(input))),
+    gameAccountSetAnimalFlipReady: (input, readyArgument, requestArgument) => protectedCall(token => api.setAnimalFlipReady(token, positiveId(input), Boolean(readyArgument), requestIdField(requestArgument, true)).then(applyRoomWallet)),
+    gameAccountLeaveAnimalFlipRoom: (input, requestArgument) => protectedCall(token => api.leaveAnimalFlipRoom(token, positiveId(input), requestIdField(requestArgument, true)).then(applyRoomWallet)),
+    gameAccountRecoverAnimalFlipRoom: (input, requestArgument) => protectedCall(token => api.recoverAnimalFlipRoom(token, positiveId(input), requestIdField(requestArgument, true)).then(applyRoomWallet)),
+    gameAccountSubmitAnimalFlipAction: (input, actionArgument, seqArgument, requestArgument) => protectedCall(token => {
+      const roomId = positiveId(input); const seq = Number(seqArgument); const requestId = requestIdField(requestArgument) as string
+      if (!Number.isSafeInteger(seq) || seq < 0 || !actionArgument || typeof actionArgument !== 'object') throw new GameApiError('VALIDATION_ERROR', 'Invalid animal flip action')
+      return api.submitAnimalFlipAction(token, roomId, actionArgument as AnimalFlipAction, seq, requestId).then(applyRoomWallet)
+    }),
+    gameAccountSubscribeAnimalFlipRoom: input => protectedCall(async () => {
+      const roomId = positiveId(input)
+      realtime?.send?.({ type: 'animal_flip.subscribe', roomId })
+      return {}
     }),
     gameAccountUpdateFriendRemark: (input, remarkArgument) => protectedCall(token => {
       const requestInput: unknown = remarkArgument === undefined ? input : { userId: input, remark: remarkArgument }
@@ -145,7 +182,7 @@ export function createGameAccountHandlers({ api, store, sync, deviceName, realti
       if ((typeof value !== 'number' && typeof value !== 'string') || !Number.isSafeInteger(Number(value)) || Number(value) <= 0) {
         throw new GameApiError('VALIDATION_ERROR', 'Invalid friend id')
       }
-      return api.updateFriendRemark(token, value, remarkField((requestInput as Record<string, unknown>).remark)).then(result => { realtime?.refresh?.(); return result })
+      return api.updateFriendRemark(token, value, remarkField((requestInput as Record<string, unknown>).remark)).then((result: unknown) => { realtime?.refresh?.(); return result })
     }),
   }
 }
@@ -166,9 +203,12 @@ export function registerGameAccountIpc(getMain: () => BrowserWindow | null, isTr
   const realtime = createGameRealtime({
     url: getGameWebSocketUrl(apiBaseUrl),
     getToken: () => store.getSession()?.token,
-    onEvent: event => getTrustedMainWindow(authorization)?.webContents.send('game-account:presence-changed', event),
+    onEvent: event => {
+      if (event.type.startsWith('animal_flip.')) getTrustedMainWindow(authorization)?.webContents.send('game-account:animal-flip-event', event)
+      else getTrustedMainWindow(authorization)?.webContents.send('game-account:presence-changed', event)
+    },
   })
-  const handlers = createGameAccountHandlers({ api, store, sync, realtime, deviceName: hostname().slice(0, 100) })
+  const handlers = createGameAccountHandlers({ api, store, sync, realtime, userDataPath, deviceName: hostname().slice(0, 100) })
   for (const [name, handler] of Object.entries(handlers)) {
     ipcMain.handle(`game-account:${name}`, createAccountIpcHandler(handler as (input: unknown) => Promise<unknown>, authorization))
   }

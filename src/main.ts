@@ -16,8 +16,11 @@ import { mountFarmPage } from './farmPage'
 import { mountShopPage } from './shopPage'
 import { mountBackpackPage } from './backpackPage'
 import { mountFishingPage } from './fishingPage'
+import { mountAnimalFlipPage } from './animalFlipPage'
+import { mountAnimalFlipInvitations } from './animalFlipInvitations'
 import { mountAccountPage } from './accountPage'
 import { mountFriendPage } from './friendPage'
+import { mountToolboxPage } from './toolboxPage'
 import { APP_PAGE_DEFINITIONS, type AppPageGroup } from './appPages'
 import { setupAppNavigation } from './appNavigation'
 
@@ -26,7 +29,7 @@ const app = document.querySelector<HTMLDivElement>('#app')!
 const globalNavGroups: Array<{ key: AppPageGroup; label: string }> = [
   { key: 'pet', label: '桌宠' },
   { key: 'play', label: '玩法' },
-  { key: 'tool', label: '工具箱' },
+  { key: 'tool', label: '工具' },
 ]
 
 const legacyNavIds: Record<string, string> = {
@@ -34,6 +37,7 @@ const legacyNavIds: Record<string, string> = {
   'pet-home-page': 'open-pet-home',
   'farm-page': 'open-farm',
   'fishing-page': 'open-fishing',
+  'animal-flip-page': 'open-animal-flip',
   'shop-page': 'open-shop',
   'backpack-page': 'open-backpack',
   'account-page': 'open-account',
@@ -84,12 +88,17 @@ app.innerHTML = `
     </aside>
 
     <main class="workspace">
+      <div id="animal-flip-invitations" class="animal-flip-invitations" aria-live="polite" aria-label="好友对战邀请" hidden></div>
       <div class="workspace-toolbar" id="workspace-toolbar" hidden>
+        <button class="text-button workspace-back" id="workspace-toolbox-back" type="button" hidden>← 返回工具箱</button>
         <div class="workspace-toolbar-copy">
           <span class="workspace-eyebrow" id="workspace-eyebrow"></span>
           <span class="workspace-title" id="workspace-title"></span>
         </div>
       </div>
+      <section class="tool-page" id="toolbox-page" hidden>
+        <div id="toolbox-root"></div>
+      </section>
       <section class="tool-page" id="image-page" hidden>
         <header>
           <div>
@@ -1003,6 +1012,10 @@ app.innerHTML = `
         <div class="panel" id="fishing-root"></div>
       </section>
 
+      <section class="tool-page" id="animal-flip-page" hidden>
+        <div class="panel" id="animal-flip-root"></div>
+      </section>
+
       <section class="tool-page" id="shop-page" hidden>
         <div class="panel" id="shop-root"></div>
       </section>
@@ -1512,6 +1525,9 @@ mountFarmPage()
 mountShopPage()
 mountBackpackPage()
 mountFishingPage()
+const animalFlipPage = mountAnimalFlipPage()
+mountAnimalFlipInvitations(result => animalFlipPage?.openFriendRoom(result))
 mountAccountPage()
 mountFriendPage()
+mountToolboxPage()
 setupAppNavigation()

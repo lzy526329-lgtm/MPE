@@ -3,11 +3,15 @@ import fs from 'node:fs'
 import type { ServerResponse } from 'node:http'
 import { defineConfig, type Plugin } from 'vite'
 import electron from 'vite-plugin-electron/simple'
+import type { ElectronOptions } from 'vite-plugin-electron'
 import { scanPetCharacters } from './electron/petCharacters'
 import { getGameApiBaseUrl } from './electron/gameAccount/config'
 
 // 原生模块和自带 WASM/可执行文件的依赖必须保持外部引用。
 const nativeExternals = ['sharp', '7zip-bin', 'node-unrar-js', 'electron-updater']
+const battleStartup: ElectronOptions['onstart'] = process.env.MPT_BATTLE_TEST === '1'
+  ? ({ startup }) => startup([path.resolve(__dirname, 'scripts/battle-launcher.cjs')])
+  : undefined
 
 function petCharactersPlugin(): Plugin {
   const root = path.resolve(__dirname, 'donghua')
@@ -76,6 +80,7 @@ export default defineConfig(({ command }) => ({
     electron({
       main: {
         entry: 'electron/main.ts',
+        onstart: battleStartup,
         vite: {
           define: { 'process.env.GAME_API_BASE_URL': JSON.stringify(getGameApiBaseUrl(command === 'build')) },
           build: {
@@ -85,6 +90,7 @@ export default defineConfig(({ command }) => ({
       },
       preload: {
         input: 'electron/preload.ts',
+        ...(battleStartup ? { onstart: battleStartup } : {}),
         vite: {
           build: {
             rollupOptions: { external: nativeExternals },

@@ -17,6 +17,7 @@ import type { FarmState } from '../farm/farmTypes'
 import { buySeed, createDefaultGameState } from './gameEngine'
 import { foodCounts } from './gameCatalog'
 import {
+  applyServerWalletCoins,
   loadGame,
   onGameSaved,
   parseGamePayload,
@@ -640,4 +641,18 @@ describe('fishing save migration', () => {
     expect(state.inventory.fish).toHaveLength(100)
     expect(state.wallet.coins).toBe(100)
   })
+})
+
+it('applies an authoritative server wallet balance without changing inventory', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'game-store-wallet-'))
+  dirs.push(dir)
+  const initial = createDefaultGameState(1_000)
+  initial.wallet.coins = 3
+  const foodId = Object.keys(initial.inventory.food)[0] as keyof typeof initial.inventory.food
+  initial.inventory.food[foodId] = 4
+  saveGameAtomic(dir, initial)
+  const result = await applyServerWalletCoins(dir, 77, 2_000)
+  expect(result.wallet.coins).toBe(77)
+  expect(result.inventory.food[foodId]).toBe(4)
+  expect(loadGame(dir, 2_000).wallet.coins).toBe(77)
 })

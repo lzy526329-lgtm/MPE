@@ -8,6 +8,8 @@ export type AppPageId =
   | 'account-page'
   | 'friend-page'
   | 'fishing-page'
+  | 'animal-flip-page'
+  | 'toolbox-page'
   | 'image-page'
   | 'cutout-page'
   | 'watermark-page'
@@ -47,21 +49,23 @@ export const APP_PAGE_DEFINITIONS: Readonly<Record<AppPageId, AppPageDefinition>
   'pet-home-page': page('pet-home-page', '个人小屋', '桌宠', 'pet', false),
   'farm-page': page('farm-page', '农场', '玩法', 'play'),
   'fishing-page': page('fishing-page', '鱼塘', '玩法', 'play'),
+  'animal-flip-page': page('animal-flip-page', '象狮虎豹', '玩法', 'play'),
   'shop-page': page('shop-page', '商店', '玩法', 'play'),
   'backpack-page': page('backpack-page', '背包', '玩法', 'play'),
   'account-page': page('account-page', '账号与同步', '账号', 'account'),
   'friend-page': page('friend-page', '好友', '账号', 'account'),
-  'image-page': page('image-page', '图片压缩', '工具箱', 'tool'),
-  'cutout-page': page('cutout-page', '图片抠图', '工具箱', 'tool'),
-  'watermark-page': page('watermark-page', '视频去水印', '工具箱', 'tool'),
-  'compression-page': page('compression-page', '文件压缩', '工具箱', 'tool'),
-  'archive-page': page('archive-page', '文件解压', '工具箱', 'tool'),
-  'pdf-page': page('pdf-page', 'PDF 工具箱', '工具箱', 'tool'),
-  'photoplus-page': page('photoplus-page', '拉取图片', '工具箱', 'tool'),
-  'sysinfo-page': page('sysinfo-page', '电脑信息', '工具箱', 'tool'),
-  'disk-clean-page': page('disk-clean-page', '磁盘瘦身', '工具箱', 'tool'),
-  'spritesheet-page': page('spritesheet-page', '序列帧预览', '工具箱', 'tool'),
-  'video-frames-page': page('video-frames-page', '视频转序列帧', '工具箱', 'tool'),
+  'toolbox-page': page('toolbox-page', '工具箱', '实用工具', 'tool'),
+  'image-page': page('image-page', '图片压缩', '工具箱', 'tool', false),
+  'cutout-page': page('cutout-page', '图片抠图', '工具箱', 'tool', false),
+  'watermark-page': page('watermark-page', '视频去水印', '工具箱', 'tool', false),
+  'compression-page': page('compression-page', '文件压缩', '工具箱', 'tool', false),
+  'archive-page': page('archive-page', '文件解压', '工具箱', 'tool', false),
+  'pdf-page': page('pdf-page', 'PDF 工具箱', '工具箱', 'tool', false),
+  'photoplus-page': page('photoplus-page', '拉取图片', '工具箱', 'tool', false),
+  'sysinfo-page': page('sysinfo-page', '电脑信息', '工具箱', 'tool', false),
+  'disk-clean-page': page('disk-clean-page', '磁盘瘦身', '工具箱', 'tool', false),
+  'spritesheet-page': page('spritesheet-page', '序列帧预览', '工具箱', 'tool', false),
+  'video-frames-page': page('video-frames-page', '视频转序列帧', '工具箱', 'tool', false),
 })
 
 export const APP_PAGE_TITLES: Record<AppPageId, string> = Object.fromEntries(
@@ -72,7 +76,7 @@ export function getAppPageDefinition(pageId: string): AppPageDefinition | undefi
   return APP_PAGE_DEFINITIONS[pageId as AppPageId]
 }
 
-export const TOOL_PAGES: AppPageId[] = [
+export const TOOL_PAGES = [
   'image-page',
   'cutout-page',
   'watermark-page',
@@ -84,4 +88,4 @@ export const TOOL_PAGES: AppPageId[] = [
   'disk-clean-page',
   'spritesheet-page',
   'video-frames-page',
-]
+] as const satisfies readonly AppPageId[]

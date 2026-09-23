@@ -61,3 +61,25 @@ it('requires an explicit production API address and permits local development on
   expect(() => getGameApiBaseUrl(true, { GAME_API_BASE_URL: 'http://localhost:8088' })).toThrow()
   expect(getGameApiBaseUrl(true, { GAME_API_BASE_URL: 'https://game.example/' })).toBe('https://game.example')
 })
+
+it('exposes animal flip room lifecycle and action endpoints', async () => {
+  const calls: Array<{ url: string; method?: string; body?: unknown }> = []
+  const api = createGameApi('https://game.example', async (url, options) => {
+    calls.push({ url: String(url), method: options?.method, body: options?.body && JSON.parse(String(options.body)) })
+    return new Response(JSON.stringify({ code: 200, msg: 'success', data: { room: { id: 7 } } }))
+  })
+  await api.createAnimalFlipRoom('token', 2, 'r1')
+  await api.joinAnimalFlipRoom('token', '123456', 'r2')
+  await api.getAnimalFlipRoom('token', 7)
+  await api.setAnimalFlipReady('token', 7, true, 'r3')
+  await api.submitAnimalFlipAction('token', 7, { type: 'flip', at: 0 }, 0, 'r4')
+  expect(calls.map(call => call.url)).toEqual([
+    'https://game.example/api/game/animal-flip/rooms',
+    'https://game.example/api/game/animal-flip/rooms/join',
+    'https://game.example/api/game/animal-flip/rooms/7',
+    'https://game.example/api/game/animal-flip/rooms/7/ready',
+    'https://game.example/api/game/animal-flip/rooms/7/action',
+  ])
+  expect(calls[0].body).toEqual({ friendId: 2, requestId: 'r1' })
+  expect(calls[4].body).toEqual({ action: { type: 'flip', at: 0 }, actionSeq: 0, requestId: 'r4' })
+})

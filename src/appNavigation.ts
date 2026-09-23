@@ -10,6 +10,7 @@ function syncNavigation(pageId: AppPageId) {
   const title = document.querySelector<HTMLElement>('#workspace-title')
   const eyebrow = document.querySelector<HTMLElement>('#workspace-eyebrow')
   const petNav = document.querySelector<HTMLElement>('#pet-settings-nav')
+  const toolboxBack = document.querySelector<HTMLElement>('#workspace-toolbox-back')
   const definition = getAppPageDefinition(pageId)
   if (!definition) return
   const isHome = pageId === APP_HOME_PAGE
@@ -17,12 +18,14 @@ function syncNavigation(pageId: AppPageId) {
   if (title) title.textContent = definition.title
   if (eyebrow) eyebrow.textContent = definition.eyebrow
   if (petNav) petNav.hidden = false
+  const isToolDetail = definition.group === 'tool' && pageId !== 'toolbox-page'
+  if (toolboxBack) toolboxBack.hidden = !isToolDetail
 
   document.querySelectorAll<HTMLElement>('[data-page]').forEach((button) => {
-    const isActive = button.dataset.page === pageId
+    const isActive = button.dataset.page === pageId || (isToolDetail && button.dataset.page === 'toolbox-page')
     button.hidden = false
     button.classList.toggle('active', isActive)
-    if (isActive) button.setAttribute('aria-current', 'page')
+    if (isActive) button.setAttribute('aria-current', button.dataset.page === pageId ? 'page' : 'location')
     else button.removeAttribute('aria-current')
   })
 }
@@ -47,6 +50,7 @@ export function onPageChange(listener: PageListener) {
 }
 
 export function setupAppNavigation() {
+  document.querySelector<HTMLElement>('#workspace-toolbox-back')?.addEventListener('click', () => navigateToPage('toolbox-page'))
   const globalNav = document.querySelector<HTMLElement>('.sidebar')
     ?? document.querySelector<HTMLElement>('#global-nav')
   globalNav?.addEventListener('click', (event) => {

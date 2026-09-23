@@ -1,6 +1,6 @@
 {
   "name": "mpt",
-  "version": "1.0.25",
+  "version": "1.0.26",
   "description": "MY PET · 以桌面宠物为中心的本地工具箱",
   "author": {
     "name": "MPT",
@@ -14,6 +14,7 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "node scripts/run.mjs vite",
+    "dev:battle": "node scripts/dev-battle.mjs",
     "icons": "node scripts/generate-icons.mjs",
     "build:app": "node scripts/run.mjs tsc --noEmit && node scripts/run.mjs vite build",
     "build": "npm run build:app && electron-builder",

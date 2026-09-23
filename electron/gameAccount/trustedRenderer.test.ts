@@ -23,6 +23,12 @@ it('allows account operations only from the trusted main window top-level frame'
   expect(getTrustedMainWindow(authorization)).toBe(window)
 })
 
+it('preserves additional room-operation arguments across the trusted IPC boundary', async () => {
+  const { event, authorization } = context()
+  const invoke = createAccountIpcHandler(async (roomId: number, ...args: unknown[]) => ({ roomId, args }), authorization)
+  expect(await invoke(event, 7, true, 'room-request')).toEqual({ roomId: 7, args: [true, 'room-request'] })
+})
+
 it('accepts the configured local development main frame', async () => {
   const { event, authorization } = context('http://127.0.0.1:5173/')
   authorization.isTrustedUrl = createTrustedAppUrl({ appFileUrl: fileUrl, isPackaged: false, devServerUrl: 'http://127.0.0.1:5173/' })

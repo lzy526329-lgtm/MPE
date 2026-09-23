@@ -374,3 +374,15 @@ export function peekWalletCoins(
 ): number {
   return readGameState(userDataPath, now, fileOps).state.wallet.coins
 }
+
+/** Applies a balance confirmed by the authoritative friend-battle wallet. */
+export async function applyServerWalletCoins(
+  userDataPath: string,
+  coins: number,
+  now = Date.now(),
+  fileOps: Partial<GameStoreFileOps> = {},
+): Promise<GameState> {
+  if (!Number.isSafeInteger(coins) || coins < 0) throw new Error('Invalid server wallet balance')
+  const result = await withGame(userDataPath, now, async state => ({ ok: true as const, game: { ...state, wallet: { ...state.wallet, coins } } }), fileOps)
+  return result.game
+}

@@ -42,7 +42,7 @@ import type { CutoutRequest, CutoutResult } from './cutout'
 import type { CropId, PlacedDecor, HouseDecorPlacement, HouseSurface } from './farm/farmTypes'
 import type { BaitId, GameActionResult, GameViewState, FoodId, SupplyId, DecorId, FurnitureId } from './game/gameTypes'
 import type { FishingCastResult, FishingReelResult } from './fishing/fishingIpc'
-import type { GameAccountBridge, GamePresenceEvent, GameAccountState } from './gameAccount/types'
+import type { AnimalFlipRealtimeEvent, GameAccountBridge, GamePresenceEvent, GameAccountState } from './gameAccount/types'
 import { installExternalLinkHandler } from './gameAccount/externalLinks'
 
 const removeExternalLinkHandler = installExternalLinkHandler(document, url => ipcRenderer.invoke('app:open-external-link', url))
@@ -65,6 +65,19 @@ const gameAccountBridge: GameAccountBridge = {
   gameAccountRespondFriendRequest: (requestId, action) => ipcRenderer.invoke('game-account:gameAccountRespondFriendRequest', { requestId, action }),
   gameAccountRemoveFriend: userId => ipcRenderer.invoke('game-account:gameAccountRemoveFriend', userId),
   gameAccountUpdateFriendRemark: (userId, remark) => ipcRenderer.invoke('game-account:gameAccountUpdateFriendRemark', { userId, remark }),
+  gameAccountCreateAnimalFlipRoom: (friendId, requestId) => ipcRenderer.invoke('game-account:gameAccountCreateAnimalFlipRoom', friendId, requestId),
+  gameAccountJoinAnimalFlipRoom: (code, requestId) => ipcRenderer.invoke('game-account:gameAccountJoinAnimalFlipRoom', code, requestId),
+  gameAccountGetAnimalFlipRoom: roomId => ipcRenderer.invoke('game-account:gameAccountGetAnimalFlipRoom', roomId),
+  gameAccountSetAnimalFlipReady: (roomId, ready, requestId) => ipcRenderer.invoke('game-account:gameAccountSetAnimalFlipReady', roomId, ready, requestId),
+  gameAccountLeaveAnimalFlipRoom: (roomId, requestId) => ipcRenderer.invoke('game-account:gameAccountLeaveAnimalFlipRoom', roomId, requestId),
+  gameAccountRecoverAnimalFlipRoom: (roomId, requestId) => ipcRenderer.invoke('game-account:gameAccountRecoverAnimalFlipRoom', roomId, requestId),
+  gameAccountSubmitAnimalFlipAction: (roomId, action, actionSeq, requestId) => ipcRenderer.invoke('game-account:gameAccountSubmitAnimalFlipAction', roomId, action, actionSeq, requestId),
+  gameAccountSubscribeAnimalFlipRoom: roomId => ipcRenderer.invoke('game-account:gameAccountSubscribeAnimalFlipRoom', roomId),
+  onAnimalFlipRoomEvent: callback => {
+    const listener = (_event: Electron.IpcRendererEvent, event: AnimalFlipRealtimeEvent) => callback(event)
+    ipcRenderer.on('game-account:animal-flip-event', listener)
+    return () => { ipcRenderer.removeListener('game-account:animal-flip-event', listener) }
+  },
   onGameAccountStateChanged: callback => {
     const listener = (_event: Electron.IpcRendererEvent, state: GameAccountState) => callback(state)
     ipcRenderer.on('game-account:state-changed', listener)

@@ -1,0 +1,26 @@
+.toolbox { max-width: 1040px; margin: 0 auto; }
+.toolbox-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; max-width: none; margin: 10px 0 32px; }
+.toolbox-heading h1 { margin: 0 0 10px; color: var(--shell-ink); }
+.toolbox-heading p { margin: 0; color: var(--shell-muted); font-size: 14px; line-height: 1.6; }
+.toolbox-count { flex: none; border: 1px solid var(--shell-line); border-radius: 999px; padding: 8px 13px; background: var(--shell-surface); color: var(--shell-muted); font-size: 12px; }
+.toolbox-group { --toolbox-color: #6f5cda; --toolbox-tint: #f0edff; margin-bottom: 30px; }
+.toolbox-group--files { --toolbox-color: #327e95; --toolbox-tint: #eaf5f8; }
+.toolbox-group--system { --toolbox-color: #a76b30; --toolbox-tint: #fff3e4; }
+.toolbox-group h2 { margin: 0 0 14px; font-size: 15px; font-weight: 700; color: var(--shell-ink); }
+.toolbox-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 16px; }
+.toolbox-card { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; min-height: 205px; padding: 22px; border: 1px solid var(--shell-line); border-radius: 18px; background: var(--shell-surface); color: var(--shell-ink); font: inherit; text-align: left; cursor: pointer; box-shadow: 0 4px 14px rgba(52, 45, 93, .025); transition: border-color 160ms ease, box-shadow 160ms ease; }
+.toolbox-card:hover { border-color: var(--toolbox-color); box-shadow: 0 10px 26px rgba(52, 45, 93, .08); }
+.toolbox-card:focus-visible { outline: 3px solid var(--toolbox-color); outline-offset: 3px; }
+.toolbox-icon { display: grid; place-items: center; width: 42px; height: 42px; margin-bottom: 16px; border-radius: 12px; background: var(--toolbox-tint); color: var(--toolbox-color); }
+.toolbox-icon svg { width: 24px; height: 24px; }
+.toolbox-card-title { font-size: 16px; font-weight: 700; }
+.toolbox-card-description { margin-top: 7px; color: var(--shell-muted); font-size: 12px; line-height: 1.7; }
+.toolbox-card-enter { display: flex; justify-content: space-between; align-items: center; gap: 16px; width: 100%; margin-top: auto; padding-top: 18px; color: var(--toolbox-color); font-size: 12px; font-weight: 600; }
+.toolbox-card-enter > span { font-size: 18px; }
+#workspace-toolbox-back { flex: none; padding: 8px 12px; border: 1px solid var(--shell-line); border-radius: 10px; background: var(--shell-surface); }
+#workspace-toolbox-back:focus-visible { outline: 3px solid var(--shell-accent); outline-offset: 2px; }
+@media (max-width: 640px) {
+  .toolbox-heading { align-items: flex-start; flex-direction: column; gap: 12px; margin-bottom: 24px; }
+  .toolbox-grid { gap: 12px; }
+  .toolbox-card { padding: 18px; min-height: 185px; }
+}

@@ -1,6 +1,8 @@
 import { app, BrowserWindow, dialog, ipcMain, session, shell } from 'electron'
 import { registerPetIpc, restorePetIfNeeded, isPetOpen, onPetEnabledChange } from './pet'
 import path from 'node:path'
+import fs from 'node:fs'
+import { resolveBattleTestProfile } from './battleTestProfile'
 import { pathToFileURL } from 'node:url'
 import { compressImage, type CompressRequest } from './compress'
 import { cutoutImage, type CutoutRequest } from './cutout'
@@ -53,6 +55,14 @@ import {
   type WatermarkPdfRequest,
 } from './pdf'
 
+// Select the data directory before acquiring the instance lock or opening any stores.
+const battleTestProfile = resolveBattleTestProfile(app.isPackaged, process.env.MPT_TEST_PROFILE, app.getPath('userData'))
+if (battleTestProfile) {
+  fs.mkdirSync(battleTestProfile.userData, { recursive: true })
+  app.setPath('userData', battleTestProfile.userData)
+  app.setPath('sessionData', battleTestProfile.userData)
+}
+
 process.env.DIST = path.join(__dirname, '../dist')
 process.env.VITE_PUBLIC = app.isPackaged
   ? process.env.DIST
@@ -83,7 +93,8 @@ function createWindow(show = false) {
     width: 960,
     height: 720,
     show,
-    title: 'MPT',
+    title: battleTestProfile?.title || 'MPT',
+    ...(battleTestProfile ? { x: battleTestProfile.id === 'A' ? 30 : 150, y: battleTestProfile.id === 'A' ? 50 : 100 } : {}),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -91,9 +102,16 @@ function createWindow(show = false) {
     },
   })
   guardMainWindowNavigation(win.webContents, isTrustedMainUrl)
+  if (battleTestProfile) {
+    win.on('page-title-updated', event => event.preventDefault())
+    win.webContents.once('did-finish-load', () => {
+      console.log(`[battle-test] ${battleTestProfile.id} ready: ${battleTestProfile.userData}`)
+    })
+  }
 
   // 点关闭时隐藏到托盘，不退出（托盘「退出 MPT」才真正退出）
   win.on('close', (event) => {
+    if (battleTestProfile) { if (!isAppQuitting()) app.quit(); return }
     if (!isAppQuitting()) {
       event.preventDefault()
       win?.hide()
@@ -325,12 +343,14 @@ if (!gotSingleInstanceLock) {
     registerFishingIpc(() => win)
     registerHouseIpc(() => win)
     registerUpdaterIpc(() => win)
-    createWindow(false)
-    restorePetIfNeeded()
-    trayApi = createAppTray({
-      showMainWindow: ensureMainWindow,
-      hideMainWindow,
-    })
-    onPetEnabledChange(() => trayApi?.refresh())
+    createWindow(Boolean(battleTestProfile))
+    if (!battleTestProfile) {
+      restorePetIfNeeded()
+      trayApi = createAppTray({
+        showMainWindow: ensureMainWindow,
+        hideMainWindow,
+      })
+      onPetEnabledChange(() => trayApi?.refresh())
+    }
   })
 }

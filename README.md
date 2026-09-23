@@ -28,7 +28,7 @@ sudo xattr -cr /Applications/MPT.app
 | 工作关怀 | 检测到连续用电脑约 30 分钟，提醒起来休息（空闲约 5 分钟后可再提醒） |
 | AI 文案（可选） | 对话页开启后，主动搭话与照顾反馈可走 DeepSeek |
 | 长期记忆 | 照顾、改名、会话摘要写入本机记忆，对话时注入上下文 |
-| 小游戏 | 右键「小游戏 → 打小球」：规则与攻击范围见角色 `meta.json` 的 `skills` / `minigames.ballHit` |
+| 小游戏 | 右键「小游戏 → 打小球」：规则与攻击范围见角色 `meta.json` 的 `skills` / `minigames.ballHit`；主窗口「玩法 → 象狮虎豹」支持红方对战电脑的翻牌、移动与吃牌 |
 | 农场 | 6 格田种菜：播种、浇水、赶虫、收割；离线生长；缺水 / 枯萎 / 雨天 / 生虫事件；收获进背包，每日可领种子；右键或主窗口进入 |
 
 性格会影响衰减倍率与走动习惯（火象更易饿、土象更稳等）。成长值 / 金币已建档，玩法仍在扩展。
@@ -50,6 +50,20 @@ GAME_API_BASE_URL=https://YOUR_GAME_API_HOST npm run build:app
 `npm test` 包含账号 API、会话、同步、界面及本地文件保护测试；`electron/gameAccount/e2e-fixtures.ts` 提供完整版本 2 测试存档，`e2e.test.ts` 验证响应协议经过真实 API 客户端和同步协调器后的行为，使用假传输和临时文件，不发送实际网络请求。
 
 安装版通过 `file://` 加载 `dist/index.html` 与 `dist/pet.html`。构建后核对 HTML、动态资源和图片均为相对路径并实际存在；在 macOS 可使用 `CSC_IDENTITY_AUTO_DISCOVERY=false ./node_modules/.bin/electron-builder --mac --dir --publish never` 生成未签名的本地检查包，不触发发布。
+
+## 本地好友对战双开测试
+
+先启动 `gognju-server/server` 的本地后端（`npm start`，端口 8088），停止普通 `npm run dev` 后，在本项目执行：
+
+```bash
+npm run dev:battle
+```
+
+将自动打开「本地对战测试 A / B」两个窗口，统一连接 `http://localhost:8088`，不会使用 shell 中配置的线上 API 地址。两边分别登录不同测试账号、互加好友，再创建房间并邀请，或通过房间码加入。每个账号至少需要 10 金币，双方准备后开始对局。
+
+两个窗口的账号、设备标识、缓存和存档独立保存到默认用户资料目录旁的 `mpt-battle-test/A` 与 `mpt-battle-test/B`（macOS 通常在 `~/Library/Application Support/` 下）。下次启动会保留各自登录状态。此隔离只针对客户端资料，本地后端所连的数据库由后端配置决定。
+
+关闭其中一个窗口可测试掉线；关闭两个窗口或在终端按 Ctrl+C 会结束双开。此入口仅用于开发，不改变正式安装版的单实例行为。更新主进程或预加载代码会重启两个测试端，前端改动继续使用热更新。
 
 ## AI 对话
 
@@ -101,4 +115,3 @@ You are free to use, copy and modify this project for personal learning and non-
 
 Commercial use of any part of this repository requires a separate commercial license from the author.
 If you need commercial authorization, please contact the author.
-

@@ -54,3 +54,31 @@ describe('game realtime client', () => {
     expect(FakeSocket.instances).toHaveLength(2)
   })
 })
+
+it('forwards animal flip room events and can send room subscriptions', () => {
+  FakeSocket.instances = []
+  const onEvent = vi.fn()
+  const realtime = createGameRealtime({
+    url: 'ws://localhost:8088/ws/game', getToken: () => 'private-token', WebSocketImpl: FakeSocket as never, onEvent,
+  })
+  realtime.start()
+  realtime.send({ type: 'animal_flip.subscribe', roomId: 7 })
+  expect(JSON.parse(FakeSocket.instances[0].sent[0])).toEqual({ type: 'animal_flip.subscribe', roomId: 7 })
+  FakeSocket.instances[0].message(JSON.stringify({ type: 'animal_flip.room_snapshot', roomId: 7, room: { id: 7 }, snapshot: null }))
+  expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'animal_flip.room_snapshot', roomId: 7 }))
+  realtime.stop()
+})
+
+it('clears online friends on disconnect so offline clients cannot keep inviting', () => {
+  FakeSocket.instances = []
+  const onEvent = vi.fn()
+  const realtime = createGameRealtime({
+    url: 'ws://localhost:8088/ws/game', getToken: () => 'token', WebSocketImpl: FakeSocket as never,
+    onEvent, setTimeout: () => 1 as never, clearTimeout: vi.fn(),
+  })
+  realtime.start()
+  FakeSocket.instances[0].message(JSON.stringify({ type: 'presence.snapshot', onlineUserIds: [2] }))
+  FakeSocket.instances[0].close()
+  expect(onEvent).toHaveBeenLastCalledWith({ type: 'presence.snapshot', onlineUserIds: [] })
+  realtime.stop()
+})
