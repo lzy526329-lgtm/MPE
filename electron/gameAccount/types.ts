@@ -1,3 +1,5 @@
+import type { PlacedDecor } from '../farm/farmTypes'
+
 export type GameUser = { id: number | string; uid: string; email: string; nickname: string | null; status: number }
 export type GameAccountSession = {
   userId: number | string
@@ -26,6 +28,9 @@ export type FriendRequest = {
 }
 export type FriendSearchResult = { user: FriendUser; relation: 'none' | 'incoming' | 'outgoing' | 'friend' }
 export type FriendList = { friends: FriendUser[]; incomingRequests: FriendRequest[]; outgoingRequests: FriendRequest[] }
+export type FarmVisitPlot = { status: 'empty' | 'locked' | 'growing' | 'ready'; cropId?: string; plantedAt?: number; lastWateredAt?: number; progressMs?: number; hasBug?: boolean; stolen?: boolean; remainingYield?: number }
+export type FriendFarm = { version: number; plotCount: number; weather: 'clear' | 'rain'; totalXp: number; placedDecors?: PlacedDecor[]; plots: FarmVisitPlot[] }
+export type FarmVisitLog = { id: number | string; ownerUserId: number | string; visitorUserId: number | string; visitorUid?: string; visitorNickname?: string | null; action: 'viewed' | 'stolen'; plotIndex?: number | null; cropId?: string | null; quantity: number; createdAt: string }
 
 export type AnimalFlipAction =
   | { type: 'flip'; at: number }
@@ -43,6 +48,14 @@ export type AnimalFlipRealtimeEvent =
 export type GamePresenceEvent =
   | { type: 'presence.snapshot'; onlineUserIds: Array<number | string> }
   | { type: 'presence.changed'; userId: number | string; online: boolean }
+export type FarmVisitRealtimeEvent = {
+  type: 'farm.visit'
+  visitorId: number | string
+  action: 'viewed' | 'stolen'
+  cropId?: string
+  quantity?: number
+  logId?: number | string
+}
 export type AuthResult = { user: GameUser; token: string; expiresAt: string }
 export type SaveSummary = { coins: number; farmTotalXp: number; totalCaught: number; clientUpdatedAt: string | null; sourceDeviceId: string }
 export type CloudSave = {
@@ -85,6 +98,9 @@ export type GameAccountBridge = {
   gameAccountRespondFriendRequest: (requestId: number | string, action: 'accept' | 'reject') => Promise<AccountResult<{ status: string; request: FriendRequest }>>
   gameAccountRemoveFriend: (userId: number | string) => Promise<AccountResult<Record<string, never>>>
   gameAccountUpdateFriendRemark: (userId: number | string, remark: string) => Promise<AccountResult<{ remark: string }>>
+  gameAccountGetFriendFarm: (userId: number | string, recordVisit?: boolean) => Promise<AccountResult<{ owner: FriendUser; farm: FriendFarm; log: FarmVisitLog | null }>>
+  gameAccountStealFriendFarm: (userId: number | string, plotIndex: number) => Promise<AccountResult<{ cropId: string; quantity: number; remainingYield: number; log: FarmVisitLog }>>
+  gameAccountListFarmVisits: () => Promise<AccountResult<{ logs: FarmVisitLog[] }>>
   gameAccountCreateAnimalFlipRoom: (friendId: number | string, requestId?: string) => Promise<AccountResult<AnimalFlipRoomResult>>
   gameAccountJoinAnimalFlipRoom: (code: string, requestId?: string) => Promise<AccountResult<AnimalFlipRoomResult>>
   gameAccountGetAnimalFlipRoom: (roomId: number | string) => Promise<AccountResult<AnimalFlipRoomResult>>
@@ -96,4 +112,5 @@ export type GameAccountBridge = {
   onAnimalFlipRoomEvent: (callback: (event: AnimalFlipRealtimeEvent) => void) => () => void
   onGameAccountStateChanged: (callback: (state: GameAccountState) => void) => () => void
   onGameAccountPresenceChanged?: (callback: (event: GamePresenceEvent) => void) => () => void
+  onGameAccountFarmVisit?: (callback: (event: FarmVisitRealtimeEvent) => void) => () => void
 }

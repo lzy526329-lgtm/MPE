@@ -278,7 +278,9 @@ export function harvest(
   const crop = getCrop(plot.cropId)
   const span = crop.yieldMax - crop.yieldMin + 1
   const roll = Math.max(0, Math.min(0.999999999, rng()))
-  const amount = crop.yieldMin + Math.floor(roll * span)
+  const amount = plot.remainingYield !== undefined
+    ? plot.remainingYield
+    : crop.yieldMin + Math.floor(roll * span)
 
   return success(
     replacePlot(

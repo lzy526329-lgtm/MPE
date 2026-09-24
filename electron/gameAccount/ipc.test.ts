@@ -30,12 +30,15 @@ function setup() {
     respondFriendRequest: vi.fn().mockResolvedValue({ status: 'accepted', request: { id: 1, requesterId: 42, recipientId: 7, status: 'accepted' } }),
     removeFriend: vi.fn().mockResolvedValue({}),
     updateFriendRemark: vi.fn().mockResolvedValue({ remark: '小王' }),
+    getFriendFarm: vi.fn().mockResolvedValue({ owner: { id: 7, uid: '123456789', nickname: 'Friend' }, farm: { version: 1, plotCount: 24, weather: 'clear', totalXp: 0, plots: [] }, log: { id: 1, action: 'viewed', quantity: 0 } }),
+    stealFriendFarm: vi.fn().mockResolvedValue({ cropId: 'wheat', quantity: 1, remainingYield: 1, log: { id: 2, action: 'stolen', quantity: 1 } }),
+    listFarmVisits: vi.fn().mockResolvedValue({ logs: [] }),
   }
   const sync = createSyncCoordinator({ userDataPath: dir, api, sessionStore: store })
   cleanup.push(() => sync.dispose())
   const realtime = { start: vi.fn(), stop: vi.fn() }
   const handlers = createGameAccountHandlers({ api, store, sync, realtime, deviceName: 'Test desktop' })
-  return { api, handlers, store, dir, auth, realtime }
+  return { api, handlers, store, dir, auth, realtime, sync }
 }
 afterEach(() => cleanup.splice(0).reverse().forEach(fn => fn()))
 
@@ -70,6 +73,26 @@ it('routes friend operations through the authenticated main-process session', as
   expect(api.listFriends).toHaveBeenCalledWith('private-token')
   expect(api.removeFriend).toHaveBeenCalledWith('private-token', 7)
   expect(api.updateFriendRemark).toHaveBeenCalledWith('private-token', 7, '小王')
+})
+
+it('routes farm visits through the authenticated main-process session', async () => {
+  const { handlers, api } = setup()
+  await handlers.gameAccountLogin({ email: 'player@example.com', password: 'Password1' })
+  await handlers.gameAccountGetFriendFarm(7)
+  await handlers.gameAccountStealFriendFarm(7, 2)
+  await handlers.gameAccountListFarmVisits()
+  expect(api.getFriendFarm).toHaveBeenCalledWith('private-token', 7)
+  expect(api.stealFriendFarm).toHaveBeenCalledWith('private-token', 7, 2)
+  expect(api.listFarmVisits).toHaveBeenCalledWith('private-token')
+})
+
+it('syncs the visitor cloud save after stealing a friend crop', async () => {
+  const { handlers, api, sync } = setup()
+  await handlers.gameAccountLogin({ email: 'player@example.com', password: 'Password1' })
+  const syncNow = vi.spyOn(sync, 'syncNow').mockResolvedValue()
+  await handlers.gameAccountStealFriendFarm(7, 2)
+  expect(api.stealFriendFarm).toHaveBeenCalledWith('private-token', 7, 2)
+  expect(syncNow).toHaveBeenCalledTimes(1)
 })
 
 it('does not restore a login that finishes after a user has logged out', async () => {

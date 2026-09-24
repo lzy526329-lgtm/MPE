@@ -1,4 +1,4 @@
-import type { AnimalFlipAction, AnimalFlipRoomResult, AuthResult, ChangePasswordRequest, Device, EmailCodeRequest, FriendList, FriendSearchResult, GameUser, LoginRequest, RegisterRequest, ResetPasswordRequest, SaveResolution, SaveResult, SaveUpload } from './types'
+import type { AnimalFlipAction, AnimalFlipRoomResult, AuthResult, ChangePasswordRequest, Device, EmailCodeRequest, FriendFarm, FriendList, FriendSearchResult, FarmVisitLog, GameUser, LoginRequest, RegisterRequest, ResetPasswordRequest, SaveResolution, SaveResult, SaveUpload } from './types'
 
 export class GameApiError extends Error {
   constructor(public code: string, message: string, public status = 0, public data?: unknown) {
@@ -48,6 +48,9 @@ export function createGameApi(baseUrl: string, transport: GameTransport = fetch)
     respondFriendRequest: (token: string, requestId: number | string, action: 'accept' | 'reject') => request<{ status: string; request: FriendList['incomingRequests'][number] }>(`/friends/requests/${encodeURIComponent(String(requestId))}/respond`, 'POST', { action }, token),
     removeFriend: (token: string, userId: number | string) => request<Record<string, never>>(`/friends/${encodeURIComponent(String(userId))}`, 'DELETE', undefined, token),
     updateFriendRemark: (token: string, userId: number | string, remark: string) => request<{ remark: string }>(`/friends/${encodeURIComponent(String(userId))}`, 'PATCH', { remark }, token),
+    getFriendFarm: (token: string, userId: number | string, recordVisit = true) => request<{ owner: FriendList['friends'][number]; farm: FriendFarm; log: FarmVisitLog | null }>(`/friends/${encodeURIComponent(String(userId))}/farm${recordVisit ? '' : '?recordVisit=0'}`, 'GET', undefined, token),
+    stealFriendFarm: (token: string, userId: number | string, plotIndex: number) => request<{ cropId: string; quantity: number; remainingYield: number; log: FarmVisitLog }>(`/friends/${encodeURIComponent(String(userId))}/farm/steal`, 'POST', { plotIndex }, token),
+    listFarmVisits: (token: string) => request<{ logs: FarmVisitLog[] }>('/farm/visits', 'GET', undefined, token),
     createAnimalFlipRoom: (token: string, friendId: number | string, requestId?: string) => request<AnimalFlipRoomResult>('/animal-flip/rooms', 'POST', { friendId, ...(requestId ? { requestId } : {}) }, token),
     joinAnimalFlipRoom: (token: string, code: string, requestId?: string) => request<AnimalFlipRoomResult>('/animal-flip/rooms/join', 'POST', { code, ...(requestId ? { requestId } : {}) }, token),
     getAnimalFlipRoom: (token: string, roomId: number | string) => request<AnimalFlipRoomResult>(`/animal-flip/rooms/${encodeURIComponent(String(roomId))}`, 'GET', undefined, token),

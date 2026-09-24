@@ -12,6 +12,9 @@ export type PlotPlanted = {
   lastWateredAt: number
   progressMs: number
   hasBug?: boolean
+  /** Server-side farm stealing marker. A stolen ready plot keeps the remainder. */
+  stolen?: boolean
+  remainingYield?: number
 }
 
 export type PlotState = PlotEmpty | PlotLocked | PlotPlanted

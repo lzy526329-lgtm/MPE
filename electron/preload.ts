@@ -42,7 +42,7 @@ import type { CutoutRequest, CutoutResult } from './cutout'
 import type { CropId, PlacedDecor, HouseDecorPlacement, HouseSurface } from './farm/farmTypes'
 import type { BaitId, GameActionResult, GameViewState, FoodId, SupplyId, DecorId, FurnitureId } from './game/gameTypes'
 import type { FishingCastResult, FishingReelResult } from './fishing/fishingIpc'
-import type { AnimalFlipRealtimeEvent, GameAccountBridge, GamePresenceEvent, GameAccountState } from './gameAccount/types'
+import type { AnimalFlipRealtimeEvent, FarmVisitRealtimeEvent, GameAccountBridge, GamePresenceEvent, GameAccountState } from './gameAccount/types'
 import { installExternalLinkHandler } from './gameAccount/externalLinks'
 
 const removeExternalLinkHandler = installExternalLinkHandler(document, url => ipcRenderer.invoke('app:open-external-link', url))
@@ -65,6 +65,9 @@ const gameAccountBridge: GameAccountBridge = {
   gameAccountRespondFriendRequest: (requestId, action) => ipcRenderer.invoke('game-account:gameAccountRespondFriendRequest', { requestId, action }),
   gameAccountRemoveFriend: userId => ipcRenderer.invoke('game-account:gameAccountRemoveFriend', userId),
   gameAccountUpdateFriendRemark: (userId, remark) => ipcRenderer.invoke('game-account:gameAccountUpdateFriendRemark', { userId, remark }),
+  gameAccountGetFriendFarm: (userId, recordVisit) => ipcRenderer.invoke('game-account:gameAccountGetFriendFarm', userId, recordVisit),
+  gameAccountStealFriendFarm: (userId, plotIndex) => ipcRenderer.invoke('game-account:gameAccountStealFriendFarm', { userId, plotIndex }),
+  gameAccountListFarmVisits: () => ipcRenderer.invoke('game-account:gameAccountListFarmVisits'),
   gameAccountCreateAnimalFlipRoom: (friendId, requestId) => ipcRenderer.invoke('game-account:gameAccountCreateAnimalFlipRoom', friendId, requestId),
   gameAccountJoinAnimalFlipRoom: (code, requestId) => ipcRenderer.invoke('game-account:gameAccountJoinAnimalFlipRoom', code, requestId),
   gameAccountGetAnimalFlipRoom: roomId => ipcRenderer.invoke('game-account:gameAccountGetAnimalFlipRoom', roomId),
@@ -87,6 +90,11 @@ const gameAccountBridge: GameAccountBridge = {
     const listener = (_event: Electron.IpcRendererEvent, event: GamePresenceEvent) => callback(event)
     ipcRenderer.on('game-account:presence-changed', listener)
     return () => { ipcRenderer.removeListener('game-account:presence-changed', listener) }
+  },
+  onGameAccountFarmVisit: callback => {
+    const listener = (_event: Electron.IpcRendererEvent, event: FarmVisitRealtimeEvent) => callback(event)
+    ipcRenderer.on('game-account:farm-visit', listener)
+    return () => { ipcRenderer.removeListener('game-account:farm-visit', listener) }
   },
 }
 

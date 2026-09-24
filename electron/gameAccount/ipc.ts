@@ -184,6 +184,21 @@ export function createGameAccountHandlers({ api, store, sync, deviceName, userDa
       }
       return api.updateFriendRemark(token, value, remarkField((requestInput as Record<string, unknown>).remark)).then((result: unknown) => { realtime?.refresh?.(); return result })
     }),
+    gameAccountGetFriendFarm: (input, recordVisit = true) => protectedCall(token => recordVisit === false
+      ? api.getFriendFarm(token, positiveId(input), false)
+      : api.getFriendFarm(token, positiveId(input))),
+    gameAccountStealFriendFarm: (input, plotArgument) => protectedCall(async token => {
+      const requestInput: unknown = plotArgument === undefined ? input : { userId: input, plotIndex: plotArgument }
+      if (!requestInput || typeof requestInput !== 'object' || Array.isArray(requestInput)) throw new GameApiError('VALIDATION_ERROR', 'Invalid request')
+      const value = (requestInput as Record<string, unknown>).userId
+      const plotIndex = (requestInput as Record<string, unknown>).plotIndex
+      if ((typeof value !== 'number' && typeof value !== 'string') || !Number.isSafeInteger(Number(value)) || Number(value) <= 0 || !Number.isSafeInteger(plotIndex) || Number(plotIndex) < 0) throw new GameApiError('VALIDATION_ERROR', 'Invalid farm plot')
+      const result = await api.stealFriendFarm(token, value, plotIndex)
+      // 偷取接口同时更新了访问者的云存档，立即应用云端结果，确保背包马上显示收益。
+      try { await sync.syncNow() } catch { /* 云端收益已提交，下一次同步继续应用。 */ }
+      return result
+    }),
+    gameAccountListFarmVisits: () => protectedCall(token => api.listFarmVisits(token)),
   }
 }
 
@@ -205,6 +220,7 @@ export function registerGameAccountIpc(getMain: () => BrowserWindow | null, isTr
     getToken: () => store.getSession()?.token,
     onEvent: event => {
       if (event.type.startsWith('animal_flip.')) getTrustedMainWindow(authorization)?.webContents.send('game-account:animal-flip-event', event)
+      else if (event.type === 'farm.visit') getTrustedMainWindow(authorization)?.webContents.send('game-account:farm-visit', event)
       else getTrustedMainWindow(authorization)?.webContents.send('game-account:presence-changed', event)
     },
   })

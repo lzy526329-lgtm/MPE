@@ -49,6 +49,8 @@ function normalizePlot(value: unknown): PlotState {
     typeof value.progressMs !== 'number' ||
     !Number.isFinite(value.progressMs) ||
     (value.hasBug !== undefined && typeof value.hasBug !== 'boolean')
+    || (value.stolen !== undefined && typeof value.stolen !== 'boolean')
+    || (value.remainingYield !== undefined && (typeof value.remainingYield !== 'number' || !Number.isSafeInteger(value.remainingYield) || value.remainingYield < 0))
   ) {
     return { status: 'empty' }
   }
@@ -59,6 +61,8 @@ function normalizePlot(value: unknown): PlotState {
     lastWateredAt: value.lastWateredAt,
     progressMs: value.progressMs,
     ...(value.hasBug ? { hasBug: true } : {}),
+    ...(value.stolen ? { stolen: true } : {}),
+    ...(value.remainingYield !== undefined ? { remainingYield: value.remainingYield as number } : {}),
   }
 }
 
@@ -111,6 +115,8 @@ function isPlotState(value: unknown): value is PlotState {
     typeof value.progressMs === 'number' &&
     Number.isFinite(value.progressMs) &&
     (value.hasBug === undefined || typeof value.hasBug === 'boolean')
+    && (value.stolen === undefined || typeof value.stolen === 'boolean')
+    && (value.remainingYield === undefined || (typeof value.remainingYield === 'number' && Number.isSafeInteger(value.remainingYield) && value.remainingYield >= 0))
   )
 }
 

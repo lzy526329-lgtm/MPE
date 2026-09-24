@@ -38,6 +38,23 @@ it('supports UID friend search, requests, responses, and list retrieval', async 
   expect(JSON.parse(String(calls[4].options?.body))).toEqual({ remark: '小王' })
 })
 
+it('supports friend farm visits, stealing, and owner logs', async () => {
+  const calls: Array<{ url: string; method?: string; body?: unknown }> = []
+  const api = createGameApi('https://game.example', async (url, options) => {
+    calls.push({ url: String(url), method: options?.method, body: options?.body && JSON.parse(String(options.body)) })
+    return new Response(JSON.stringify({ code: 200, msg: 'success', data: { owner: { id: 7 }, farm: { plots: [] }, logs: [] } }))
+  })
+  await api.getFriendFarm('token', 7)
+  await api.stealFriendFarm('token', 7, 2)
+  await api.listFarmVisits('token')
+  expect(calls.map(call => call.url)).toEqual([
+    'https://game.example/api/game/friends/7/farm',
+    'https://game.example/api/game/friends/7/farm/steal',
+    'https://game.example/api/game/farm/visits',
+  ])
+  expect(calls[1].body).toEqual({ plotIndex: 2 })
+})
+
 it('preserves stable error codes and conflict details', async () => {
   const api = createGameApi('https://game.example', async () => new Response(JSON.stringify({
     code: 'SAVE_CONFLICT', msg: 'choose a save', data: { status: 'conflict', save: { revision: 4 } },

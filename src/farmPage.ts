@@ -1,7 +1,8 @@
 import { CROPS, plotUnlockRequirement } from '../electron/farm/farmCatalog'
 import { getCropShopImgPath } from '../electron/farm/cropCatalog'
-import { xpRemainingToLevel } from '../electron/farm/farmLevel'
+import { farmXpProgress, xpRemainingToLevel } from '../electron/farm/farmLevel'
 import type { CropId, FarmPageContext, FarmState, PlotState, Weather } from '../electron/farm/farmTypes'
+import type { FarmVisitLog, FriendFarm, FriendUser } from '../electron/gameAccount/types'
 import {
   cropGrowthStage,
   cropSpriteStyle,
@@ -35,10 +36,54 @@ const WEATHER_LABEL: Record<Weather, string> = {
   rain: '🌧️ 雨天（自动浇水）',
 }
 
-function escapeHtml(value: string) {
-  const element = document.createElement('span')
-  element.textContent = value
-  return element.innerHTML
+function escapeHtml(value: string | number | null | undefined) {
+  return String(value ?? '').replace(/[&<>'"]/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    "'": '&#39;',
+    '"': '&quot;',
+  })[character]!)
+}
+
+function showFarmDialog(title: string, message: string): void {
+  document.querySelector('.farm-action-dialog')?.remove()
+  const modal = document.createElement('div')
+  modal.className = 'farm-action-dialog'
+  modal.setAttribute('role', 'presentation')
+  modal.innerHTML = `<section class="farm-action-dialog__panel" role="dialog" aria-modal="true" aria-label="${escapeHtml(title)}"><h3>${escapeHtml(title)}</h3><p>${escapeHtml(message)}</p><button class="primary-button" type="button" data-farm-dialog-close>知道了</button></section>`
+  const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') close() }
+  const close = () => { document.removeEventListener('keydown', onKeyDown); modal.remove() }
+  modal.addEventListener('click', event => {
+    if (event.target === modal || (event.target as Element).closest('[data-farm-dialog-close]')) close()
+  })
+  document.addEventListener('keydown', onKeyDown)
+  document.body.appendChild(modal)
+  modal.querySelector<HTMLButtonElement>('[data-farm-dialog-close]')?.focus()
+}
+
+export type FarmFriendPickerState = {
+  friends: FriendUser[]
+  onlineUserIds: Array<number | string>
+  loading: boolean
+  message: string | null
+  query?: string
+}
+
+export function renderFarmFriendPicker(state: FarmFriendPickerState): string {
+  const query = (state.query ?? '').trim().toLocaleLowerCase()
+  const friends = [...state.friends]
+    .sort((a, b) => Number(state.onlineUserIds.some(id => String(id) === String(b.id))) - Number(state.onlineUserIds.some(id => String(id) === String(a.id))))
+    .filter(friend => !query || [friend.nickname, friend.remark, friend.uid].filter(Boolean).some(value => String(value).toLocaleLowerCase().includes(query)))
+  const rows = state.loading
+    ? '<li class="farm-friend-picker-empty">加载好友中…</li>'
+    : friends.length
+      ? friends.map(friend => {
+        const online = state.onlineUserIds.some(id => String(id) === String(friend.id))
+        return `<li class="farm-friend-picker-row"><span class="farm-friend-picker-identity"><strong>${escapeHtml(friend.remark || friend.nickname || '未命名玩家')}</strong>${friend.remark && friend.nickname ? `<small>昵称：${escapeHtml(friend.nickname)}</small>` : ''}<small>UID：${escapeHtml(friend.uid)}</small><small class="account-friend-presence ${online ? 'is-online' : 'is-offline'}">${online ? '好友在线' : '好友离线'}</small></span><button class="secondary-button" type="button" data-farm-friend-id="${escapeHtml(friend.id)}">进入农场</button></li>`
+      }).join('')
+      : `<li class="farm-friend-picker-empty">${query ? '没有匹配的好友。' : '还没有好友，先去好友页添加好友。'}</li>`
+  return `<aside class="farm-friend-picker" aria-label="好友农场列表"><div class="farm-friend-picker-heading"><div><strong>好友农场</strong><p>在线好友优先显示。</p></div><button class="text-button" type="button" data-farm-action="close-friends">关闭</button></div><input class="farm-friend-picker-search" type="search" data-farm-friend-search value="${escapeHtml(state.query ?? '')}" placeholder="搜索昵称、备注或 UID" aria-label="搜索好友" />${state.message ? `<p class="account-message account-message--info">${escapeHtml(state.message)}</p>` : ''}<ul>${rows}</ul></aside>`
 }
 
 function waterIntervalMs(cropId: CropId, weather: Weather): number {
@@ -56,12 +101,32 @@ function getPlotDisplayStatus(plot: PlotState, weather: Weather, now: number): P
   return 'growing'
 }
 
+export function renderFarmPlotBadges(display: PlotDisplayStatus, visitMode: boolean, stolen: boolean): string {
+  const badges: string[] = []
+  const stealable = visitMode && display === 'ready' && !stolen
+  if (stealable) badges.push('<span class="farm-plot-badge farm-plot-badge--steal">偷取</span>')
+  if (display === 'bug') badges.push('<span class="farm-plot-badge farm-plot-badge--bug">虫</span>')
+  if (display === 'ready') badges.push('<span class="farm-plot-badge farm-plot-badge--ready">熟</span>')
+  if (display === 'dry') badges.push('<span class="farm-plot-badge farm-plot-badge--dry">旱</span>')
+  return badges.join('')
+}
+
+type FarmVisitContext = { owner: FriendUser; farm: FriendFarm }
+let pendingFarmVisit: FarmVisitContext | null = null
+let farmVisitListener: ((event: Event) => void) | undefined
+
+export function openFriendFarm(visit: FarmVisitContext): void {
+  pendingFarmVisit = visit
+  window.dispatchEvent(new CustomEvent('farm:visit'))
+}
+
 function renderPlot(
   plot: PlotState,
   index: number,
   state: FarmState,
   now: number,
   context: FarmPageContext,
+  visitMode = false,
 ): string {
   const display = getPlotDisplayStatus(plot, state.weather, now)
   const planted = plot.status === 'growing' || plot.status === 'ready' ? plot : null
@@ -79,21 +144,18 @@ function renderPlot(
       ? `<div class="farm-crop-sprite" style="${cropSpriteStyle(planted.cropId, stage)}" title="${escapeHtml(crop.name)}"></div>`
       : ''
 
-  const badges: string[] = []
-  if (display === 'bug') badges.push('<span class="farm-plot-badge farm-plot-badge--bug">虫</span>')
-  if (display === 'ready') badges.push('<span class="farm-plot-badge farm-plot-badge--ready">熟</span>')
-  if (display === 'dry') badges.push('<span class="farm-plot-badge farm-plot-badge--dry">旱</span>')
-
   const soilLayer = soil
     ? `<img class="farm-plot-soil" src="${soil}" alt="" draggable="false" />`
     : ''
   const unlockLabel = display === 'locked' ? '<span class="farm-plot-unlock-label">解锁</span>' : ''
 
+  const plantedStolen = planted?.stolen === true
+  const visitStealable = visitMode && display === 'ready' && !plantedStolen
   return `
-    <button class="farm-plot-tile farm-plot-tile--${display}" type="button" data-plot="${index}" aria-label="地块 ${index + 1}${display === 'locked' ? ' 解锁' : ''}">
+    <button class="farm-plot-tile farm-plot-tile--${display}" type="button" data-plot="${index}" ${visitStealable ? 'data-visit-stealable="true"' : ''} aria-label="地块 ${index + 1}${display === 'locked' ? ' 解锁' : ''}">
       ${soilLayer}
       ${cropLayer}
-      <div class="farm-plot-badges">${badges.join('')}</div>
+      <div class="farm-plot-badges${visitStealable ? ' farm-plot-badges--stealable' : ''}">${renderFarmPlotBadges(display, visitMode, plantedStolen)}</div>
       ${unlockLabel}
     </button>
   `
@@ -154,26 +216,34 @@ function renderFarm(
   toast: string,
   context: FarmPageContext,
   decors: FarmDecorDef[],
+  visit?: FarmVisitContext,
+  friendPickerOpen = false,
+  friendPicker?: FarmFriendPickerState,
+  friendFarmRefreshing = false,
 ): string {
   return `
+    <div class="farm-page-actions" role="toolbar" aria-label="农场操作">
+        ${visit ? '<button class="secondary-button" type="button" data-farm-action="back">返回我的农场</button><button class="secondary-button" type="button" data-farm-action="refresh-friend"' + (friendFarmRefreshing ? ' disabled' : '') + '>' + (friendFarmRefreshing ? '刷新中…' : '刷新农场') + '</button>' : ''}<button class="secondary-button" type="button" data-farm-action="friends">好友农场</button><button class="secondary-button farm-log-button" type="button" data-farm-action="logs">农场日志</button>
+      ${friendPickerOpen && friendPicker ? renderFarmFriendPicker(friendPicker) : ''}
+    </div>
     <div class="farm-scene">
       <div class="farm-hud">
         ${renderFarmLevelHud(context)}
-        <div class="farm-hud-pill">🪙 ${context.walletCoins}</div>
+        ${visit ? `<div class="farm-hud-pill">正在访问：${escapeHtml(visit.owner.remark || visit.owner.nickname || '好友')}的农场</div>` : `<div class="farm-hud-pill">🪙 ${context.walletCoins}</div>`}
         <div class="farm-hud-pill">${WEATHER_LABEL[state.weather]}</div>
       </div>
 
       ${toast ? `<p class="farm-toast" role="status">${escapeHtml(toast)}</p>` : ''}
 
-      <div class="farm-stage" style="background-image:url('${FARM_ASSETS.bg}')">
+      <div class="farm-stage${visit ? ' farm-stage--visiting' : ''}" style="background-image:url('${FARM_ASSETS.bg}')">
         ${renderFarmDecorHtml(decors)}
-        ${state.plots.map((plot, i) => renderPlot(plot, i, state, now, context)).join('')}
+        ${state.plots.map((plot, i) => renderPlot(plot, i, state, now, context, Boolean(visit))).join('')}
       </div>
 
-      <div class="farm-seed-bar" role="toolbar" aria-label="选择种子">
+      ${visit ? '' : `<div class="farm-seed-bar" role="toolbar" aria-label="选择种子">
         <span class="farm-seed-label">种子</span>
         <div class="farm-seed-scroll">${renderSeedPicker(state.seeds, selectedCrop)}</div>
-      </div>
+      </div>`}
     </div>
   `
 }
@@ -210,6 +280,13 @@ function setupFarmPage(farmRoot: HTMLElement) {
   let closeLevelGuide: (() => void) | undefined
   let farmDecors: FarmDecorDef[] = []
   let sceneEditor: FarmSceneEditorHandle | undefined
+  let visit: FarmVisitContext | null = null
+  let friendFarmRefreshing = false
+  let friendFarmRefreshTimer: ReturnType<typeof setInterval> | undefined
+  let visitLogs: FarmVisitLog[] = []
+  let onlineUserIds: Array<number | string> = []
+  let friendPickerOpen = false
+  let friendPicker: FarmFriendPickerState = { friends: [], onlineUserIds: [], loading: false, message: null }
   const pollen: FarmPollenHandle = createFarmPollen()
 
   function syncDecorsFromState(state: FarmState) {
@@ -247,6 +324,8 @@ function setupFarmPage(farmRoot: HTMLElement) {
         : 0
     const stage = planted && crop ? cropGrowthStage(progress / 100, ready) : 0
 
+    const stolen = planted?.stolen === true
+    const stealable = Boolean(visit && display === 'ready' && !stolen)
     btn.className = `farm-plot-tile farm-plot-tile--${display}`
     btn.setAttribute('aria-label', `地块 ${plotIndex + 1}${display === 'locked' ? ' 解锁' : ''}`)
 
@@ -262,12 +341,11 @@ function setupFarmPage(farmRoot: HTMLElement) {
       soil?.remove()
     }
 
-    const badges: string[] = []
-    if (display === 'bug') badges.push('<span class="farm-plot-badge farm-plot-badge--bug">虫</span>')
-    if (display === 'ready') badges.push('<span class="farm-plot-badge farm-plot-badge--ready">熟</span>')
-    if (display === 'dry') badges.push('<span class="farm-plot-badge farm-plot-badge--dry">旱</span>')
     const badgesEl = btn.querySelector<HTMLElement>('.farm-plot-badges')
-    if (badgesEl) badgesEl.innerHTML = badges.join('')
+    if (badgesEl) {
+      badgesEl.innerHTML = renderFarmPlotBadges(display, Boolean(visit), stolen)
+      badgesEl.classList.toggle('farm-plot-badges--stealable', stealable)
+    }
 
     let unlockEl = btn.querySelector<HTMLElement>('.farm-plot-unlock-label')
     if (display === 'locked') {
@@ -340,11 +418,14 @@ function setupFarmPage(farmRoot: HTMLElement) {
       farmRoot.innerHTML = '<p class="sysinfo-loading">加载农场…</p>'
       return
     }
-    farmRoot.innerHTML = renderFarm(farmState, selectedCrop, Date.now(), toast, farmContext, farmDecors)
+    const existingEditorToggle = document.querySelector<HTMLButtonElement>('#farm-page .farm-scene-editor-toggle')
+    farmRoot.innerHTML = renderFarm(farmState, selectedCrop, Date.now(), toast, farmContext, farmDecors, visit || undefined, friendPickerOpen, { ...friendPicker, onlineUserIds }, friendFarmRefreshing)
     bindEvents()
     syncPlotLayout()
     ensurePlotLayoutResizeObserver()
     ensureSceneEditor()
+    const editorToggle = existingEditorToggle ?? document.querySelector<HTMLButtonElement>('#farm-page .farm-scene-editor-toggle')
+    if (editorToggle) farmRoot.querySelector('.farm-page-actions')?.appendChild(editorToggle)
     const stage = farmRoot.querySelector<HTMLElement>('.farm-stage')
     if (stage) {
       pollen.attach(stage)
@@ -428,6 +509,7 @@ function setupFarmPage(farmRoot: HTMLElement) {
   }
 
   async function refresh() {
+    if (visit) return
     try {
       const result = await window.electronAPI.farmGetState()
       farmState = result.state
@@ -440,6 +522,123 @@ function setupFarmPage(farmRoot: HTMLElement) {
       showToast('无法读取农场状态，请重试。')
       paint()
     }
+  }
+
+  async function showLogs() {
+    const result = await window.electronAPI.gameAccountListFarmVisits()
+    if (!result.ok) { showToast(result.error.message); return }
+    visitLogs = result.data.logs
+    let filter: 'all' | 'viewed' | 'stolen' = 'all'
+    const modal = document.createElement('div')
+    modal.className = 'farm-log-modal'
+    const renderRows = () => {
+      const filtered = filter === 'all' ? visitLogs : visitLogs.filter(log => log.action === filter)
+      return filtered.length ? filtered.map(log => `<li class="farm-log-entry farm-log-entry--${log.action}"><strong>${escapeHtml(log.action === 'stolen' ? '收获' : '访问')}</strong> · ${escapeHtml(log.visitorNickname || '玩家')}（UID：${escapeHtml(log.visitorUid || String(log.visitorUserId))}） · ${escapeHtml(log.cropId || '未收获')}${log.quantity ? ` ×${log.quantity}` : ''}<time>${escapeHtml(new Date(log.createdAt).toLocaleString())}</time></li>`).join('') : '<li class="farm-log-empty">当前筛选暂无记录。</li>'
+    }
+    const close = () => { document.removeEventListener('keydown', onKeyDown); modal.remove() }
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') close() }
+    modal.innerHTML = `<div class="farm-log-dialog"><div class="farm-log-heading"><h3>农场日志</h3><button type="button" class="text-button" data-farm-action="close-logs">关闭</button></div><div class="farm-log-filters" role="tablist" aria-label="日志筛选"><button class="text-button is-active" type="button" data-farm-log-filter="all">全部</button><button class="text-button" type="button" data-farm-log-filter="viewed">访问</button><button class="text-button" type="button" data-farm-log-filter="stolen">收获</button></div><ul data-farm-log-list>${renderRows()}</ul></div>`
+    modal.addEventListener('click', event => {
+      const target = event.target as Element
+      if (target.closest('[data-farm-action="close-logs"]') || event.target === modal) { close(); return }
+      const filterButton = target.closest<HTMLButtonElement>('[data-farm-log-filter]')
+      if (!filterButton) return
+      filter = filterButton.dataset.farmLogFilter as typeof filter
+      modal.querySelectorAll<HTMLButtonElement>('[data-farm-log-filter]').forEach(button => button.classList.toggle('is-active', button === filterButton))
+      const list = modal.querySelector<HTMLElement>('[data-farm-log-list]')
+      if (list) list.innerHTML = renderRows()
+    })
+    document.addEventListener('keydown', onKeyDown)
+    document.body.appendChild(modal)
+  }
+
+  async function showFriendPicker() {
+    friendPickerOpen = true
+    friendPicker = { ...friendPicker, loading: true, message: null }
+    paint()
+    try {
+      const result = await window.electronAPI.gameAccountListFriends()
+      friendPicker = result.ok
+        ? { friends: result.data.friends, onlineUserIds, loading: false, message: null, query: friendPicker.query }
+        : { ...friendPicker, loading: false, message: result.error.message }
+    } catch {
+      friendPicker = { ...friendPicker, loading: false, message: '好友列表暂时不可用，请稍后重试。' }
+    }
+    paint()
+  }
+
+  function closeFriendPicker() {
+    friendPickerOpen = false
+    paint()
+  }
+
+  async function enterFriendFarm(friendId: string) {
+    friendPicker = { ...friendPicker, loading: true, message: null }
+    paint()
+    const result = await window.electronAPI.gameAccountGetFriendFarm(friendId)
+    if (!result.ok) {
+      friendPicker = { ...friendPicker, loading: false, message: result.error.message }
+      paint()
+      return
+    }
+    friendPickerOpen = false
+    openFriendFarm(result.data)
+  }
+
+  function applyFriendFarmSnapshot(nextVisit: FarmVisitContext) {
+    visit = nextVisit
+    const remote = nextVisit.farm
+    farmDecors = placedDecorsToFarmDecors(remote.placedDecors ?? [])
+    farmState = {
+      version: 1, plotCount: 24, plots: remote.plots as FarmState['plots'], inventory: {}, seeds: {}, weather: remote.weather,
+      lastSettledAt: Date.now(), totalXp: remote.totalXp, placedDecors: remote.placedDecors ?? [],
+    }
+    const remoteXp = farmXpProgress(remote.totalXp)
+    farmContext = {
+      ...DEFAULT_FARM_CONTEXT,
+      farmLevel: remoteXp.level,
+      farmTotalXp: Number.isFinite(remote.totalXp) ? Math.max(0, Math.floor(remote.totalXp)) : 0,
+      farmXpProgress: { current: remoteXp.current, required: remoteXp.required, isMaxLevel: remoteXp.isMaxLevel },
+    }
+  }
+
+  function stopFriendFarmRefresh() {
+    if (friendFarmRefreshTimer !== undefined) clearInterval(friendFarmRefreshTimer)
+    friendFarmRefreshTimer = undefined
+  }
+
+  async function refreshFriendFarm(showMessage = true) {
+    if (!visit || friendFarmRefreshing) return
+    friendFarmRefreshing = true
+    paint()
+    try {
+      const result = await window.electronAPI.gameAccountGetFriendFarm(visit.owner.id, false)
+      if (!result.ok) {
+        if (showMessage) showToast(result.error.message)
+        return
+      }
+      applyFriendFarmSnapshot(result.data)
+      if (showMessage) showToast('好友农场已更新')
+    } catch {
+      if (showMessage) showToast('刷新好友农场失败，请稍后重试。')
+    } finally {
+      friendFarmRefreshing = false
+      paint()
+    }
+  }
+
+  function startFriendFarmRefresh() {
+    stopFriendFarmRefresh()
+    friendFarmRefreshTimer = setInterval(() => void refreshFriendFarm(false), 30_000)
+  }
+
+  function applyVisit() {
+    if (!pendingFarmVisit) return
+    const nextVisit = pendingFarmVisit
+    pendingFarmVisit = null
+    applyFriendFarmSnapshot(nextVisit)
+    startFriendFarmRefresh()
+    paint()
   }
 
   async function runAction(
@@ -527,11 +726,81 @@ function setupFarmPage(farmRoot: HTMLElement) {
     }
   }
 
+  async function handleFriendFarmPlotClick(plotIndex: number) {
+    if (!visit || !farmState || busy) return
+    const localPlot = farmState.plots[plotIndex]
+    if (!localPlot || localPlot.status === 'locked') {
+      showFarmDialog('暂时无法收获', '这块地还没有解锁。')
+      return
+    }
+    const localPlantedPlot = localPlot as PlotState & { stolen?: boolean }
+    if (localPlot.status !== 'ready') {
+      showFarmDialog('暂时无法收获', localPlantedPlot.stolen ? '这块地已经被偷过了。' : '这块地的作物还没有成熟。')
+      return
+    }
+    if (localPlantedPlot.stolen) {
+      showFarmDialog('暂时无法收获', '这块地已经被偷过了。')
+      return
+    }
+    busy = true
+    try {
+      const result = await window.electronAPI.gameAccountStealFriendFarm(visit.owner.id, plotIndex)
+      if (!result.ok) {
+        showFarmDialog('暂时无法收获', result.error.message)
+        return
+      }
+      const plot = farmState.plots[plotIndex] as PlotState & { stolen?: boolean; remainingYield?: number }
+      if (plot) {
+        plot.stolen = true
+        plot.remainingYield = result.data.remainingYield
+      }
+      const cropName = CROPS[result.data.cropId as CropId]?.name ?? result.data.cropId
+      showFarmDialog('收获成功', `获得 ${result.data.quantity} 个${cropName}。`)
+      paint()
+    } catch {
+      showFarmDialog('收获失败', '服务暂时不可用，请稍后重试。')
+    } finally {
+      busy = false
+    }
+  }
+
   function bindEvents() {
     const stage = farmRoot.querySelector<HTMLElement>('.farm-stage')
+    farmRoot.querySelector<HTMLButtonElement>('[data-farm-action="logs"]')?.addEventListener('click', () => void showLogs())
+    farmRoot.querySelector<HTMLButtonElement>('[data-farm-action="refresh-friend"]')?.addEventListener('click', () => void refreshFriendFarm(true))
+    farmRoot.querySelector<HTMLButtonElement>('[data-farm-action="friends"]')?.addEventListener('click', () => {
+      if (friendPickerOpen) closeFriendPicker()
+      else void showFriendPicker()
+    })
+    farmRoot.querySelector<HTMLButtonElement>('[data-farm-action="close-friends"]')?.addEventListener('click', closeFriendPicker)
+    farmRoot.querySelectorAll<HTMLButtonElement>('[data-farm-friend-id]').forEach(btn => btn.addEventListener('click', () => {
+      const friendId = btn.dataset.farmFriendId
+      if (friendId) void enterFriendFarm(friendId)
+    }))
+    farmRoot.querySelector<HTMLButtonElement>('[data-farm-action="back"]')?.addEventListener('click', () => { visit = null; stopFriendFarmRefresh(); void refresh() })
+    farmRoot.querySelector<HTMLInputElement>('[data-farm-friend-search]')?.addEventListener('input', (event) => {
+      friendPicker = { ...friendPicker, query: (event.target as HTMLInputElement).value }
+      const query = (friendPicker.query ?? '').trim().toLocaleLowerCase()
+      farmRoot.querySelectorAll<HTMLElement>('.farm-friend-picker-row').forEach(row => {
+        const text = row.textContent?.toLocaleLowerCase() ?? ''
+        row.hidden = Boolean(query && !text.includes(query))
+      })
+    })
     stage?.addEventListener('click', (event) => {
       if (!stage) return
       if (sceneEditor?.isActive()) return
+      if (visit) {
+        // 等距地块的按钮外接矩形会互相重叠，按视觉坐标命中最近的菱形地块，
+        // 避免事件目标落到相邻地块的透明区域。
+        const plotIndex = findPlotIndexAtClientPoint(stage, event.clientX, event.clientY)
+        const tile = plotIndex === null
+          ? null
+          : stage.querySelector<HTMLButtonElement>(`[data-plot="${plotIndex}"]`)
+        if (plotIndex !== null && tile) {
+          void handleFriendFarmPlotClick(plotIndex)
+        }
+        return
+      }
 
       // 地块优先：小屋/货物大图透明区域会盖住地块，不能抢点击
       const plotIndex = findPlotIndexAtClientPoint(stage, event.clientX, event.clientY)
@@ -577,7 +846,21 @@ function setupFarmPage(farmRoot: HTMLElement) {
     closeLevelGuide = undefined
     const onFarm = pageId === 'farm-page'
     pollen.setActive(onFarm)
-    if (onFarm) void refresh()
+    if (onFarm) { applyVisit(); if (!visit) void refresh() }
+    else stopFriendFarmRefresh()
+  })
+
+  farmVisitListener = () => { if (getCurrentPage() === 'farm-page') applyVisit() }
+  window.addEventListener('farm:visit', farmVisitListener)
+  window.electronAPI.onGameAccountFarmVisit?.((event) => {
+    if (visit) return
+    showToast(event.action === 'stolen' ? '有好友偷走了你的作物，农场日志已更新。' : '有好友访问了你的农场，农场日志已更新。')
+  })
+  window.electronAPI.onGameAccountPresenceChanged?.((event) => {
+    onlineUserIds = event.type === 'presence.snapshot'
+      ? event.onlineUserIds
+      : [...new Set([...onlineUserIds.filter(id => String(id) !== String(event.userId)), ...(event.online ? [event.userId] : [])])]
+    if (friendPickerOpen) paint()
   })
 
   pollen.setActive(getCurrentPage() === 'farm-page')

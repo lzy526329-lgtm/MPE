@@ -1066,6 +1066,50 @@ input[type="range"] {
   flex-shrink: 0;
 }
 
+/* Keep farm actions in normal flow so the decoration toggle cannot cover them. */
+.farm-page-actions {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px;
+}
+.farm-page-actions > button { flex-shrink: 0; }
+.farm-page-actions .farm-scene-editor-toggle {
+  position: static;
+}
+.farm-page-actions .farm-friend-picker { top: 100%; }
+.farm-friend-picker { position: absolute; top: 72px; right: 16px; z-index: 12; width: min(390px, calc(100% - 32px)); padding: 16px; border: 1px solid rgb(148 163 184 / 18%); border-radius: 18px; background: rgb(255 255 255 / 96%); box-shadow: 0 18px 50px rgb(15 23 42 / 20%); backdrop-filter: blur(12px); }
+.farm-friend-picker-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.farm-friend-picker-heading strong { font-size: 17px; }
+.farm-friend-picker-heading p { margin: 5px 0 0; color: var(--muted-text, #6b7280); font-size: 12px; line-height: 1.5; }
+.farm-friend-picker-search { width: 100%; margin-top: 12px; padding: 9px 11px; border: 1px solid rgb(148 163 184 / 28%); border-radius: 10px; background: rgb(255 255 255 / 80%); }
+.farm-friend-picker ul { display: grid; gap: 8px; max-height: 360px; overflow: auto; margin: 14px 0 0; padding: 0; list-style: none; }
+.farm-friend-picker-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px; border-radius: 12px; background: rgb(148 163 184 / 10%); }
+.farm-friend-picker-identity { display: grid; gap: 3px; min-width: 0; }
+.farm-friend-picker-identity strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.farm-friend-picker-identity small { color: var(--muted-text, #6b7280); font-size: 11px; }
+.farm-friend-picker-empty { padding: 22px 8px; color: var(--muted-text, #6b7280); text-align: center; }
+.farm-visit-hint { margin: .75rem 0 0; color: var(--muted-text, #6b7280); text-align: center; }
+.farm-log-modal { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; background: rgb(15 23 42 / 45%); padding: 1rem; }
+.farm-log-dialog { width: min(560px, 100%); max-height: min(680px, 90vh); overflow: auto; background: var(--panel-bg, #fff); border-radius: 16px; padding: 1.25rem; box-shadow: 0 18px 70px rgb(15 23 42 / 20%); }
+.farm-log-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.farm-log-filters { display: flex; gap: 6px; margin: 14px 0 8px; }
+.farm-log-filters .text-button { padding: 5px 10px; border-radius: 999px; }
+.farm-log-filters .text-button.is-active { color: #2f6d1f; background: #e5f3dc; }
+.farm-log-dialog ul { display: grid; gap: .6rem; padding: 0; list-style: none; }
+.farm-log-dialog li { display: flex; gap: .45rem; align-items: baseline; padding: .65rem .75rem; border-radius: 10px; background: rgb(148 163 184 / 12%); }
+.farm-log-dialog time { margin-left: auto; color: var(--muted-text, #6b7280); font-size: 12px; }
+.farm-log-entry--stolen { border-left: 3px solid #e59b43; }
+.farm-log-entry--viewed { border-left: 3px solid #7fa8d8; }
+.farm-log-empty { color: var(--muted-text, #6b7280); text-align: center; }
+.farm-action-dialog { position: fixed; inset: 0; z-index: 1100; display: grid; place-items: center; padding: 16px; background: rgb(15 23 42 / 45%); }
+.farm-action-dialog__panel { width: min(360px, 100%); padding: 22px; border-radius: 18px; background: var(--panel-bg, #fff); box-shadow: 0 20px 70px rgb(15 23 42 / 25%); text-align: center; }
+.farm-action-dialog__panel h3 { margin: 0; font-size: 20px; }
+.farm-action-dialog__panel p { margin: 12px 0 20px; color: var(--muted-text, #6b7280); line-height: 1.6; }
+
 .account-friend-remark-editor {
   display: flex;
   align-items: center;
@@ -5606,6 +5650,15 @@ select:focus {
   overflow: visible;
 }
 
+.farm-stage--visiting .farm-plot-tile {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.farm-stage--visiting .farm-plot-tile:not([data-visit-stealable="true"]) {
+  cursor: default;
+}
+
 .farm-plot-tile--dry .farm-plot-soil {
   filter: saturate(0.75) brightness(1.08) sepia(0.25) drop-shadow(0 3px 6px rgba(0, 0, 0, 0.15));
 }
@@ -5695,6 +5748,32 @@ select:focus {
 
 .farm-plot-badge--dry {
   background: #c98a3a;
+}
+
+.farm-plot-badges--stealable {
+  gap: 0;
+}
+
+.farm-plot-badge--steal {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 2px);
+  transform: translateX(-50%);
+  white-space: nowrap;
+  background: #4f9f3b;
+}
+
+@media (max-width: 640px) {
+  .farm-page-actions { justify-content: flex-start; overflow-x: auto; padding: 8px; scrollbar-width: none; }
+  .farm-page-actions::-webkit-scrollbar { display: none; }
+  .farm-page-actions > button { white-space: nowrap; }
+  .farm-friend-picker { position: fixed; top: 72px; right: 8px; left: 8px; width: auto; max-height: calc(100vh - 88px); }
+  .farm-friend-picker ul { max-height: calc(100vh - 260px); }
+  .farm-friend-picker-row { align-items: flex-start; }
+  .farm-friend-picker-row .secondary-button { flex-shrink: 0; }
+  .farm-log-dialog { padding: 1rem; }
+  .farm-log-dialog li { flex-wrap: wrap; }
+  .farm-log-dialog time { width: 100%; margin-left: 0; }
 }
 
 .farm-plot-hint {
