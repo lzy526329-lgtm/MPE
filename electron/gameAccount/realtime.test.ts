@@ -53,6 +53,26 @@ describe('game realtime client', () => {
     retry?.()
     expect(FakeSocket.instances).toHaveLength(2)
   })
+
+  it('re-subscribes to friend farms after reconnecting', () => {
+    FakeSocket.instances = []
+    let retry: (() => void) | undefined
+    const realtime = createGameRealtime({
+      url: 'ws://localhost:8088/ws/game',
+      getToken: () => 'private-token',
+      WebSocketImpl: FakeSocket as never,
+      setTimeout: callback => { retry = callback; return 1 as never },
+      clearTimeout: vi.fn(),
+    })
+
+    realtime.start()
+    realtime.send({ type: 'farm.subscribe', ownerId: 7 })
+    FakeSocket.instances[0].close()
+    retry?.()
+    FakeSocket.instances[1].open()
+    expect(JSON.parse(FakeSocket.instances[1].sent[0])).toEqual({ type: 'farm.subscribe', ownerId: 7 })
+    realtime.stop()
+  })
 })
 
 it('forwards animal flip room events and can send room subscriptions', () => {

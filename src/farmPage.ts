@@ -111,7 +111,7 @@ export function renderFarmPlotBadges(display: PlotDisplayStatus, visitMode: bool
   return badges.join('')
 }
 
-type FarmVisitContext = { owner: FriendUser; farm: FriendFarm }
+type FarmVisitContext = { owner: FriendUser; farm: FriendFarm; revision?: number }
 let pendingFarmVisit: FarmVisitContext | null = null
 let farmVisitListener: ((event: Event) => void) | undefined
 
@@ -585,8 +585,11 @@ function setupFarmPage(farmRoot: HTMLElement) {
     openFriendFarm(result.data)
   }
 
-  function applyFriendFarmSnapshot(nextVisit: FarmVisitContext) {
-    visit = nextVisit
+  function applyFriendFarmSnapshot(nextVisit: FarmVisitContext, revision = nextVisit.revision) {
+    const retainedRevision = Number.isSafeInteger(revision)
+      ? revision
+      : (visit && String(visit.owner.id) === String(nextVisit.owner.id) ? visit.revision : nextVisit.revision)
+    visit = { ...nextVisit, ...(Number.isSafeInteger(retainedRevision) ? { revision: retainedRevision } : {}) }
     const remote = nextVisit.farm
     farmDecors = placedDecorsToFarmDecors(remote.placedDecors ?? [])
     farmState = {
@@ -637,8 +640,14 @@ function setupFarmPage(farmRoot: HTMLElement) {
     const nextVisit = pendingFarmVisit
     pendingFarmVisit = null
     applyFriendFarmSnapshot(nextVisit)
+    void window.electronAPI.gameAccountSubscribeFarm(nextVisit.owner.id)
     startFriendFarmRefresh()
     paint()
+  }
+
+  function unsubscribeFriendFarm() {
+    const ownerId = visit?.owner.id
+    if (ownerId !== undefined) void window.electronAPI.gameAccountUnsubscribeFarm(ownerId)
   }
 
   async function runAction(
@@ -777,7 +786,7 @@ function setupFarmPage(farmRoot: HTMLElement) {
       const friendId = btn.dataset.farmFriendId
       if (friendId) void enterFriendFarm(friendId)
     }))
-    farmRoot.querySelector<HTMLButtonElement>('[data-farm-action="back"]')?.addEventListener('click', () => { visit = null; stopFriendFarmRefresh(); void refresh() })
+    farmRoot.querySelector<HTMLButtonElement>('[data-farm-action="back"]')?.addEventListener('click', () => { unsubscribeFriendFarm(); visit = null; stopFriendFarmRefresh(); void refresh() })
     farmRoot.querySelector<HTMLInputElement>('[data-farm-friend-search]')?.addEventListener('input', (event) => {
       friendPicker = { ...friendPicker, query: (event.target as HTMLInputElement).value }
       const query = (friendPicker.query ?? '').trim().toLocaleLowerCase()
@@ -847,7 +856,7 @@ function setupFarmPage(farmRoot: HTMLElement) {
     const onFarm = pageId === 'farm-page'
     pollen.setActive(onFarm)
     if (onFarm) { applyVisit(); if (!visit) void refresh() }
-    else stopFriendFarmRefresh()
+    else { unsubscribeFriendFarm(); visit = null; stopFriendFarmRefresh() }
   })
 
   farmVisitListener = () => { if (getCurrentPage() === 'farm-page') applyVisit() }
@@ -855,6 +864,13 @@ function setupFarmPage(farmRoot: HTMLElement) {
   window.electronAPI.onGameAccountFarmVisit?.((event) => {
     if (visit) return
     showToast(event.action === 'stolen' ? '有好友偷走了你的作物，农场日志已更新。' : '有好友访问了你的农场，农场日志已更新。')
+  })
+  window.electronAPI.onGameAccountFarmUpdated?.((event) => {
+    if (!visit || String(visit.owner.id) !== String(event.ownerId)) return
+    if (Number.isSafeInteger(visit.revision) && event.revision <= Number(visit.revision)) return
+    applyFriendFarmSnapshot({ ...visit, farm: event.farm }, event.revision)
+    showToast('好友农场已实时更新')
+    paint()
   })
   window.electronAPI.onGameAccountPresenceChanged?.((event) => {
     onlineUserIds = event.type === 'presence.snapshot'

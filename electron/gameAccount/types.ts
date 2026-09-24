@@ -56,6 +56,17 @@ export type FarmVisitRealtimeEvent = {
   quantity?: number
   logId?: number | string
 }
+export type FarmUpdatedRealtimeEvent = {
+  type: 'farm.updated'
+  ownerId: number | string
+  revision: number
+  farm: FriendFarm
+}
+export type FarmSubscribedRealtimeEvent = {
+  type: 'farm.subscribed'
+  ownerId: number | string
+}
+export type FarmRealtimeEvent = FarmUpdatedRealtimeEvent | FarmSubscribedRealtimeEvent
 export type AuthResult = { user: GameUser; token: string; expiresAt: string }
 export type SaveSummary = { coins: number; farmTotalXp: number; totalCaught: number; clientUpdatedAt: string | null; sourceDeviceId: string }
 export type CloudSave = {
@@ -99,6 +110,8 @@ export type GameAccountBridge = {
   gameAccountRemoveFriend: (userId: number | string) => Promise<AccountResult<Record<string, never>>>
   gameAccountUpdateFriendRemark: (userId: number | string, remark: string) => Promise<AccountResult<{ remark: string }>>
   gameAccountGetFriendFarm: (userId: number | string, recordVisit?: boolean) => Promise<AccountResult<{ owner: FriendUser; farm: FriendFarm; log: FarmVisitLog | null }>>
+  gameAccountSubscribeFarm: (userId: number | string) => Promise<AccountResult<Record<string, never>>>
+  gameAccountUnsubscribeFarm: (userId: number | string) => Promise<AccountResult<Record<string, never>>>
   gameAccountStealFriendFarm: (userId: number | string, plotIndex: number) => Promise<AccountResult<{ cropId: string; quantity: number; remainingYield: number; log: FarmVisitLog }>>
   gameAccountListFarmVisits: () => Promise<AccountResult<{ logs: FarmVisitLog[] }>>
   gameAccountCreateAnimalFlipRoom: (friendId: number | string, requestId?: string) => Promise<AccountResult<AnimalFlipRoomResult>>
@@ -113,4 +126,5 @@ export type GameAccountBridge = {
   onGameAccountStateChanged: (callback: (state: GameAccountState) => void) => () => void
   onGameAccountPresenceChanged?: (callback: (event: GamePresenceEvent) => void) => () => void
   onGameAccountFarmVisit?: (callback: (event: FarmVisitRealtimeEvent) => void) => () => void
+  onGameAccountFarmUpdated?: (callback: (event: FarmUpdatedRealtimeEvent) => void) => () => void
 }

@@ -42,7 +42,7 @@ import type { CutoutRequest, CutoutResult } from './cutout'
 import type { CropId, PlacedDecor, HouseDecorPlacement, HouseSurface } from './farm/farmTypes'
 import type { BaitId, GameActionResult, GameViewState, FoodId, SupplyId, DecorId, FurnitureId } from './game/gameTypes'
 import type { FishingCastResult, FishingReelResult } from './fishing/fishingIpc'
-import type { AnimalFlipRealtimeEvent, FarmVisitRealtimeEvent, GameAccountBridge, GamePresenceEvent, GameAccountState } from './gameAccount/types'
+import type { AnimalFlipRealtimeEvent, FarmUpdatedRealtimeEvent, FarmVisitRealtimeEvent, GameAccountBridge, GamePresenceEvent, GameAccountState } from './gameAccount/types'
 import { installExternalLinkHandler } from './gameAccount/externalLinks'
 
 const removeExternalLinkHandler = installExternalLinkHandler(document, url => ipcRenderer.invoke('app:open-external-link', url))
@@ -66,6 +66,8 @@ const gameAccountBridge: GameAccountBridge = {
   gameAccountRemoveFriend: userId => ipcRenderer.invoke('game-account:gameAccountRemoveFriend', userId),
   gameAccountUpdateFriendRemark: (userId, remark) => ipcRenderer.invoke('game-account:gameAccountUpdateFriendRemark', { userId, remark }),
   gameAccountGetFriendFarm: (userId, recordVisit) => ipcRenderer.invoke('game-account:gameAccountGetFriendFarm', userId, recordVisit),
+  gameAccountSubscribeFarm: userId => ipcRenderer.invoke('game-account:gameAccountSubscribeFarm', userId),
+  gameAccountUnsubscribeFarm: userId => ipcRenderer.invoke('game-account:gameAccountUnsubscribeFarm', userId),
   gameAccountStealFriendFarm: (userId, plotIndex) => ipcRenderer.invoke('game-account:gameAccountStealFriendFarm', { userId, plotIndex }),
   gameAccountListFarmVisits: () => ipcRenderer.invoke('game-account:gameAccountListFarmVisits'),
   gameAccountCreateAnimalFlipRoom: (friendId, requestId) => ipcRenderer.invoke('game-account:gameAccountCreateAnimalFlipRoom', friendId, requestId),
@@ -95,6 +97,11 @@ const gameAccountBridge: GameAccountBridge = {
     const listener = (_event: Electron.IpcRendererEvent, event: FarmVisitRealtimeEvent) => callback(event)
     ipcRenderer.on('game-account:farm-visit', listener)
     return () => { ipcRenderer.removeListener('game-account:farm-visit', listener) }
+  },
+  onGameAccountFarmUpdated: callback => {
+    const listener = (_event: Electron.IpcRendererEvent, event: FarmUpdatedRealtimeEvent) => callback(event)
+    ipcRenderer.on('game-account:farm-updated', listener)
+    return () => { ipcRenderer.removeListener('game-account:farm-updated', listener) }
   },
 }
 

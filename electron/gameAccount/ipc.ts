@@ -11,7 +11,7 @@ import { createAccountIpcHandler, getTrustedMainWindow } from './trustedRenderer
 import type { AccountResult, AnimalFlipAction, AuthResult, GameAccountBridge, GameAccountState, LoginRequest, RegisterRequest } from './types'
 
 type HandlerOptions = { api: any; store: SessionStore; sync: SyncCoordinator; deviceName: string; userDataPath?: string; realtime?: { start: () => void; stop: () => void; refresh?: () => void; send?: (message: Record<string, unknown>) => boolean } }
-type AccountHandlers = Omit<GameAccountBridge, 'onGameAccountStateChanged' | 'onAnimalFlipRoomEvent'>
+type AccountHandlers = Omit<GameAccountBridge, 'onGameAccountStateChanged' | 'onAnimalFlipRoomEvent' | 'onGameAccountPresenceChanged' | 'onGameAccountFarmVisit' | 'onGameAccountFarmUpdated'>
 function textField(input: unknown, field: string, optional = false): string {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new GameApiError('VALIDATION_ERROR', 'Invalid request')
   const value = (input as Record<string, unknown>)[field]
@@ -187,6 +187,8 @@ export function createGameAccountHandlers({ api, store, sync, deviceName, userDa
     gameAccountGetFriendFarm: (input, recordVisit = true) => protectedCall(token => recordVisit === false
       ? api.getFriendFarm(token, positiveId(input), false)
       : api.getFriendFarm(token, positiveId(input))),
+    gameAccountSubscribeFarm: input => protectedCall(async () => { realtime?.send?.({ type: 'farm.subscribe', ownerId: positiveId(input) }); return {} }),
+    gameAccountUnsubscribeFarm: input => protectedCall(async () => { realtime?.send?.({ type: 'farm.unsubscribe', ownerId: positiveId(input) }); return {} }),
     gameAccountStealFriendFarm: (input, plotArgument) => protectedCall(async token => {
       const requestInput: unknown = plotArgument === undefined ? input : { userId: input, plotIndex: plotArgument }
       if (!requestInput || typeof requestInput !== 'object' || Array.isArray(requestInput)) throw new GameApiError('VALIDATION_ERROR', 'Invalid request')
@@ -221,7 +223,8 @@ export function registerGameAccountIpc(getMain: () => BrowserWindow | null, isTr
     onEvent: event => {
       if (event.type.startsWith('animal_flip.')) getTrustedMainWindow(authorization)?.webContents.send('game-account:animal-flip-event', event)
       else if (event.type === 'farm.visit') getTrustedMainWindow(authorization)?.webContents.send('game-account:farm-visit', event)
-      else getTrustedMainWindow(authorization)?.webContents.send('game-account:presence-changed', event)
+      else if (event.type === 'farm.updated') getTrustedMainWindow(authorization)?.webContents.send('game-account:farm-updated', event)
+      else if (event.type === 'presence.snapshot' || event.type === 'presence.changed') getTrustedMainWindow(authorization)?.webContents.send('game-account:presence-changed', event)
     },
   })
   const handlers = createGameAccountHandlers({ api, store, sync, realtime, userDataPath, deviceName: hostname().slice(0, 100) })

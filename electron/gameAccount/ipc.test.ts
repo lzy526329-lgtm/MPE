@@ -36,7 +36,7 @@ function setup() {
   }
   const sync = createSyncCoordinator({ userDataPath: dir, api, sessionStore: store })
   cleanup.push(() => sync.dispose())
-  const realtime = { start: vi.fn(), stop: vi.fn() }
+  const realtime = { start: vi.fn(), stop: vi.fn(), send: vi.fn(() => true) }
   const handlers = createGameAccountHandlers({ api, store, sync, realtime, deviceName: 'Test desktop' })
   return { api, handlers, store, dir, auth, realtime, sync }
 }
@@ -59,7 +59,7 @@ it('stops realtime presence when logging out', async () => {
 })
 
 it('routes friend operations through the authenticated main-process session', async () => {
-  const { handlers, api } = setup()
+  const { handlers, api, realtime } = setup()
   await handlers.gameAccountLogin({ email: 'player@example.com', password: 'Password1' })
   await handlers.gameAccountSearchFriend('123456789')
   await handlers.gameAccountSendFriendRequest('123456789')
@@ -67,12 +67,16 @@ it('routes friend operations through the authenticated main-process session', as
   await handlers.gameAccountListFriends()
   await handlers.gameAccountRemoveFriend(7)
   await handlers.gameAccountUpdateFriendRemark(7, '小王')
+  await handlers.gameAccountSubscribeFarm(7)
+  await handlers.gameAccountUnsubscribeFarm(7)
   expect(api.searchFriend).toHaveBeenCalledWith('private-token', '123456789')
   expect(api.sendFriendRequest).toHaveBeenCalledWith('private-token', '123456789')
   expect(api.respondFriendRequest).toHaveBeenCalledWith('private-token', 1, 'accept')
   expect(api.listFriends).toHaveBeenCalledWith('private-token')
   expect(api.removeFriend).toHaveBeenCalledWith('private-token', 7)
   expect(api.updateFriendRemark).toHaveBeenCalledWith('private-token', 7, '小王')
+  expect(realtime.send).toHaveBeenCalledWith({ type: 'farm.subscribe', ownerId: 7 })
+  expect(realtime.send).toHaveBeenCalledWith({ type: 'farm.unsubscribe', ownerId: 7 })
 })
 
 it('routes farm visits through the authenticated main-process session', async () => {
