@@ -15,6 +15,7 @@ import type { ScanResult, CleanResult } from './diskClean'
 import type { PetAiReply, PetAiSettingsView, PetChatHistoryItem } from './petAi'
 import type { PetBounds, PetChatMessage, PetReminderItem, PetStatus, PetViewportAnchor } from './pet'
 import type { PetCharacter } from './petCharacters'
+import type { PetAnimationBindings } from './petAnimationBindings'
 import type {
   PetClipKey,
   PetClipView,
@@ -223,6 +224,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('pet:set-auto-walk', autoWalk),
   setPetSize: (size: number): Promise<PetStatus> => ipcRenderer.invoke('pet:set-size', size),
   getPetCharacters: (): Promise<PetCharacter[]> => ipcRenderer.invoke('pet:list-characters'),
+  setPetAnimationBinding: (
+    characterId: string,
+    animationName: string,
+    action: string,
+  ): Promise<PetAnimationBindings> =>
+    ipcRenderer.invoke('pet:set-animation-binding', characterId, animationName, action),
+  onPetAnimationBindingsChanged: (
+    callback: (payload: { characterId: string; bindings: PetAnimationBindings }) => void,
+  ) => {
+    const listener = (
+      _event: unknown,
+      payload: { characterId: string; bindings: PetAnimationBindings },
+    ) => callback(payload)
+    ipcRenderer.on('pet:animation-bindings-changed', listener)
+    return () => ipcRenderer.removeListener('pet:animation-bindings-changed', listener)
+  },
   setPetCharacter: (characterId: string): Promise<PetStatus> =>
     ipcRenderer.invoke('pet:set-character', characterId),
   feedPet: (): Promise<PetStatus> => ipcRenderer.invoke('pet:feed'),

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { pickAnimationName, preferredSleepAnimation } from '../petAnimationNames'
+import {
+  ANIMATION_ACTIONS,
+  pickAnimationName,
+  preferredSleepAnimation,
+  resolveAnimationForAction,
+} from '../petAnimationNames'
 
 describe('petAnimationNames', () => {
   it('picks the first candidate that exists', () => {
@@ -14,5 +19,34 @@ describe('petAnimationNames', () => {
 
   it('falls back when sleep animation is missing', () => {
     expect(preferredSleepAnimation(['idle', 'victory'])).toBeNull()
+  })
+
+  it('uses a configured action binding before the legacy candidate names', () => {
+    expect(resolveAnimationForAction(
+      ['idle', 'run', 'jump'],
+      { run: 'walk', jump: 'victory' },
+      'walk',
+      ['run'],
+    )).toBe('run')
+    expect(resolveAnimationForAction(
+      ['idle', 'run'],
+      { run: 'attack' },
+      'walk',
+      ['run'],
+    )).toBe('run')
+  })
+
+  it('exposes stable user-facing animation action choices', () => {
+    expect(ANIMATION_ACTIONS.map((item) => item.id)).toEqual([
+      'idle',
+      'walk',
+      'sleep',
+      'touch',
+      'skill_touch',
+      'victory',
+      'attack',
+      'hurt',
+      'die',
+    ])
   })
 })

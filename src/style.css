@@ -2961,6 +2961,23 @@ input[type="range"] {
   word-break: break-all;
 }
 
+.pet-character-anim-binding {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.pet-character-anim-binding select {
+  width: 100%;
+  min-height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: #fff;
+}
+
 .pet-config-actions {
   display: flex;
   gap: 10px;

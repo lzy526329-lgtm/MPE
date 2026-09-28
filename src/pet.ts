@@ -8,7 +8,11 @@ import { createBallHitGame } from './petBallGame'
 import { createHeartRallyGame } from './petHeartGame'
 import { createJumpRunGame } from './petJumpGame'
 import { resolveBallHitConfig, resolveHeartRallyConfig, resolveJumpRunConfig } from './petSkillDefaults'
-import { pickAnimationName, preferredSleepAnimation } from './petAnimationNames'
+import {
+  pickAnimationName,
+  resolveAnimationForAction,
+  type PetAnimationBindings,
+} from './petAnimationNames'
 import { bindSleepExclusiveSlots, playExclusiveAnimation } from './petSpineSlots'
 import type { PetCharacter } from '../electron/petCharacters'
 import './pet.css'
@@ -67,6 +71,7 @@ chatBubble.append(chatText, chatConfirmButton)
 root.appendChild(chatBubble)
 
 let spine: Spine | null = null
+let animationBindings: PetAnimationBindings = {}
 let baseScale = 0.22
 let anim: AnimName = 'idle'
 let walkDir: WalkDir = 'walkRight'
@@ -457,29 +462,32 @@ function pickAnimation(character: Spine, candidates: string[]) {
 }
 
 function preferredIdle(character: Spine) {
-  return pickAnimation(character, ['idle', 'stand', 'normal']) ?? animationNames(character)[0]
+  return resolveAnimationForAction(animationNames(character), animationBindings, 'idle', ['idle', 'stand', 'normal'])
+    ?? animationNames(character)[0]
 }
 
 function preferredTouch(character: Spine) {
-  return pickAnimation(character, ['touch', 'skill_touch', 'hit', 'click'])
+  return resolveAnimationForAction(animationNames(character), animationBindings, 'touch', ['touch', 'skill_touch', 'hit', 'click'])
 }
 
 function preferredSkillTouch(character: Spine) {
-  return pickAnimation(character, ['skill_touch', 'touch', 'hit', 'click'])
+  return resolveAnimationForAction(animationNames(character), animationBindings, 'skill_touch', ['skill_touch', 'touch', 'hit', 'click'])
 }
 
 function preferredVictory(character: Spine) {
-  return pickAnimation(character, ['victory', 'skill_01', 'touch', 'skill_touch', 'hit', 'click'])
+  return resolveAnimationForAction(animationNames(character), animationBindings, 'victory', ['victory', 'skill_01', 'touch', 'skill_touch', 'hit', 'click'])
 }
 
 function preferredWalk(character: Spine) {
-  return pickAnimation(character, ['walk', 'run'])
+  return resolveAnimationForAction(animationNames(character), animationBindings, 'walk', ['walk', 'run'])
 }
 
 function preferredAttack(character: Spine, preferredName?: string) {
   const preferred = preferredName?.trim()
-  return pickAnimation(
-    character,
+  return resolveAnimationForAction(
+    animationNames(character),
+    animationBindings,
+    'attack',
     preferred
       ? [preferred, 'attack_2', 'attack', 'skill_01', 'skill_touch', 'touch']
       : ['attack_2', 'attack', 'skill_01', 'skill_touch', 'touch'],
@@ -487,15 +495,15 @@ function preferredAttack(character: Spine, preferredName?: string) {
 }
 
 function preferredHurt(character: Spine) {
-  return pickAnimation(character, ['hit', 'touch', 'skill_touch'])
+  return resolveAnimationForAction(animationNames(character), animationBindings, 'hurt', ['hit', 'touch', 'skill_touch'])
 }
 
 function preferredDie(character: Spine) {
-  return pickAnimation(character, ['die', 'down', 'hit'])
+  return resolveAnimationForAction(animationNames(character), animationBindings, 'die', ['die', 'down', 'hit'])
 }
 
 function preferredSleep(character: Spine) {
-  return preferredSleepAnimation(animationNames(character))
+  return resolveAnimationForAction(animationNames(character), animationBindings, 'sleep', ['shuijiao', 'sleep', 'rest'])
 }
 
 function playIdle() {
@@ -741,7 +749,7 @@ async function loadCatalog() {
   }
   const response = await fetch('./pet/characters/catalog.json')
   if (!response.ok) return []
-  return response.json() as Promise<{ id: string; skeletonUrl: string }[]>
+  return response.json() as Promise<PetCharacter[]>
 }
 
 function clearSpine() {
@@ -772,6 +780,7 @@ async function loadCharacter(id: string) {
     if (seq !== characterLoadSeq) return
     const spineData = resource.spineData ?? resource
     const character = new Spine(spineData)
+    animationBindings = selected.animationBindings ?? {}
     bindSleepExclusiveSlots(character as never)
     fitSpineToView(character)
     const idle = preferredIdle(character)
@@ -1272,6 +1281,14 @@ async function boot() {
 
 const onPetStatusChanged = window.electronAPI?.onPetStatusChanged
 if (onPetStatusChanged) onPetStatusChanged(applyPetStatus)
+window.electronAPI?.onPetAnimationBindingsChanged?.((payload) => {
+  if (payload.characterId !== loadedCharacterId) return
+  animationBindings = payload.bindings
+  if (!spine) return
+  if (anim === 'walk') playWalk()
+  else if (anim === 'sleep') playSleep()
+  else if (anim === 'idle') playIdle()
+})
 window.electronAPI?.onPetChatMessage?.(showChatMessage)
 window.electronAPI?.onPetChatClear?.(hideChatMessage)
 window.electronAPI?.onPetAiBubble?.((payload) => showAiBubble(payload.text))

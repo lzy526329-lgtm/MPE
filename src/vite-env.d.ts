@@ -15,6 +15,7 @@ import type { PhotoplusDownloadResult, PhotoplusProgress } from '../electron/pho
 import type { PetBounds, PetChatMessage, PetReminderItem, PetStatus, PetViewportAnchor } from '../electron/pet'
 import type { PetAiReply, PetAiSettingsView, PetChatHistoryItem } from '../electron/petAi'
 import type { PetCharacter } from '../electron/petCharacters'
+import type { PetAnimationBindings } from '../electron/petAnimationBindings'
 import type {
   PetClipKey,
   PetClipView,
@@ -109,6 +110,8 @@ declare global {
       setPetAutoWalk: (autoWalk: boolean) => Promise<PetStatus>
       setPetSize: (size: number) => Promise<PetStatus>
       getPetCharacters: () => Promise<PetCharacter[]>
+      setPetAnimationBinding: (characterId: string, animationName: string, action: string) => Promise<PetAnimationBindings>
+      onPetAnimationBindingsChanged: (callback: (payload: { characterId: string; bindings: PetAnimationBindings }) => void) => () => void
       setPetCharacter: (characterId: string) => Promise<PetStatus>
       feedPet: () => Promise<PetStatus>
       restPet: () => Promise<PetStatus>

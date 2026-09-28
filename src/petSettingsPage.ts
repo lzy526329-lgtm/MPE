@@ -10,6 +10,13 @@ import { petGrowthProgress } from '../electron/petLevel'
 import { openFeedFoodPicker } from './feedFoodPicker'
 import { openCleanSupplyPicker } from './cleanSupplyPicker'
 import { listSpineAnimations, mountSpinePreview, type SpinePreviewHandle } from './spinePreview'
+import {
+  ANIMATION_ACTIONS,
+  defaultAnimationBindings,
+  mergeAnimationBindings,
+  type PetAnimationAction,
+  type PetAnimationBindings,
+} from './petAnimationNames'
 
 const PET_SIZE_MIN = 96
 const PET_SIZE_MAX = 280
@@ -290,12 +297,22 @@ async function renderCharacterDetail(root: HTMLElement, state: CharacterViewStat
     return
   }
 
+  const defaultBindings = defaultAnimationBindings(animations)
+  const visibleBindings = mergeAnimationBindings(defaultBindings, character.animationBindings)
+
   animGrid.innerHTML = animations
     .map(
       (name) => `
         <article class="pet-character-anim-card">
           <div class="pet-character-preview" data-anim-preview="${escapeHtml(name)}"></div>
           <strong>${escapeHtml(name)}</strong>
+          <label class="pet-character-anim-binding">
+            <span>绑定动作</span>
+            <select data-animation-binding="${escapeHtml(name)}" aria-label="为 ${escapeHtml(name)} 绑定动作">
+              <option value="">不绑定</option>
+              ${ANIMATION_ACTIONS.map((item) => `<option value="${item.id}"${visibleBindings[name] === item.id ? ' selected' : ''}>${item.label}</option>`).join('')}
+            </select>
+          </label>
         </article>
       `,
     )
@@ -920,6 +937,46 @@ export function mountPetSettingsPage() {
     if (useId && window.electronAPI?.setPetCharacter) {
       apply(await window.electronAPI.setPetCharacter(useId))
       return
+    }
+
+    const bindingSelect = target.closest<HTMLSelectElement>('[data-animation-binding]')
+    if (bindingSelect) return
+  })
+
+  root.addEventListener('change', async (event) => {
+    const select = event.target as HTMLSelectElement
+    const animationName = select.closest<HTMLSelectElement>('[data-animation-binding]')?.dataset.animationBinding
+    if (!animationName || !characterState.detailId) return
+    const character = characterState.characters.find((item) => item.id === characterState.detailId)
+    if (!character) return
+    if (window.electronAPI?.setPetAnimationBinding) {
+      const bindings = await window.electronAPI.setPetAnimationBinding(
+        character.id,
+        animationName,
+        select.value,
+      )
+      character.animationBindings = bindings
+      if (select.value) {
+        root
+          .querySelector<HTMLElement>('#pet-character-detail')
+          ?.querySelectorAll<HTMLSelectElement>('[data-animation-binding]')
+          .forEach((item) => {
+            if (item !== select && item.value === select.value) item.value = ''
+          })
+      }
+    } else {
+      const nextBindings: PetAnimationBindings = { ...(character.animationBindings ?? {}) }
+      if (select.value) nextBindings[animationName] = select.value as PetAnimationAction
+      else delete nextBindings[animationName]
+      character.animationBindings = nextBindings
+      if (select.value) {
+        root
+          .querySelector<HTMLElement>('#pet-character-detail')
+          ?.querySelectorAll<HTMLSelectElement>('[data-animation-binding]')
+          .forEach((item) => {
+            if (item !== select && item.value === select.value) item.value = ''
+          })
+      }
     }
   })
 

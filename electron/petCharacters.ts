@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import type { PetAnimationBindings } from './petAnimationBindings'
 
 /** 相对 dist 根目录，兼容 file:// 打包与 Vite 开发服 */
 export const PET_CHARACTERS_URL = './pet/characters'
@@ -67,6 +68,7 @@ export type PetCharacter = {
   previewFile: string
   skeletonUrl: string
   previewUrl: string
+  animationBindings?: PetAnimationBindings
   skills?: Record<string, PetSkillConfig>
   minigames?: {
     ballHit?: BallHitMinigameConfig

@@ -5,6 +5,11 @@ import { APP_HOME_PAGE, PET_GAME_MENU, PET_TOOL_MENU, type AppPageId } from './a
 import { registerPetAiIpc, generateSituationalLine, isProactiveAiEnabled } from './petAi'
 import { getPetCharacter, listPetCharacters } from './petCharacters'
 import {
+  sanitizeAnimationBindings,
+  setAnimationBinding,
+  type PetAnimationBindings,
+} from './petAnimationBindings'
+import {
   createDefaultProfile,
   createDefaultStats,
   getPersonalityDecayRates,
@@ -119,6 +124,7 @@ type PetSettings = {
   /** @deprecated */
   reminderPendingSince?: number
   skin?: PetSkinConfig
+  animationBindings?: Record<string, PetAnimationBindings>
 }
 
 type PetReminderStored = {
@@ -334,6 +340,35 @@ function writeSettings(patch: Partial<PetSettings>) {
   const next = { ...readSettings(), ...patch }
   fs.mkdirSync(path.dirname(settingsFile()), { recursive: true })
   fs.writeFileSync(settingsFile(), JSON.stringify(next, null, 2))
+}
+
+function listPetCharactersWithBindings() {
+  const settings = readSettings()
+  const allBindings = settings.animationBindings ?? {}
+  return listPetCharacters().map((character) => {
+    const animationBindings = sanitizeAnimationBindings(allBindings[character.id])
+    return Object.keys(animationBindings).length > 0
+      ? { ...character, animationBindings }
+      : character
+  })
+}
+
+function savePetAnimationBinding(characterId: string, animationName: string, action: string) {
+  const character = getPetCharacter(characterId)
+  if (!character || character.id !== characterId) return {}
+  const settings = readSettings()
+  const allBindings = { ...(settings.animationBindings ?? {}) }
+  const next = setAnimationBinding(allBindings[characterId] ?? {}, animationName, action)
+  if (Object.keys(next).length) allBindings[characterId] = next
+  else delete allBindings[characterId]
+  writeSettings({ animationBindings: allBindings })
+  if (petWin && !petWin.isDestroyed()) {
+    petWin.webContents.send('pet:animation-bindings-changed', {
+      characterId,
+      bindings: next,
+    })
+  }
+  return next
 }
 
 function petCrashLogFile() {
@@ -1741,7 +1776,12 @@ export function registerPetIpc(
   ipcMain.handle('pet:set-size', (_event, size: number) => {
     return applyPetSize(Number(size))
   })
-  ipcMain.handle('pet:list-characters', () => listPetCharacters())
+  ipcMain.handle('pet:list-characters', () => listPetCharactersWithBindings())
+  ipcMain.handle(
+    'pet:set-animation-binding',
+    (_event, characterId: string, animationName: string, action: string) =>
+      savePetAnimationBinding(String(characterId), String(animationName), String(action)),
+  )
   ipcMain.handle('pet:set-character', (_event, characterId: string) => {
     const selected = getPetCharacter(String(characterId))
     if (!selected) return getPetStatus()
