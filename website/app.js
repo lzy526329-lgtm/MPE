@@ -109,17 +109,20 @@ function validDownloadUrl(value) {
 }
 
 function wireDownloads(latest) {
-  const patterns = { win: /^MPT-.*-win-x64\.exe$/i, mac: /^MPT-.*-mac-arm64\.dmg$/i, linux: /^MPT-.*-linux-(?:x64|x86_64)\.AppImage$/i };
-  const suffixes = { win: '.exe', mac: '.dmg', linux: 'AppImage' };
+  const patterns = { win: /^MPT-.*-win-x64\.exe$/i, 'mac-arm64': /^MPT-.*-mac-arm64\.dmg$/i, 'mac-x64': /^MPT-.*-mac-x64\.dmg$/i, linux: /^MPT-.*-linux-(?:x64|x86_64)\.AppImage$/i };
+  const suffixes = { win: '.exe', 'mac-arm64': '.dmg', 'mac-x64': '.dmg', linux: 'AppImage' };
+  const labels = { 'mac-arm64': 'Apple 芯片版', 'mac-x64': 'Intel 版' };
   const assets = Array.isArray(latest?.assets) ? latest.assets : [];
   const byPlatform = Object.fromEntries(Object.entries(patterns).map(([key, pattern]) => [key, assets.find(asset => typeof asset.name === 'string' && pattern.test(asset.name) && validDownloadUrl(asset.browser_download_url))]));
   document.querySelectorAll('[data-dl]').forEach(link => {
     const kind = link.dataset.dl === 'preferred' ? platform : link.dataset.dl;
     if (!kind) return;
+    // 浏览器的 Mac UA 无法可靠区分芯片，让用户选择，不默认下载 ARM64。
+    if (kind === 'mac') { link.href = '#download'; return; }
     const asset = byPlatform[kind];
     link.href = validDownloadUrl(asset?.browser_download_url) || LATEST_URL;
     const label = link.querySelector('[data-download-label]');
-    if (label && asset) label.textContent = `下载 ${suffixes[kind]}`;
+    if (label && asset) label.textContent = `下载 ${labels[kind] || suffixes[kind]}`;
   });
   Object.entries(byPlatform).forEach(([kind, asset]) => {
     if (!asset) return;

@@ -7,6 +7,8 @@
 - GitHub Release：https://github.com/lzy526329-lgtm/MPE/releases
 - Gitee Release：https://gitee.com/li_ziyang/gongju/releases（国内可优先）
 
+Mac 请按「关于本机」中的芯片选择：M 系列下载 `MPT-*-mac-arm64.dmg`，Intel 下载 `MPT-*-mac-x64.dmg`。
+
 Mac 未签名安装包若提示「已损坏」，把 App 拖到「应用程序」后执行：
 
 ```bash

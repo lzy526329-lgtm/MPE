@@ -8,11 +8,16 @@ npm run build
 
 # 指定平台
 npm run package:mac
+# Mac 明确指定芯片（应在对应芯片的 Mac 上运行）
+npm run package:mac:arm64
+npm run package:mac:x64
 npm run package:win
 npm run package:linux
 ```
 
-安装包输出到 `release/<版本号>/`。由于 Sharp 包含平台原生模块，正式发布时应在对应系统上构建；项目提供的 GitHub Actions 会自动完成这一点。
+安装包输出到 `release/<版本号>/`。由于 Sharp / Canvas 包含平台原生模块，正式发布时应在对应系统及芯片上构建；项目提供的 GitHub Actions 会自动完成这一点。`package:mac` 默认使用当前机器架构。
+
+GitHub Actions 分别使用 `macos-15`（Apple 芯片 / arm64）和 `macos-15-intel`（Intel / x64）构建 Mac 的 DMG / ZIP，并在上传前使用打包后的 Electron 检查 Sharp、Canvas 和 7-Zip 能否运行。官网下载页分别提供两个芯片版本。
 
 ## GitHub Actions 自动发布
 
@@ -24,7 +29,7 @@ npm run package:linux
 
 - 打开 GitHub → Actions → **Build desktop installers** → **Run workflow**
 - 成功后会：
-  - 上传 Artifacts（临时下载）
+  - 将安装包及更新清单直接上传到 GitHub Release
   - 创建/更新 GitHub Release（`v版本号`，手动触发时为 pre-release）
   - 若配置了 `GITEE_TOKEN`，同步到 Gitee Release（国内下载通常更快）
 
@@ -57,7 +62,7 @@ https://ghfast.top/https://github.com/lzy526329-lgtm/MPE/releases/download/v1.0.
    - **Windows / Linux**：点「安装并重启」自动替换
    - **macOS（当前未签名）**：点「打开安装包」，把 DMG 里的 App 拖到「应用程序」覆盖安装
 
-依赖发版时上传的 `latest.yml` / `latest-mac.yml`。应用内更新**优先走 GitHub 镜像**（`ghfast.top` → `ghproxy.net` → 官方），减轻国内 `ERR_CONNECTION_RESET`。
+依赖发版时上传的更新清单：Windows 为 `latest.yml`，Linux 为 `latest-linux.yml`，M 系列 Mac 为 `latest-mac.yml`，Intel Mac 为 `latest-mac-x64.yml`。两种 Mac 清单独立上传，避免并行构建互相覆盖，同时保留旧 M 系列客户端的更新地址。Mac 客户端只下载与自身架构匹配的 DMG。应用内更新**优先走 GitHub 镜像**（`ghfast.top` → `ghproxy.net` → 官方），减轻国内 `ERR_CONNECTION_RESET`。
 
 构建产物直接上传到 **GitHub Release**，不再经过 Actions Artifact（免费额度很容易被安装包撑满）。
 
@@ -75,7 +80,8 @@ https://ghfast.top/https://github.com/lzy526329-lgtm/MPE/releases/download/v1.0.
 
 > 注意：Gitee **单附件上限约 100MB**，MPT 安装包通常会超过，因此完整安装包会发到 **GitHub Release**；Gitee Release 页面会写明下载方式与镜像链接。  
 > 文件名对照：
-> - Mac：`MPT-*-mac-arm64.dmg`
+> - Mac（M 系列）：`MPT-*-mac-arm64.dmg`
+> - Mac（Intel）：`MPT-*-mac-x64.dmg`
 > - Windows：`MPT-*-win-x64.exe`
 > - Linux：`MPT-*-linux-*.AppImage` / `.deb`
 

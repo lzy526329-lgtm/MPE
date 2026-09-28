@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="./assets/mpt-icon.png" />
     <link rel="stylesheet" href="./styles.css?v=11" />
     <script defer src="./vendor/lucide.min.js"></script>
-    <script defer src="./app.js?v=11"></script>
+    <script defer src="./app.js?v=12"></script>
   </head>
   <body>
     <a class="skip-link" href="#download">跳到下载</a>
@@ -68,7 +68,7 @@
           <header class="section-heading"><div><p class="eyebrow">带它回家</p><h2 id="download-title">下载 MPT</h2></div><p class="release-status" id="release-status" aria-live="polite">正在获取最新正式版…</p></header>
           <div class="download-grid">
             <article class="download-option" data-platform="win"><div class="platform-title"><i data-lucide="monitor" aria-hidden="true"></i><h3>Windows</h3><span class="recommended" hidden>当前系统</span></div><p class="platform-description">64 位 Windows</p><a class="button button-primary" data-dl="win" href="https://github.com/lzy526329-lgtm/MPE/releases/latest"><i data-lucide="download" aria-hidden="true"></i><span data-download-label>获取 Windows 版</span></a><p class="file-meta" data-file-meta="win">EXE 安装包</p></article>
-            <article class="download-option" data-platform="mac"><div class="platform-title"><i data-lucide="laptop" aria-hidden="true"></i><h3>macOS</h3><span class="recommended" hidden>当前系统</span></div><p class="platform-description">Apple 芯片 · M 系列</p><a class="button button-primary" data-dl="mac" href="https://github.com/lzy526329-lgtm/MPE/releases/latest"><i data-lucide="download" aria-hidden="true"></i><span data-download-label>获取 macOS 版</span></a><p class="file-meta" data-file-meta="mac">DMG 安装包 · ARM64</p></article>
+            <article class="download-option" data-platform="mac"><div class="platform-title"><i data-lucide="laptop" aria-hidden="true"></i><h3>macOS</h3><span class="recommended" hidden>当前系统</span></div><p class="platform-description">按「关于本机」中的芯片选择</p><a class="button button-primary" data-dl="mac-arm64" href="https://github.com/lzy526329-lgtm/MPE/releases/latest"><i data-lucide="download" aria-hidden="true"></i><span data-download-label>获取 Apple 芯片版</span></a><p class="file-meta" data-file-meta="mac-arm64">M 系列 · DMG 安装包</p><a class="button button-primary" data-dl="mac-x64" href="https://github.com/lzy526329-lgtm/MPE/releases/latest"><i data-lucide="download" aria-hidden="true"></i><span data-download-label>获取 Intel 版</span></a><p class="file-meta" data-file-meta="mac-x64">Intel 芯片 · DMG 安装包</p></article>
             <article class="download-option" data-platform="linux"><div class="platform-title"><i data-lucide="terminal" aria-hidden="true"></i><h3>Linux</h3><span class="recommended" hidden>当前系统</span></div><p class="platform-description">x64 · x86_64</p><a class="button button-primary" data-dl="linux" href="https://github.com/lzy526329-lgtm/MPE/releases/latest"><i data-lucide="download" aria-hidden="true"></i><span data-download-label>获取 Linux 版</span></a><p class="file-meta" data-file-meta="linux">AppImage · DEB 见发布页</p></article>
           </div>
           <details class="install-note"><summary>macOS 安装说明<i data-lucide="chevron-down" aria-hidden="true"></i></summary><div><p>将 MPT 拖入「应用程序」。当前安装包未签名；确认下载自本项目后，若系统仍提示“已损坏”，可在终端执行：</p><code>sudo xattr -cr /Applications/MPT.app</code><p>此操作仅移除 MPT 的隔离标记。</p></div></details>

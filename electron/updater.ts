@@ -20,6 +20,9 @@ const UPDATE_FEED_CANDIDATES = [
 /** 当前选用的 feed（检查/下载成功后记住，减少来回试） */
 let activeFeedUrl = UPDATE_FEED_CANDIDATES[0]
 
+// 旧 M 系列客户端继续使用原文件；Intel 使用独立更新清单。
+const MAC_UPDATE_FILE = process.arch === 'x64' ? 'latest-mac-x64.yml' : 'latest-mac.yml'
+
 export type UpdateStatus =
   | 'idle'
   | 'checking'
@@ -93,7 +96,7 @@ function friendlyUpdateError(error: unknown): string {
   if (/404|Not Found|authentication token/i.test(message)) {
     return (
       '无法访问更新源（404）。请确认 GitHub 仓库为 Public，' +
-      '且 Release 已上传 latest-mac.yml / latest.yml。'
+      '且 Release 已上传对应架构的更新清单（latest-mac.yml / latest-mac-x64.yml / latest.yml）。'
     )
   }
   if (/ERR_CONNECTION_RESET|ERR_CONNECTION_TIMED_OUT|ERR_NAME_NOT_RESOLVED|net::|ENOTFOUND|ECONNRESET|ETIMEDOUT/i.test(message)) {
@@ -123,9 +126,9 @@ function compareVersions(a: string, b: string): number {
 
 function parseMacYml(text: string): { version: string; dmgName: string } | null {
   const version = text.match(/^version:\s*['"]?([^\s'"]+)/m)?.[1]
-  const dmgName =
-    text.match(/url:\s*(MPT-[^\s]+\.dmg)/)?.[1] ||
-    text.match(/-\s*url:\s*(MPT-[^\s]+\.dmg)/)?.[1]
+  const dmgName = [...text.matchAll(/^\s*-?\s*url:\s*['"]?(MPT-[^\s'"/\\]+\.dmg)['"]?\s*$/gm)]
+    .map((match) => match[1])
+    .find((name) => name.endsWith(`-mac-${process.arch}.dmg`))
   if (!version || !dmgName) return null
   return { version, dmgName }
 }
@@ -232,9 +235,9 @@ async function downloadFileFromFeeds(
 }
 
 async function downloadMacDmg(win: BrowserWindow | null) {
-  const { text: yml } = await fetchTextFromFeeds('latest-mac.yml')
+  const { text: yml } = await fetchTextFromFeeds(MAC_UPDATE_FILE)
   const meta = parseMacYml(yml)
-  if (!meta) throw new Error('无法解析 latest-mac.yml（缺少 dmg 条目）')
+  if (!meta) throw new Error(`无法解析 ${MAC_UPDATE_FILE}（缺少 ${process.arch} 安装包或版本号）`)
 
   const destDir = app.getPath('downloads')
   const dest = path.join(destDir, meta.dmgName)
@@ -345,10 +348,10 @@ export function registerUpdaterIpc(getMainWindow: () => BrowserWindow | null) {
     try {
       // Mac：直接读 yml（镜像优先），避免触发 ShipIt
       if (process.platform === 'darwin') {
-        const { text: yml, feedUrl } = await fetchTextFromFeeds('latest-mac.yml')
+        const { text: yml, feedUrl } = await fetchTextFromFeeds(MAC_UPDATE_FILE)
         autoUpdater.setFeedURL({ provider: 'generic', url: feedUrl })
         const meta = parseMacYml(yml)
-        if (!meta) throw new Error('无法解析 latest-mac.yml')
+        if (!meta) throw new Error(`无法解析 ${MAC_UPDATE_FILE}（缺少 ${process.arch} 安装包或版本号）`)
         const newer = compareVersions(meta.version, app.getVersion()) > 0
         if (newer) {
           setState(getMainWindow(), {

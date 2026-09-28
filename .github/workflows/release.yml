@@ -65,12 +65,21 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest
-            command: package:mac
+          - os: macos-15
+            arch: arm64
+            command: package:mac:arm64
             patterns: |
               release/*/MPT-*.dmg
               release/*/MPT-*.zip
               release/*/latest-mac.yml
+              release/*/*.blockmap
+          - os: macos-15-intel
+            arch: x64
+            command: package:mac:x64
+            patterns: |
+              release/*/MPT-*.dmg
+              release/*/MPT-*.zip
+              release/*/latest-mac-x64.yml
               release/*/*.blockmap
           - os: windows-latest
             command: package:win
@@ -103,12 +112,38 @@ jobs:
       - name: Verify toolchain
         run: npx tsc --version && npx vite --version
 
+      - name: Verify native Mac architecture
+        if: runner.os == 'macOS'
+        run: node -e "if (process.arch !== '${{ matrix.arch }}') throw new Error('Unexpected build architecture ' + process.arch)"
+
       - name: Build installers
         run: npm run ${{ matrix.command }}
         env:
           GAME_API_BASE_URL: ${{ vars.GAME_API_BASE_URL }}
           # 无证书时关闭自动签名。不要设置空的 CSC_LINK，否则 mac 会报 “not a file”
           CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Verify packaged Mac dependencies
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          MAC_APP_EXECUTABLE="$(find release -path '*/MPT.app/Contents/MacOS/MPT' -type f)"
+          test -n "$MAC_APP_EXECUTABLE"
+          # 移出仓库，防止缺失的安装包依赖被源码目录的 node_modules 掩盖。
+          MAC_SMOKE_DIR="$(mktemp -d "${RUNNER_TEMP}/mpt-smoke.XXXXXX")"
+          trap 'rm -rf "$MAC_SMOKE_DIR"' EXIT
+          cp -R "${MAC_APP_EXECUTABLE%/Contents/MacOS/MPT}" "$MAC_SMOKE_DIR/MPT.app"
+          NODE_PATH= ELECTRON_RUN_AS_NODE=1 "$MAC_SMOKE_DIR/MPT.app/Contents/MacOS/MPT" scripts/verify-mac-package.cjs \
+            "${{ matrix.arch }}" "$MAC_SMOKE_DIR/MPT.app/Contents/Resources/app.asar"
+
+      # 保留旧 M 系列客户端的 latest-mac.yml；Intel 独立命名，避免并行上传互相覆盖。
+      - name: Separate Intel Mac update metadata
+        if: runner.os == 'macOS' && matrix.arch == 'x64'
+        shell: bash
+        run: |
+          for metadata in release/*/latest-mac.yml; do
+            mv "$metadata" "${metadata%latest-mac.yml}latest-mac-x64.yml"
+          done
 
       - name: Collect release files
         shell: bash

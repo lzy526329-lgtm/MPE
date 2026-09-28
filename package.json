@@ -19,6 +19,8 @@
     "build:app": "node scripts/run.mjs tsc --noEmit && node scripts/run.mjs vite build",
     "build": "npm run build:app && electron-builder",
     "package:mac": "npm run build:app && electron-builder --mac --publish never",
+    "package:mac:arm64": "npm run package:mac -- --arm64",
+    "package:mac:x64": "npm run package:mac -- --x64",
     "package:win": "npm run build:app && electron-builder --win --publish never",
     "package:linux": "npm run build:app && electron-builder --linux --publish never",
     "preview": "node scripts/run.mjs vite preview",

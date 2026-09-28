@@ -37,6 +37,7 @@ build_body() {
   lines+=("")
   lines+=("## 如何选择文件")
   lines+=("- **Mac（Apple Silicon）**：\`MPT-*-mac-arm64.dmg\`（推荐）或 \`.zip\`")
+  lines+=("- **Mac（Intel）**：\`MPT-*-mac-x64.dmg\`（推荐）或 \`.zip\`")
   lines+=("- **Windows**：\`MPT-*-win-x64.exe\`")
   lines+=("- **Linux**：\`MPT-*-linux-*.AppImage\` / \`.deb\`")
   lines+=("")
