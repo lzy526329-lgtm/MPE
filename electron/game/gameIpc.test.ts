@@ -56,6 +56,21 @@ describe('createGameHandlers', () => {
     expect(state.foodOffers).toHaveLength(4)
   })
 
+  it('reads the game from a path resolver for the active account', async () => {
+    const accountDir = makeDir()
+    const accountGame = createDefaultGameState(1_000)
+    accountGame.wallet.coins = 73
+    saveGameAtomic(accountDir, accountGame)
+    const handlers = createGameHandlers({
+      userDataPath: () => accountDir,
+      now: () => 1_000,
+      publish: vi.fn(),
+      publishPetStatus: vi.fn(),
+    })
+
+    expect((await handlers.getState()).wallet.coins).toBe(73)
+  })
+
   it('persists bait purchases and fish sales through shared handlers', async () => {
     const dir = makeDir()
     const handlers = createGameHandlers({

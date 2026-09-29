@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
@@ -21,7 +21,7 @@ function cloud(coins = 100, revision = 1): SaveResult {
     summary: { coins, farmTotalXp: 0, totalCaught: 0, sourceDeviceId: 'remote', clientUpdatedAt: '2026-09-15T00:00:00.000Z' },
   }
 }
-function setup(guest = false) {
+function setup(guest = false, gameDataPath?: () => string) {
   vi.useFakeTimers()
   const dir = mkdtempSync(join(tmpdir(), 'account-sync-'))
   cleanup.push(() => rmSync(dir, { recursive: true, force: true }))
@@ -33,7 +33,7 @@ function setup(guest = false) {
     putSave: vi.fn<(token: string, upload: SaveUpload) => Promise<SaveResult>>().mockImplementation(async (_token, upload) => cloud(JSON.parse(upload.payload).wallet.coins, upload.baseRevision + 1)),
     resolveSave: vi.fn().mockResolvedValue(cloud(100, 3)),
   }
-  const sync = createSyncCoordinator({ userDataPath: dir, api, now: () => 1_000, debounceMs: 2_000, sessionStore })
+  const sync = createSyncCoordinator({ userDataPath: dir, gameDataPath, api, now: () => 1_000, debounceMs: 2_000, sessionStore })
   cleanup.push(() => sync.dispose())
   cleanup.push(onGameSaved(event => { if (event.userDataPath === dir) sync.markDirty() }))
   const save = (coins: number) => saveGameAtomic(dir, { ...loadGame(dir, 1_000), wallet: { coins } })
@@ -78,6 +78,49 @@ it('binds an identical cloud save without an unnecessary upload', async () => {
   expect(api.putSave).not.toHaveBeenCalled()
   expect(sessionStore.getSession()?.lastRevision).toBe(9)
   expect(sync.getState().status).toBe('synced')
+})
+
+it('applies a newer cloud save after a server-side farm reward', async () => {
+  const { sync, api, sessionStore, dir } = setup()
+  await sync.syncNow()
+
+  const remoteGame = createDefaultGameState(1_000)
+  remoteGame.inventory.produce.apple = 1
+  const payload = JSON.stringify(remoteGame)
+  api.getSave.mockResolvedValueOnce({
+    status: 'synced',
+    save: {
+      userId: 42,
+      payload,
+      schemaVersion: 2,
+      revision: 2,
+      checksum: createHash('sha256').update(payload).digest('hex'),
+      sourceDeviceId: 'server-farm-steal',
+      clientUpdatedAt: '2026-09-15T00:00:00.000Z',
+      createdAt: '2026-09-15T00:00:00.000Z',
+      updatedAt: '2026-09-15T00:00:00.000Z',
+    },
+    summary: { coins: 100, farmTotalXp: 0, totalCaught: 0, sourceDeviceId: 'server-farm-steal', clientUpdatedAt: '2026-09-15T00:00:00.000Z' },
+  })
+
+  const refreshFromCloud = (sync as typeof sync & { refreshFromCloud: () => Promise<void> }).refreshFromCloud
+  await refreshFromCloud()
+
+  expect(loadGame(dir, 1_000).inventory.produce.apple).toBe(1)
+  expect(sessionStore.getSession()?.lastRevision).toBe(2)
+  expect(sync.getState().status).toBe('synced')
+})
+
+it('reads and writes the active account cache instead of the shared root save', async () => {
+  const base = mkdtempSync(join(tmpdir(), 'account-cache-'))
+  cleanup.push(() => rmSync(base, { recursive: true, force: true }))
+  const accountPath = join(base, 'game-cache', '42')
+  mkdirSync(accountPath, { recursive: true })
+  saveGameAtomic(join(base, 'root'), { ...createDefaultGameState(1_000), wallet: { coins: 73 } })
+  saveGameAtomic(accountPath, { ...createDefaultGameState(1_000), wallet: { coins: 73 } })
+  const { sync, api } = setup(false, () => accountPath)
+  await sync.syncNow()
+  expect(JSON.parse(api.putSave.mock.calls[0][1].payload).wallet.coins).toBe(73)
 })
 
 it('keeps writes playable while offline and retries after 5, 15, then 60 seconds', async () => {

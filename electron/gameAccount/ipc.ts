@@ -6,6 +6,7 @@ import { createGameApi, GameApiError, type GameApi } from './api'
 import { getGameApiBaseUrl } from './config'
 import { createGameRealtime, getGameWebSocketUrl } from './realtime'
 import { createSessionStore, type SessionStore } from './sessionStore'
+import { clearActiveGameUser, resolveGameDataPath, setActiveGameUser } from './gameCache'
 import { createSyncCoordinator, type SyncCoordinator } from './syncCoordinator'
 import { createAccountIpcHandler, getTrustedMainWindow } from './trustedRenderer'
 import type { AccountResult, AnimalFlipAction, AuthResult, GameAccountBridge, GameAccountState, LoginRequest, RegisterRequest } from './types'
@@ -49,6 +50,7 @@ export function createGameAccountHandlers({ api, store, sync, deviceName, userDa
       const error = { code: failure.code, message: failure.message, ...(typeof detail?.retryAfterMs === 'number' ? { retryAfterMs: detail.retryAfterMs } : {}) }
       if (token && store.getSession()?.token === token && ['ACCOUNT_BANNED', 'SESSION_EXPIRED', 'AUTH_INVALID'].includes(failure.code)) {
         realtime?.stop()
+        clearActiveGameUser()
         sync.invalidateSession(error)
       }
       return { ok: false, error }
@@ -71,7 +73,7 @@ export function createGameAccountHandlers({ api, store, sync, deviceName, userDa
   }
   function clear() {
     authGeneration++
-    try { realtime?.stop(); store.clearSession() } finally { sync.sessionChanged() }
+    try { realtime?.stop(); clearActiveGameUser(); store.clearSession() } finally { sync.sessionChanged() }
   }
   function authenticate(input: LoginRequest | RegisterRequest, register: boolean) {
     const epoch = ++authGeneration
@@ -87,6 +89,7 @@ export function createGameAccountHandlers({ api, store, sync, deviceName, userDa
       if (result.user.status === 2) throw new GameApiError('ACCOUNT_BANNED', 'Account is banned', 403)
       const previous = store.getSession()
       store.setSession({ userId: result.user.id, uid: result.user.uid, email: result.user.email, nickname: result.user.nickname, token: result.token, deviceId: store.getDeviceId(), lastRevision: 0, status: result.user.status })
+      setActiveGameUser(result.user.id)
       store.setSyncMetadata({ checksum: null, pending: true })
       sync.sessionChanged()
       realtime?.start()
@@ -196,8 +199,8 @@ export function createGameAccountHandlers({ api, store, sync, deviceName, userDa
       const plotIndex = (requestInput as Record<string, unknown>).plotIndex
       if ((typeof value !== 'number' && typeof value !== 'string') || !Number.isSafeInteger(Number(value)) || Number(value) <= 0 || !Number.isSafeInteger(plotIndex) || Number(plotIndex) < 0) throw new GameApiError('VALIDATION_ERROR', 'Invalid farm plot')
       const result = await api.stealFriendFarm(token, value, plotIndex)
-      // 偷取接口同时更新了访问者的云存档，立即应用云端结果，确保背包马上显示收益。
-      try { await sync.syncNow() } catch { /* 云端收益已提交，下一次同步继续应用。 */ }
+      // 偷取接口同时更新了访问者的云存档，立即拉取并应用云端结果，确保背包马上显示收益。
+      try { await sync.refreshFromCloud() } catch { /* 云端收益已提交，下一次同步继续应用。 */ }
       return result
     }),
     gameAccountListFarmVisits: () => protectedCall(token => api.listFarmVisits(token)),
@@ -213,7 +216,7 @@ export function registerGameAccountIpc(getMain: () => BrowserWindow | null, isTr
   const store = createSessionStore(userDataPath, safeStorage)
   const authorization = { getMain, isTrustedUrl }
   const sync = createSyncCoordinator({
-    userDataPath, api, sessionStore: store,
+    userDataPath, gameDataPath: () => resolveGameDataPath(userDataPath), api, sessionStore: store,
     publish: state => getTrustedMainWindow(authorization)?.webContents.send('game-account:state-changed', state),
     onCloudApplied: game => getTrustedMainWindow(authorization)?.webContents.send('game:state-changed', toGameViewState(game)),
   })
@@ -240,6 +243,7 @@ export function registerGameAccountIpc(getMain: () => BrowserWindow | null, isTr
     disposeRegistration = undefined
   }
   if (store.getSession()) {
+    setActiveGameUser(store.getSession()!.userId)
     realtime.start()
     void sync.syncNow()
   }

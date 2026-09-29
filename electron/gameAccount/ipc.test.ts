@@ -90,13 +90,13 @@ it('routes farm visits through the authenticated main-process session', async ()
   expect(api.listFarmVisits).toHaveBeenCalledWith('private-token')
 })
 
-it('syncs the visitor cloud save after stealing a friend crop', async () => {
+it('refreshes the visitor cloud save after stealing a friend crop', async () => {
   const { handlers, api, sync } = setup()
   await handlers.gameAccountLogin({ email: 'player@example.com', password: 'Password1' })
-  const syncNow = vi.spyOn(sync, 'syncNow').mockResolvedValue()
+  const refreshFromCloud = vi.spyOn(sync, 'refreshFromCloud').mockResolvedValue()
   await handlers.gameAccountStealFriendFarm(7, 2)
   expect(api.stealFriendFarm).toHaveBeenCalledWith('private-token', 7, 2)
-  expect(syncNow).toHaveBeenCalledTimes(1)
+  expect(refreshFromCloud).toHaveBeenCalledTimes(1)
 })
 
 it('does not restore a login that finishes after a user has logged out', async () => {

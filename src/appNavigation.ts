@@ -1,4 +1,5 @@
 import { APP_HOME_PAGE, getAppPageDefinition, type AppPageId } from './appPages'
+import { installGameAccessGate, isGameAccountAuthenticated, requiresGameAccount, setPendingGamePage } from './gameAccess'
 
 type PageListener = (pageId: AppPageId) => void
 
@@ -36,6 +37,11 @@ export function getCurrentPage() {
 
 export function navigateToPage(pageId: AppPageId) {
   if (!getAppPageDefinition(pageId)) return
+  if (requiresGameAccount(pageId) && !isGameAccountAuthenticated()) {
+    setPendingGamePage(pageId)
+    if (pageId !== 'account-page') navigateToPage('account-page')
+    return
+  }
   currentPage = pageId
   document.querySelectorAll<HTMLElement>('.tool-page').forEach((page) => {
     page.hidden = page.id !== pageId
@@ -50,6 +56,7 @@ export function onPageChange(listener: PageListener) {
 }
 
 export function setupAppNavigation() {
+  installGameAccessGate()
   document.querySelector<HTMLElement>('#workspace-toolbox-back')?.addEventListener('click', () => navigateToPage('toolbox-page'))
   const globalNav = document.querySelector<HTMLElement>('.sidebar')
     ?? document.querySelector<HTMLElement>('#global-nav')

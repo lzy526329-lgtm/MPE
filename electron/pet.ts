@@ -43,6 +43,7 @@ import { detectFarmNeeds } from './farm/farmNeeds'
 import { commitFarmReminderLatches, decideFarmReminder, farmReminderId, type FarmReminderLatches } from './farm/farmReminders'
 import { peekWalletCoins, readGameState } from './game/gameStore'
 import { toCompatFarmState, toGameViewState } from './game/gameEngine'
+import { resolveGameDataPath } from './gameAccount/gameCache'
 import { createGameHandlers } from './game/gameIpc'
 import {
   advanceWorkSession,
@@ -632,7 +633,7 @@ let lastWalletErrorLogAt = 0
  */
 function readWalletCoins(legacyCoins: number): number {
   try {
-    const coins = peekWalletCoins(app.getPath('userData'), Date.now())
+    const coins = peekWalletCoins(resolveGameDataPath(app.getPath('userData')), Date.now())
     lastKnownWalletCoins = coins
     return coins
   } catch (error) {
@@ -979,7 +980,7 @@ function farmLatchesEqual(a: FarmReminderLatches, b: FarmReminderLatches) {
 /** 只读检测农场需要，失败时跳过，避免坏档打断主动搭话。 */
 function peekFarmNeeds(now: number) {
   try {
-    const farm = settle(toCompatFarmState(readGameState(app.getPath('userData'), now).state), now)
+    const farm = settle(toCompatFarmState(readGameState(resolveGameDataPath(app.getPath('userData')), now).state), now)
     return detectFarmNeeds(farm, now)
   } catch {
     return null
@@ -1321,7 +1322,7 @@ function emitCareReact(kind: CareKind) {
 
 function buildFeedMenuItems(): Electron.MenuItemConstructorOptions[] {
   try {
-    const view = toGameViewState(readGameState(app.getPath('userData'), Date.now()).state)
+    const view = toGameViewState(readGameState(resolveGameDataPath(app.getPath('userData')), Date.now()).state)
     const owned = view.foodOffers.filter(
       (offer) => (view.inventory.food[offer.foodId] ?? 0) > 0,
     )
@@ -1330,7 +1331,7 @@ function buildFeedMenuItems(): Electron.MenuItemConstructorOptions[] {
     }
 
     const handlers = createGameHandlers({
-      userDataPath: app.getPath('userData'),
+      userDataPath: () => resolveGameDataPath(app.getPath('userData')),
       now: Date.now,
       publish: (state) => getMainWindow()?.webContents.send('game:state-changed', state),
       publishPetStatus: notifyPetStatusChanged,
@@ -1352,7 +1353,7 @@ function buildFeedMenuItems(): Electron.MenuItemConstructorOptions[] {
 
 function buildCleanMenuItems(): Electron.MenuItemConstructorOptions[] {
   try {
-    const view = toGameViewState(readGameState(app.getPath('userData'), Date.now()).state)
+    const view = toGameViewState(readGameState(resolveGameDataPath(app.getPath('userData')), Date.now()).state)
     const owned = view.supplyOffers.filter(
       (offer) => (view.inventory.supplies[offer.supplyId] ?? 0) > 0,
     )
@@ -1361,7 +1362,7 @@ function buildCleanMenuItems(): Electron.MenuItemConstructorOptions[] {
     }
 
     const handlers = createGameHandlers({
-      userDataPath: app.getPath('userData'),
+      userDataPath: () => resolveGameDataPath(app.getPath('userData')),
       now: Date.now,
       publish: (state) => getMainWindow()?.webContents.send('game:state-changed', state),
       publishPetStatus: notifyPetStatusChanged,

@@ -18,6 +18,7 @@ import {
   type FishingSessionPublic,
 } from './fishingSession'
 import type { BaitId, FishCatch } from './fishingTypes'
+import { resolveGameDataPath } from '../gameAccount/gameCache'
 
 export type FishingCastResult =
   | { ok: true; state: GameViewState; session: FishingSessionPublic }
@@ -52,16 +53,17 @@ export type FishingHandlers = {
 }
 
 export function createFishingHandlers(options: {
-  userDataPath: string
+  userDataPath: string | (() => string)
   now: () => number
   sessions: FishingSessionManager
   publish: (state: GameViewState) => void
   fileOps?: Partial<GameStoreFileOps>
 }): FishingHandlers {
   const fileOps = options.fileOps ?? {}
+  const gameDataPath = () => typeof options.userDataPath === 'function' ? options.userDataPath() : options.userDataPath
   const renderableState = (): GameViewState => {
     try {
-      return toGameViewState(readGameState(options.userDataPath, options.now(), fileOps).state)
+      return toGameViewState(readGameState(gameDataPath(), options.now(), fileOps).state)
     } catch {
       return emptyGameViewState()
     }
@@ -75,7 +77,7 @@ export function createFishingHandlers(options: {
       }
       try {
         const mutation = await withGame(
-          options.userDataPath,
+          gameDataPath(),
           options.now(),
           (game) => consumeBaitForCast(game, baitId),
           fileOps,
@@ -136,7 +138,7 @@ export function createFishingHandlers(options: {
       }
       try {
         const mutation = await withGame(
-          options.userDataPath,
+          gameDataPath(),
           options.now(),
           (game) => addCaughtFish(game, outcome.catch),
           fileOps,
@@ -173,7 +175,7 @@ export function createFishingHandlers(options: {
 export function registerFishingIpc(getMain: () => BrowserWindow | null): void {
   const now = Date.now
   const handlers = createFishingHandlers({
-    userDataPath: app.getPath('userData'),
+    userDataPath: () => resolveGameDataPath(app.getPath('userData')),
     now,
     sessions: createFishingSessionManager({ now, randomUUID }),
     publish: (state) => getMain()?.webContents.send('game:state-changed', state),

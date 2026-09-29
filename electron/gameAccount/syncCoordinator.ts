@@ -9,6 +9,7 @@ import type { AccountError, GameAccountSession, GameAccountState, SaveResult, Sa
 
 type Options = {
   userDataPath: string
+  gameDataPath?: () => string
   api: Pick<GameApi, 'getSave' | 'putSave' | 'resolveSave'>
   now?: () => number
   debounceMs?: number
@@ -20,6 +21,7 @@ const digest = (payload: string) => createHash('sha256').update(payload, 'utf8')
 
 export function createSyncCoordinator(options: Options) {
   const now = options.now || Date.now
+  const gameDataPath = options.gameDataPath || (() => options.userDataPath)
   const debounceMs = options.debounceMs ?? 2_000
   const store = options.sessionStore || createSessionStore(options.userDataPath, {
     isEncryptionAvailable: () => false, encryptString: () => { throw new Error('Encryption unavailable') }, decryptString: () => '',
@@ -48,9 +50,10 @@ export function createSyncCoordinator(options: Options) {
     return !disposed && generation === epoch && store.getSession()?.token === session.token
   }
   function localSnapshot() {
-    const game = readGameState(options.userDataPath, now()).state
+    const dataPath = gameDataPath()
+    const game = readGameState(dataPath, now()).state
     const payload = JSON.stringify(game)
-    const file = path.join(options.userDataPath, 'game.json')
+    const file = path.join(dataPath, 'game.json')
     const modified = fs.existsSync(file) ? fs.statSync(file).mtimeMs : now()
     const summary: SaveSummary = { coins: game.wallet.coins, farmTotalXp: game.farm.totalXp, totalCaught: game.fishing.totalCaught, clientUpdatedAt: new Date(modified).toISOString(), sourceDeviceId: store.getDeviceId() }
     return { game, payload, checksum: digest(payload), summary }
@@ -119,7 +122,7 @@ export function createSyncCoordinator(options: Options) {
   }
   async function performSync(session: GameAccountSession, epoch: number) {
     try {
-      loadGame(options.userDataPath, now())
+      loadGame(gameDataPath(), now())
       status = 'syncing'
       error = null
       publish()
@@ -162,6 +165,47 @@ export function createSyncCoordinator(options: Options) {
       if (epoch !== generation && store.getSession() && !disposed) schedule(0)
     })
     return inFlight
+  }
+  async function refreshFromCloud(): Promise<void> {
+    clearTimer()
+    if (inFlight) await inFlight
+    const session = store.getSession()
+    if (disposed || !session) return
+    const epoch = generation
+    const run = async () => {
+      try {
+        status = 'syncing'
+        error = null
+        publish()
+        const remote = await options.api.getSave(session.token)
+        if (!valid(session, epoch)) return
+        validateCloud(remote)
+        if (!remote.save) {
+          status = dirty ? 'offline-pending' : 'synced'
+          publish()
+          return
+        }
+        const game = parseGamePayload(remote.save.payload, now())
+        const file = path.join(gameDataPath(), 'game.json')
+        if (fs.existsSync(file)) fs.writeFileSync(`${file}.backup-${randomUUID()}`, fs.readFileSync(file), { flag: 'wx', mode: 0o600 })
+        applyingCloud = true
+        try {
+          await withGame(gameDataPath(), now(), () => ({ ok: true as const, game }))
+        } finally {
+          applyingCloud = false
+        }
+        if (!valid(session, epoch)) return
+        options.onCloudApplied?.(game)
+        acknowledge(session, remote.save.revision, remote.save.checksum)
+      } catch (cause) {
+        handleError(cause, session, epoch)
+      }
+    }
+    inFlight = run().finally(() => {
+      inFlight = null
+      if (epoch !== generation && store.getSession() && !disposed) schedule(0)
+    })
+    await inFlight
   }
   function markDirty() {
     if (applyingCloud || disposed || !store.getSession()) return
@@ -212,9 +256,9 @@ export function createSyncCoordinator(options: Options) {
           const game = parseGamePayload(result.save.payload, now())
           checksum = digest(JSON.stringify(game))
           // Use the same mutation queue as gameplay so a delayed local write cannot undo the chosen cloud save.
-          await withGame(options.userDataPath, now(), () => {
+          await withGame(gameDataPath(), now(), () => {
             if (!valid(session, epoch)) return { ok: false, game }
-            const file = path.join(options.userDataPath, 'game.json')
+            const file = path.join(gameDataPath(), 'game.json')
             if (fs.existsSync(file)) fs.writeFileSync(`${file}.backup-${randomUUID()}`, fs.readFileSync(file), { flag: 'wx', mode: 0o600 })
             applyingCloud = true
             return { ok: true, game }
@@ -235,6 +279,6 @@ export function createSyncCoordinator(options: Options) {
     })
     await inFlight
   }
-  return { markDirty, syncNow, getState, resolveConflict, sessionChanged, invalidateSession, dispose() { disposed = true; generation++; clearTimer() } }
+  return { markDirty, syncNow, refreshFromCloud, getState, resolveConflict, sessionChanged, invalidateSession, dispose() { disposed = true; generation++; clearTimer() } }
 }
 export type SyncCoordinator = ReturnType<typeof createSyncCoordinator>

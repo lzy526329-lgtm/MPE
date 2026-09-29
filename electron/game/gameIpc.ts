@@ -22,6 +22,7 @@ import { getFoodCatalogEntry } from './foodCatalog'
 import { getSupplyCatalogEntry } from './supplyCatalog'
 import { loadGame, readGameState, withGame, type GameStoreFileOps } from './gameStore'
 import type { BaitId, FoodId, FurnitureId, GameActionResult, GameMutationResult, GameState, GameViewState, SupplyId, DecorId } from './gameTypes'
+import { resolveGameDataPath as resolveActiveGameDataPath } from '../gameAccount/gameCache'
 
 export type GameHandlers = {
   getState: () => Promise<GameViewState>
@@ -39,11 +40,15 @@ export type GameHandlers = {
 }
 
 export type GameHandlerOptions = {
-  userDataPath: string
+  userDataPath: string | (() => string)
   now: () => number
   publish: (state: GameViewState) => void
   publishPetStatus: () => void
   fileOps?: Partial<GameStoreFileOps>
+}
+
+function resolveGameDataPath(value: string | (() => string)): string {
+  return typeof value === 'function' ? value() : value
 }
 
 export function createGameHandlers(options: GameHandlerOptions): GameHandlers {
@@ -62,7 +67,7 @@ export function createGameHandlers(options: GameHandlerOptions): GameHandlers {
    */
   const renderableState = (): GameViewState => {
     try {
-      return toGameViewState(readGameState(options.userDataPath, options.now(), fileOps).state)
+      return toGameViewState(readGameState(resolveGameDataPath(options.userDataPath), options.now(), fileOps).state)
     } catch {
       return lastKnownState ?? emptyGameViewState()
     }
@@ -74,7 +79,7 @@ export function createGameHandlers(options: GameHandlerOptions): GameHandlers {
   ): Promise<GameActionResult> => {
     try {
       const result = toGameActionResult(
-        await withGame(options.userDataPath, options.now(), mutate, fileOps),
+        await withGame(resolveGameDataPath(options.userDataPath), options.now(), mutate, fileOps),
       )
       remember(result.state)
       if (result.ok) {
@@ -95,9 +100,9 @@ export function createGameHandlers(options: GameHandlerOptions): GameHandlers {
 
   return {
     getState: async () => {
-      const outcome = readGameState(options.userDataPath, options.now(), fileOps)
+      const outcome = readGameState(resolveGameDataPath(options.userDataPath), options.now(), fileOps)
       if (outcome.dirty || outcome.corrupt) {
-        return remember(toGameViewState(loadGame(options.userDataPath, options.now(), fileOps)))
+        return remember(toGameViewState(loadGame(resolveGameDataPath(options.userDataPath), options.now(), fileOps)))
       }
       return remember(toGameViewState(outcome.state))
     },
@@ -109,7 +114,7 @@ export function createGameHandlers(options: GameHandlerOptions): GameHandlers {
       try {
         result = toGameActionResult(
           await withGame(
-            options.userDataPath,
+            resolveGameDataPath(options.userDataPath),
             options.now(),
             (game) => buySeed(game, cropId),
             fileOps,
@@ -137,7 +142,7 @@ export function createGameHandlers(options: GameHandlerOptions): GameHandlers {
       try {
         result = toGameActionResult(
           await withGame(
-            options.userDataPath,
+            resolveGameDataPath(options.userDataPath),
             options.now(),
             (game) => sellProduce(game, produceId),
             fileOps,
@@ -165,7 +170,7 @@ export function createGameHandlers(options: GameHandlerOptions): GameHandlers {
       try {
         result = toGameActionResult(
           await withGame(
-            options.userDataPath,
+            resolveGameDataPath(options.userDataPath),
             options.now(),
             (game) => buyFood(game, foodId),
             fileOps,
@@ -192,7 +197,7 @@ export function createGameHandlers(options: GameHandlerOptions): GameHandlers {
       let result: GameActionResult
       try {
         const mutation = await withGame(
-          options.userDataPath,
+          resolveGameDataPath(options.userDataPath),
           options.now(),
           (game) => useFood(game, foodId),
           fileOps,
@@ -223,7 +228,7 @@ export function createGameHandlers(options: GameHandlerOptions): GameHandlers {
       try {
         result = toGameActionResult(
           await withGame(
-            options.userDataPath,
+            resolveGameDataPath(options.userDataPath),
             options.now(),
             (game) => buySupply(game, supplyId),
             fileOps,
@@ -250,7 +255,7 @@ export function createGameHandlers(options: GameHandlerOptions): GameHandlers {
       let result: GameActionResult
       try {
         const mutation = await withGame(
-          options.userDataPath,
+          resolveGameDataPath(options.userDataPath),
           options.now(),
           (game) => useSupply(game, supplyId),
           fileOps,
@@ -281,7 +286,7 @@ export function createGameHandlers(options: GameHandlerOptions): GameHandlers {
       try {
         result = toGameActionResult(
           await withGame(
-            options.userDataPath,
+            resolveGameDataPath(options.userDataPath),
             options.now(),
             (game) => buyDecor(game, decorId),
             fileOps,
@@ -310,7 +315,7 @@ export function createGameHandlers(options: GameHandlerOptions): GameHandlers {
 
 export function registerGameIpc(getMain: () => BrowserWindow | null): void {
   const handlers = createGameHandlers({
-    userDataPath: app.getPath('userData'),
+    userDataPath: () => resolveActiveGameDataPath(app.getPath('userData')),
     now: Date.now,
     publish: (state) => getMain()?.webContents.send('game:state-changed', state),
     publishPetStatus: notifyPetStatusChanged,

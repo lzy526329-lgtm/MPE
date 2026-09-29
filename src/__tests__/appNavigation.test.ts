@@ -1,6 +1,7 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getCurrentPage, navigateToPage, setupAppNavigation } from '../appNavigation'
 import { TOOL_PAGES } from '../appPages'
+import { consumePendingGamePage, setGameAccountState, setPendingGamePage } from '../gameAccess'
 
 function makeButton(pageId: string) {
   const classes = new Set<string>()
@@ -19,9 +20,32 @@ function makeButton(pageId: string) {
   }
 }
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  setGameAccountState(null)
+  consumePendingGamePage()
+  vi.unstubAllGlobals()
+})
+
+beforeEach(() => {
+  setGameAccountState({ account: { userId: 42 } } as never)
+})
 
 describe('global navigation', () => {
+  it('redirects guests to the account page when they open a game page', () => {
+    setGameAccountState(null)
+    const pages = ['pet-settings-page', 'account-page', 'farm-page'].map((id) => ({ id, hidden: true }))
+    vi.stubGlobal('document', {
+      querySelector: () => null,
+      querySelectorAll: (selector: string) => selector === '[data-page]' ? [] : pages,
+    })
+    vi.stubGlobal('window', { electronAPI: {} })
+
+    navigateToPage('farm-page')
+
+    expect(getCurrentPage()).toBe('account-page')
+    expect(consumePendingGamePage()).toBe('farm-page')
+  })
+
   it('keeps the toolbox selected for all tool pages and returns through the toolbar', () => {
     let backClick: (() => void) | undefined
     const back = { hidden: true, addEventListener: (_type: string, listener: () => void) => { backClick = listener } }

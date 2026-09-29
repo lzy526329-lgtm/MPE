@@ -35,6 +35,7 @@ import {
   savePlacedDecors,
 } from './decorEngine'
 import type { DecorId } from '../game/gameTypes'
+import { resolveGameDataPath } from '../gameAccount/gameCache'
 
 export const FARM_PERSISTENCE_ERROR = '保存失败，请重试'
 
@@ -312,7 +313,7 @@ export function createFarmHandlers(options: FarmHandlerOptions): FarmHandlers {
 
 export function registerFarmIpc(getMain: () => BrowserWindow | null): void {
   const handlers = createFarmHandlers({
-    userDataPath: () => app.getPath('userData'),
+    userDataPath: () => resolveGameDataPath(app.getPath('userData')),
     now: Date.now,
     publish: (state) => getMain()?.webContents.send('game:state-changed', state),
     publishPetStatus: notifyPetStatusChanged,

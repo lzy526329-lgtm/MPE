@@ -3,6 +3,7 @@ import type { AccountError, AccountResult, GameAccountState, SaveSummary, SyncSt
 type MessageTone = 'error' | 'success' | 'info'
 import { APP_HOME_PAGE } from './appPages'
 import { getCurrentPage, navigateToPage, onPageChange } from './appNavigation'
+import { consumePendingGamePage, setGameAccountState } from './gameAccess'
 
 type AccountView = 'guest' | 'login' | 'register' | 'forgot' | 'change-password'
 
@@ -293,6 +294,7 @@ export function mountAccountPage(): void {
     countdown = 0
     sendingCode = false
     state = next
+    setGameAccountState(next)
     loading = false
     if (!next.account) {
       view = 'guest'
@@ -300,6 +302,10 @@ export function mountAccountPage(): void {
       if (next.error?.code === 'ACCOUNT_BANNED') notice(next.error.message)
     }
     render()
+    if (next.account) {
+      const pendingPage = consumePendingGamePage()
+      if (pendingPage) navigateToPage(pendingPage)
+    }
   }
 
   const applyResult = (result: AccountResult) => {
