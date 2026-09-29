@@ -45,6 +45,35 @@ it('enables invitations for online friends and disables them again after going o
   expect(renderAnimalFlipFriendRoom({ ...lobby, onlineUserIds: [] })).toMatch(/data-friend-action="invite"[^>]*disabled/)
 })
 
+it('refreshes the friend list when the server announces a friendship change', async () => {
+  let friendsChanged: (() => void) | undefined
+  let listCalls = 0
+  const root = {
+    innerHTML: '',
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }
+  vi.stubGlobal('window', {
+    setInterval: () => 1,
+    clearInterval: vi.fn(),
+    electronAPI: {
+      gameAccountGetState: async () => ({ account: lobby.account }),
+      gameAccountListFriends: async () => ({ ok: true, data: { friends: listCalls++ === 0 ? [] : lobby.friends } }),
+      onGameAccountStateChanged: () => () => {},
+      onAnimalFlipRoomEvent: () => () => {},
+      onGameAccountPresenceChanged: () => () => {},
+      onGameAccountFriendsUpdated: (callback: () => void) => { friendsChanged = callback; return () => {} },
+    },
+  })
+
+  const page = mountAnimalFlipFriendPage(root as unknown as HTMLElement)
+  try {
+    await vi.waitFor(() => expect(root.innerHTML).toContain('暂无好友'))
+    friendsChanged?.()
+    await vi.waitFor(() => expect(root.innerHTML).toContain('<strong>好友</strong>'))
+  } finally { page.dispose() }
+})
+
 
 afterEach(() => vi.unstubAllGlobals())
 

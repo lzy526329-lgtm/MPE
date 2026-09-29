@@ -94,8 +94,8 @@ export function renderAnimalFlipFriendRoom(model: FriendModel): string {
 
 export function mountAnimalFlipFriendPage(root: HTMLElement): { dispose: () => void; enterRoom: (result: AnimalFlipRoomResult) => void } {
   let model: FriendModel = { account: null, friends: [], room: null, snapshot: null, error: null, busy: true, selected: null }
-  let unsubscribePresence = () => {}; let unsubscribeState = () => {}; let unsubscribeRoom = () => {}; let pollTimer: number | undefined
-  let revision = 0; let polling = false; let disposed = false
+  let unsubscribePresence = () => {}; let unsubscribeState = () => {}; let unsubscribeRoom = () => {}; let unsubscribeFriends = () => {}; let pollTimer: number | undefined
+  let revision = 0; let polling = false; let friendsRefreshing = false; let disposed = false
   const render = () => {
     if (disposed) return
     root.innerHTML = `${model.room && ['playing', 'finished', 'cancelled'].includes(model.room.state) ? '' : '<button class="text-button animal-flip-back" type="button" data-animal-back>← 返回玩法选择</button>'}${renderAnimalFlipFriendRoom(model)}`
@@ -127,6 +127,22 @@ export function mountAnimalFlipFriendPage(root: HTMLElement): { dispose: () => v
     } catch { if (revision === startedAt && !disposed) { model.error = '连接暂时中断，正在重试…'; render() } }
     finally { polling = false }
   }
+  const refreshFriends = async () => {
+    if (!model.account || friendsRefreshing || disposed) return
+    friendsRefreshing = true
+    try {
+      const result = await window.electronAPI.gameAccountListFriends()
+      if (disposed || !model.account) return
+      if (result.ok) model.friends = result.data.friends
+      else model.error = result.error.message
+      render()
+    } catch {
+      if (!disposed && !model.room) {
+        model.error = '好友列表暂时不可用，正在重试…'
+        render()
+      }
+    } finally { friendsRefreshing = false }
+  }
   const runRequest = async (request: () => Promise<AccountResult<AnimalFlipRoomResult>>, leave = false) => {
     const startedAt = ++revision
     model.busy = true; model.error = null; render()
@@ -143,10 +159,7 @@ export function mountAnimalFlipFriendPage(root: HTMLElement): { dispose: () => v
   const load = async () => {
     const accountState = await window.electronAPI.gameAccountGetState()
     model.account = accountState.account ? { userId: accountState.account.userId, nickname: accountState.account.nickname, uid: accountState.account.uid } : null
-    if (model.account) {
-      const friends = await window.electronAPI.gameAccountListFriends()
-      if (friends.ok) model.friends = friends.data.friends
-    }
+    if (model.account) await refreshFriends()
     model.busy = false; render()
   }
   const applyPresence = (event: GamePresenceEvent) => {
@@ -209,6 +222,6 @@ export function mountAnimalFlipFriendPage(root: HTMLElement): { dispose: () => v
   }
 
   unsubscribePresence = window.electronAPI.onGameAccountPresenceChanged?.(applyPresence) || (() => {})
-  root.addEventListener('click', onClick); unsubscribeRoom = window.electronAPI.onAnimalFlipRoomEvent(applyRoomEvent); pollTimer = window.setInterval(() => { if (model.room && !model.busy) void refreshRoom() }, 2000); unsubscribeState = window.electronAPI.onGameAccountStateChanged(state => { if (String(model.account?.userId) !== String(state.account?.userId)) { revision++; model.onlineUserIds = []; model.friends = []; model.room = null; model.snapshot = null; model.selected = null; model.busy = false }; model.account = state.account ? { userId: state.account.userId, nickname: state.account.nickname, uid: state.account.uid } : null; render() }); void load(); render()
-  return { enterRoom, dispose: () => { disposed = true; revision++; root.removeEventListener('click', onClick); unsubscribeState(); unsubscribeRoom(); unsubscribePresence(); if (pollTimer !== undefined) window.clearInterval(pollTimer) } }
+  root.addEventListener('click', onClick); unsubscribeRoom = window.electronAPI.onAnimalFlipRoomEvent(applyRoomEvent); pollTimer = window.setInterval(() => { if (model.room && !model.busy) void refreshRoom() }, 2000); unsubscribeFriends = window.electronAPI.onGameAccountFriendsUpdated?.(() => { if (model.account) void refreshFriends() }) || (() => {}); unsubscribeState = window.electronAPI.onGameAccountStateChanged(state => { if (String(model.account?.userId) !== String(state.account?.userId)) { revision++; model.onlineUserIds = []; model.friends = []; model.room = null; model.snapshot = null; model.selected = null; model.busy = false }; model.account = state.account ? { userId: state.account.userId, nickname: state.account.nickname, uid: state.account.uid } : null; render(); if (model.account && !model.room) void refreshFriends() }); void load(); render()
+  return { enterRoom, dispose: () => { disposed = true; revision++; root.removeEventListener('click', onClick); unsubscribeState(); unsubscribeRoom(); unsubscribePresence(); unsubscribeFriends(); if (pollTimer !== undefined) window.clearInterval(pollTimer) } }
 }

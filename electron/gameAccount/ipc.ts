@@ -225,6 +225,7 @@ export function registerGameAccountIpc(getMain: () => BrowserWindow | null, isTr
     getToken: () => store.getSession()?.token,
     onEvent: event => {
       if (event.type.startsWith('animal_flip.')) getTrustedMainWindow(authorization)?.webContents.send('game-account:animal-flip-event', event)
+      else if (event.type === 'friends.updated') getTrustedMainWindow(authorization)?.webContents.send('game-account:friends-updated', event)
       else if (event.type === 'farm.visit') getTrustedMainWindow(authorization)?.webContents.send('game-account:farm-visit', event)
       else if (event.type === 'farm.updated') getTrustedMainWindow(authorization)?.webContents.send('game-account:farm-updated', event)
       else if (event.type === 'presence.snapshot' || event.type === 'presence.changed') getTrustedMainWindow(authorization)?.webContents.send('game-account:presence-changed', event)

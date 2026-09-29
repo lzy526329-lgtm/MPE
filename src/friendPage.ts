@@ -161,9 +161,21 @@ export function mountFriendPage(): void {
       panel = { ...panel, loading: true }
       render()
       void window.electronAPI.gameAccountSendFriendRequest(uid).then(result => {
-        panel = result.ok
-          ? { ...panel, loading: false, message: '好友申请已发送。', search: panel.search ? { ...panel.search, relation: 'outgoing' } : null }
-          : { ...panel, loading: false, message: result.error.message }
+        if (result.ok) {
+          const request = { ...result.data.request, user: result.data.user }
+          const outgoingRequests = panel.list?.outgoingRequests.some((item) => String(item.id) === String(request.id))
+            ? panel.list.outgoingRequests
+            : [...(panel.list?.outgoingRequests ?? []), request]
+          panel = {
+            ...panel,
+            loading: false,
+            message: '好友申请已发送。',
+            search: panel.search ? { ...panel.search, relation: 'outgoing' } : null,
+            list: panel.list ? { ...panel.list, outgoingRequests } : panel.list,
+          }
+        } else {
+          panel = { ...panel, loading: false, message: result.error.message }
+        }
         render()
       }).catch(() => {
         panel = { ...panel, loading: false, message: '申请暂时不可用，请稍后重试。' }
@@ -238,6 +250,9 @@ export function mountFriendPage(): void {
       panel = { ...panel, onlineUserIds: [...current] }
     }
     if (account) render()
+  })
+  window.electronAPI.onGameAccountFriendsUpdated?.(() => {
+    if (account) void refreshFriends()
   })
   onPageChange((pageId) => {
     if (pageId === 'friend-page') void load()

@@ -48,6 +48,7 @@ export type AnimalFlipRealtimeEvent =
 export type GamePresenceEvent =
   | { type: 'presence.snapshot'; onlineUserIds: Array<number | string> }
   | { type: 'presence.changed'; userId: number | string; online: boolean }
+export type FriendRealtimeEvent = { type: 'friends.updated' }
 export type FarmVisitRealtimeEvent = {
   type: 'farm.visit'
   visitorId: number | string
@@ -125,6 +126,7 @@ export type GameAccountBridge = {
   onAnimalFlipRoomEvent: (callback: (event: AnimalFlipRealtimeEvent) => void) => () => void
   onGameAccountStateChanged: (callback: (state: GameAccountState) => void) => () => void
   onGameAccountPresenceChanged?: (callback: (event: GamePresenceEvent) => void) => () => void
+  onGameAccountFriendsUpdated?: (callback: (event: FriendRealtimeEvent) => void) => () => void
   onGameAccountFarmVisit?: (callback: (event: FarmVisitRealtimeEvent) => void) => () => void
   onGameAccountFarmUpdated?: (callback: (event: FarmUpdatedRealtimeEvent) => void) => () => void
 }

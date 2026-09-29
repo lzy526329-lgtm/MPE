@@ -89,6 +89,18 @@ it('forwards animal flip room events and can send room subscriptions', () => {
   realtime.stop()
 })
 
+it('forwards friendship change events to the renderer', () => {
+  FakeSocket.instances = []
+  const onEvent = vi.fn()
+  const realtime = createGameRealtime({
+    url: 'ws://localhost:8088/ws/game', getToken: () => 'private-token', WebSocketImpl: FakeSocket as never, onEvent,
+  })
+  realtime.start()
+  FakeSocket.instances[0].message(JSON.stringify({ type: 'friends.updated' }))
+  expect(onEvent).toHaveBeenCalledWith({ type: 'friends.updated' })
+  realtime.stop()
+})
+
 it('clears online friends on disconnect so offline clients cannot keep inviting', () => {
   FakeSocket.instances = []
   const onEvent = vi.fn()

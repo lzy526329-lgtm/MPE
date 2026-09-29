@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module'
-import type { AnimalFlipRealtimeEvent, FarmRealtimeEvent, FarmVisitRealtimeEvent, GamePresenceEvent } from './types'
+import type { AnimalFlipRealtimeEvent, FarmRealtimeEvent, FarmVisitRealtimeEvent, FriendRealtimeEvent, GamePresenceEvent } from './types'
 
-export type GameRealtimeEvent = GamePresenceEvent | AnimalFlipRealtimeEvent | FarmVisitRealtimeEvent | FarmRealtimeEvent
+export type GameRealtimeEvent = GamePresenceEvent | FriendRealtimeEvent | AnimalFlipRealtimeEvent | FarmVisitRealtimeEvent | FarmRealtimeEvent
 
 type RealtimeSocket = { on: (event: string, listener: (payload?: unknown) => void) => unknown; send?: (payload: string) => void; close: () => void }
 type SocketConstructor = new (url: string, options: { headers: Record<string, string> }) => RealtimeSocket
@@ -16,6 +16,7 @@ function parseEvent(payload: unknown): GameRealtimeEvent | null {
     const event = parsed as Record<string, unknown>
     if (event.type === 'presence.snapshot' && Array.isArray(event.onlineUserIds)) return { type: event.type, onlineUserIds: event.onlineUserIds.filter(id => typeof id === 'string' || typeof id === 'number') as Array<number | string> }
     if (event.type === 'presence.changed' && (typeof event.userId === 'string' || typeof event.userId === 'number') && typeof event.online === 'boolean') return { type: event.type, userId: event.userId, online: event.online }
+    if (event.type === 'friends.updated') return { type: event.type }
     if (event.type === 'farm.visit' && (typeof event.visitorId === 'string' || typeof event.visitorId === 'number') && (event.action === 'viewed' || event.action === 'stolen')) return event as unknown as FarmVisitRealtimeEvent
     if (event.type === 'farm.subscribed' && (typeof event.ownerId === 'string' || typeof event.ownerId === 'number')) return event as unknown as FarmRealtimeEvent
     if (event.type === 'farm.updated' && (typeof event.ownerId === 'string' || typeof event.ownerId === 'number') && Number.isSafeInteger(event.revision) && event.farm && typeof event.farm === 'object') return event as unknown as FarmRealtimeEvent
