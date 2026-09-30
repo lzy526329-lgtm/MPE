@@ -93,7 +93,15 @@ export type GameAccountState = {
   error: AccountError | null
 }
 export type AccountResult<T = GameAccountState> = { ok: true; data: T } | { ok: false; error: AccountError }
+export type CloudPawsCommand = {
+  action: 'create' | 'join' | 'ready' | 'start' | 'leave' | 'input' | 'recover' | 'respawn' | 'rematch'
+  requestId?: string; animal?: 'fox' | 'bunny'; code?: string; ready?: boolean; seq?: number
+  input?: { x: number; z: number; jump: boolean; sprint: boolean }
+}
+export type CloudPawsEvent = { type: `cloud_paws.${string}`; protocol?: number; room?: unknown; requestId?: string; message?: string; status?: string }
 export type GameAccountBridge = {
+  gameAccountCloudPawsCommand?: (command: CloudPawsCommand) => Promise<AccountResult<Record<string, never>>>
+  onCloudPawsEvent?: (callback: (event: CloudPawsEvent) => void) => () => void
   gameAccountGetState: () => Promise<GameAccountState>
   gameAccountSendEmailCode: (request: EmailCodeRequest) => Promise<AccountResult<{ email: string; purpose: string }>>
   gameAccountRegister: (request: RegisterRequest) => Promise<AccountResult>

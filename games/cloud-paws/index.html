@@ -3,20 +3,29 @@
 <head><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'"/><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/><meta name="theme-color" content="#c9dfd8"/><title>云端小爪 · Cloud Paws</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='50' font-size='48'%3E🐾%3C/text%3E%3C/svg%3E"/></head>
 <body>
 <canvas id="game" tabindex="0" aria-label="云端小爪 3D 游戏场景"></canvas>
-<header class="topbar"><a class="brand" href="./index.html" aria-label="云端小爪首页"><span class="brand-mark">✿</span><span>CLOUD PAWS<span class="brand-sub">一场向上的小小冒险</span></span></a><div class="top-actions"><span class="edition">VOL. 02 / 盘旋云山</span><button id="sound" class="icon-button" aria-label="开启音效" title="音效">♪<span class="sound-dot"></span></button><button id="help" class="icon-button" aria-label="操作说明" title="操作说明">?</button><button id="camera-reset" class="icon-button hidden" aria-label="朝向下一段路线" title="朝向下一段 C">⌖</button><button id="pause" class="icon-button hidden" aria-label="暂停游戏" title="暂停 Esc">Ⅱ</button></div></header>
+<header class="topbar"><a class="brand" href="./index.html" aria-label="云端小爪首页"><span class="brand-mark">✿</span><span>CLOUD PAWS<span class="brand-sub">一场向上的小小冒险</span></span></a><div class="top-actions"><span class="edition">VOL. 03 / 一起登顶</span><button id="sound" class="icon-button" aria-label="开启音效" title="音效">♪<span class="sound-dot"></span></button><button id="help" class="icon-button" aria-label="操作说明" title="操作说明">?</button><button id="camera-reset" class="icon-button hidden" aria-label="朝向下一段路线" title="朝向下一段 C">⌖</button><button id="pause" class="icon-button hidden" aria-label="暂停游戏" title="暂停 Esc">Ⅱ</button></div></header>
 <main id="menu" class="menu">
  <div class="eyebrow"><span></span> 小小的爪子，大大的冒险</div>
  <h1>再往上，<br/>就是<span class="cloud-word">云端<svg viewBox="0 0 240 15" aria-hidden="true"><path d="M5 10 Q110 -5 230 9"/></svg></span>。</h1>
- <p class="intro">绕过山角，路还在上面。<br/>转动视角，走一场真正的云端冒险。</p>
+ <p class="intro">叫上伙伴，一起绕山向上。<br/>最多 5 人同场，碰撞、追赶、一起登顶。</p>
  <div class="character-label">选一位冒险伙伴 <span>YOUR LITTLE EXPLORER</span></div>
  <div class="characters" role="group" aria-label="选择角色"><button class="character selected" data-animal="fox" aria-pressed="true"><span class="animal-icon">🦊</span><span>小狐狸<small>天生冒险家</small></span><i>✓</i></button><button class="character" data-animal="bunny" aria-pressed="false"><span class="animal-icon">🐰</span><span>小白兔<small>轻盈追风者</small></span><i>✓</i></button></div>
- <button id="start" class="primary" disabled><span id="start-label">正在唤醒云朵…</span><span>↗</span></button>
- <div class="menu-meta"><span><i class="online-dot"></i> 单人冒险</span><span>60 段盘山挑战</span><span>随时再来一次</span></div>
+ <button id="multiplayer" class="primary"><span>组队闯关</span><span>↗</span></button>
+ <button id="start" class="solo-button" disabled><span id="start-label">正在唤醒云朵…</span><span>↗</span></button>
+ <div class="menu-meta"><span><i class="online-dot"></i> 最多 5 人</span><span>60 段盘山挑战</span><span>随时再来一次</span></div>
 </main>
 <div id="world-label" class="world-label"><span class="label-line"></span><span><b>THE SPIRAL ASCENT</b><small id="route-description">盘旋云山</small></span></div>
 <div id="menu-bottom" class="menu-bottom"><span>向上走，好风景还在前面。</span><span class="key-teaser"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动 <span class="divider">/</span><kbd>左键 / SPACE</kbd> 跳跃</span><span>TAKE A LITTLE LEAP ↗</span></div>
-<section id="hud" class="hud hidden" aria-label="游戏状态"><div class="height-stat"><span class="eyebrow">当前海拔</span><div><b id="height">0</b><span id="height-total"></span></div><div class="progress"><i id="progress"></i><span></span><span></span></div><small id="stage">01 — 初见云屿</small><p id="route-step" class="route-step"></p></div><div class="run-stats"><span class="star-symbol">✦</span><b id="stars">0</b><span id="star-total"></span><i></i><span id="timer">00:00</span></div></section>
+<section id="hud" class="hud hidden" aria-label="游戏状态"><div class="height-stat"><span class="eyebrow">当前海拔</span><div><b id="height">0</b><span id="height-total"></span></div><div class="progress"><i id="progress"></i><span></span><span></span></div><small id="stage">01 — 初见云屿</small><p id="route-step" class="route-step"></p></div><div class="run-stats"><span>用时</span><span id="timer">00:00</span></div></section>
 <button id="camera-mode" class="camera-mode hidden">左键跳跃 · 右键拖动视角</button><div id="hint" class="hint hidden"><kbd>鼠标</kbd> 转视角 <span>·</span> <kbd>WASD</kbd> 移动 <span>·</span> <kbd>左键 / 空格</kbd> 跳跃 <span>·</span> <kbd>C</kbd> 看向下一段 <span>·</span> <kbd>Esc</kbd> 释放鼠标</div>
+<div id="player-labels" aria-hidden="true"></div>
+<aside id="race-roster" class="race-roster hidden" aria-label="同场玩家"><b id="race-status"></b><div id="race-members"></div></aside>
+<div id="lobby" class="dialog-backdrop hidden"><section class="dialog lobby-panel" role="dialog" aria-modal="true" aria-labelledby="lobby-title">
+ <span class="eyebrow">CLIMB TOGETHER</span><h2 id="lobby-title">一起登顶</h2><p id="lobby-account"></p>
+ <div id="lobby-entry"><button id="create-room" class="primary"><span>创建房间</span><span>＋</span></button><div class="join-row"><input id="room-code" aria-label="6 位房间码" inputmode="numeric" maxlength="6" placeholder="输入 6 位房间码"/><button id="join-room">加入</button></div></div>
+ <div id="lobby-room" class="hidden"><p>房间码 <strong id="room-number"></strong> <span id="room-count"></span></p><div id="room-members"></div><p id="room-note">2–5 人准备后，由房主开始</p><button id="ready-room" class="primary"><span>准备</span><span>✓</span></button><button id="start-room" class="primary"><span>一起出发</span><span>↗</span></button><button id="leave-room" class="text-button">退出房间</button></div>
+ <p id="lobby-error" role="alert"></p><button id="close-lobby" class="text-button">返回</button>
+</section></div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <div id="touch" class="touch hidden"><div class="dpad"><button data-key="KeyW" aria-label="向前">↑</button><button data-key="KeyA" aria-label="向左">←</button><button data-key="KeyS" aria-label="向后">↓</button><button data-key="KeyD" aria-label="向右">→</button></div><button id="touch-jump" data-key="Space" aria-label="跳跃">跳跃<span>↗</span></button></div>
 <div id="dialog" class="dialog-backdrop hidden"><section class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><span id="dialog-kicker" class="eyebrow">TAKE A BREATH</span><h2 id="dialog-title">在云里歇一会儿</h2><div id="dialog-body"></div><button id="resume" class="primary"><span>继续冒险</span><span>↗</span></button><button id="restart" class="text-button">从头再来</button><button id="home" class="text-button">返回首页</button></section></div>

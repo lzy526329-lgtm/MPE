@@ -2,7 +2,9 @@ import './style.css';
 import { createGame } from './game.js';
 import { createWorld } from './world.js';
 import { mountHostVisibility } from './host.js';
-import { LEVEL, SUMMIT, STAGES, TOTAL_STARS, HEIGHT_SCALE } from './level.js';
+import { createNetwork } from './network.js';
+import { mountLobby } from './lobby.js';
+import { LEVEL, SUMMIT, STAGES, HEIGHT_SCALE } from './level.js';
 import { createCameraState, cameraRelativeMovement, resetCameraForRoute, mountCameraControls } from './camera.js';
 
 const $ = id => document.getElementById(id);
@@ -15,11 +17,11 @@ let game, view, cameraControls, audio, toastTimer;
 let mode = 'menu', returnMode = 'menu', selected = 'fox';
 let jumpQueued = false, sound = false, best = 0;
 let animationFrame = 0, accumulator = 0, last = 0, clock = 0;
+let online = false, latestRoom = null, inputElapsed = 0, rosterKey = '', lastFall = 0, lastCheckpoint = 0, announcedFinish = false;
 try { best = Number(localStorage.getItem(bestKey)) || 0; } catch {}
 const timeString = t => `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 const kindLabels = { bridge: '窄桥 · 稳住方向', rotating: '旋转横梁 · 等待角度', moving: '移动平台 · 看准时机', spinner: '旋转木杆 · 先落金圈，再避开木杆', steps: '错位石阶', checkpoint: '前方存档点', summit: '最后一跳！', island: '沿着金色标记前进' };
 $('height-total').textContent = `/ ${maxHeight} m`;
-$('star-total').textContent = `/ ${TOTAL_STARS}`;
 $('route-description').textContent = `盘旋云山 · ${LEVEL.length - 1} 段挑战 · ${maxHeight} m`;
 
 function toast(message) {
@@ -39,6 +41,7 @@ function tone(frequency, duration = .12, kind = 'sine') {
   oscillator.start(); oscillator.stop(audio.currentTime + duration);
 }
 function clearInputs() {
+  if (online) network.input({ x: 0, z: 0, jump: false, sprint: false });
   keys.clear(); jumpQueued = false; accumulator = 0;
   document.querySelectorAll('.pressed').forEach(button => button.classList.remove('pressed'));
 }
@@ -48,7 +51,7 @@ function showPlayingUI(playing) {
   $('touch').classList.toggle('hidden', !playing || !matchMedia('(pointer:coarse), (max-width:700px)').matches);
   document.body.classList.toggle('playing', playing);
 }
-function closeDialog() { $('dialog').classList.add('hidden'); clearInputs(); }
+function closeDialog() { $('resume').disabled = false; $('dialog').classList.add('hidden'); clearInputs(); }
 function faceRoute() { if (game) resetCameraForRoute(orbit, game.position, game.nextPlatform); }
 function captureMouse() {
   canvas.focus({ preventScroll: true });
@@ -56,12 +59,15 @@ function captureMouse() {
 }
 function start() {
   if (!game) return;
+  if (network.room) { $('lobby').classList.remove('hidden'); return; }
+  game.setMembers([{ id: 'local', name: '我', animal: selected }]); online = false;
   closeDialog(); game.reset(); view.setAnimal(selected); faceRoute();
   mode = 'playing'; game.start(); showPlayingUI(true);
   toast('鼠标看四周，左键跳跃，WASD 随视角移动。');
   tone(440, .18); captureMouse();
 }
 function menu() {
+  if (network.room) { void network.command('leave').catch(e => toast(e.message)); return; }
   mode = 'menu'; cameraControls?.release(); closeDialog(); game.reset();
   showPlayingUI(false); $('start').focus({ preventScroll: true });
 }
@@ -75,7 +81,7 @@ function openDialog(kind) {
   returnMode = mode === 'menu' ? 'menu' : 'playing';
   game.pause(); mode = 'paused'; cameraControls?.release(); clearInputs();
   $('dialog').classList.remove('hidden');
-  $('restart').classList.toggle('hidden', returnMode === 'menu');
+  $('restart').classList.toggle('hidden', returnMode === 'menu' || online);
   $('home').classList.toggle('hidden', returnMode === 'menu');
   if (kind === 'help') {
     $('dialog-kicker').textContent = 'LOOK AROUND. FIND YOUR WAY.';
@@ -84,7 +90,7 @@ function openDialog(kind) {
     $('resume').firstElementChild.textContent = returnMode === 'menu' ? '知道啦，出发吧' : '继续冒险';
   } else {
     $('dialog-kicker').textContent = 'TAKE A BREATH'; $('dialog-title').textContent = '在云里歇一会儿';
-    $('dialog-body').innerHTML = `<p>鼠标已释放，准备好再继续。<br>到达 ${Math.round(game.highest * HEIGHT_SCALE)} m · ${game.collected.size} 颗星星<br>${STAGES[Math.min(4, Math.floor(game.checkpoint / 12))].name}</p>`;
+    $('dialog-body').innerHTML = `<p>${online ? '你的移动已停止，其他玩家仍在闯关。' : '鼠标已释放，准备好再继续。'}<br>到达 ${Math.round(game.highest * HEIGHT_SCALE)} m · ${game.falls} 次重试<br>${STAGES[Math.min(4, Math.floor(game.checkpoint / 12))].name}</p>`;
     $('resume').firstElementChild.textContent = '继续冒险';
   }
   $('resume').focus({ preventScroll: true });
@@ -92,12 +98,23 @@ function openDialog(kind) {
 function win() {
   mode = 'won'; cameraControls.release(); clearInputs();
   const record = !best || game.elapsed < best;
-  if (record) { best = game.elapsed; try { localStorage.setItem(bestKey, String(best)); } catch {} }
+  if (record && !online) { best = game.elapsed; try { localStorage.setItem(bestKey, String(best)); } catch {} }
   $('dialog').classList.remove('hidden');
   $('dialog-kicker').textContent = 'YOU MADE IT TO THE CLOUDS';
   $('dialog-title').textContent = '绕过整座山，终于登顶！';
-  $('dialog-body').innerHTML = `<div class="result-grid"><div><b>${timeString(game.elapsed)}</b><span>登顶用时</span></div><div><b>${game.collected.size} / ${TOTAL_STARS}</b><span>收集星星</span></div><div><b>${game.falls}</b><span>重新出发</span></div></div><p>${record ? '✦ 创造了新的个人纪录！' : '个人最佳 ' + timeString(best)}<br>${LEVEL.length - 1} 段挑战，每一跳都算数。</p>`;
-  $('resume').firstElementChild.textContent = '再冒险一次';
+  $('dialog-body').innerHTML = `<div class="result-grid"><div><b>${timeString(game.self.finishedAt ?? game.elapsed)}</b><span>登顶用时</span></div><div><b>${game.self.rank || 1}</b><span>登顶顺序</span></div><div><b>${game.falls}</b><span>重新出发</span></div></div><p>${online ? '本局所有伙伴已登顶！' : record ? '创造了新的个人纪录！' : '个人最佳 ' + timeString(best)}<br>${LEVEL.length - 1} 段挑战，每一跳都算数。</p>`;
+  if (online) {
+    const standings = document.createElement('div');
+    for (const p of [...game.players.values()].sort((a, b) => a.rank - b.rank)) {
+      const row = document.createElement('div'); row.className = 'room-member';
+      const name = document.createElement('span'); name.textContent = `${p.rank}. ${p.name}`;
+      const finish = document.createElement('span'); finish.textContent = timeString(p.finishedAt);
+      row.append(name, finish); standings.append(row);
+    }
+    $('dialog-body').append(standings);
+  }
+  $('resume').firstElementChild.textContent = online ? (latestRoom?.hostId === network.account?.id ? '再开一局' : '等待房主再开一局') : '再冒险一次';
+  $('resume').disabled = online && latestRoom?.hostId !== network.account?.id;
   $('restart').classList.add('hidden'); $('home').classList.remove('hidden');
   $('resume').focus({ preventScroll: true }); view.burst(game.position); tone(660, .4);
 }
@@ -106,7 +123,7 @@ $('pause').addEventListener('click', () => openDialog('pause'));
 $('help').addEventListener('click', () => openDialog('help'));
 $('restart').addEventListener('click', start);
 $('home').addEventListener('click', menu);
-$('resume').addEventListener('click', () => mode === 'won' ? start() : resume());
+$('resume').addEventListener('click', () => { if (mode === 'won' && online) void network.command('rematch').catch(e => toast(e.message)); else if (mode === 'won') start(); else resume(); });
 $('camera-mode').addEventListener('click', captureMouse);
 $('camera-reset').addEventListener('click', () => { faceRoute(); canvas.focus(); });
 $('sound').addEventListener('click', () => {
@@ -144,7 +161,7 @@ window.addEventListener('keydown', event => {
     event.preventDefault(); keys.add(event.code);
     if (event.code === 'Space' && !event.repeat) jumpQueued = true;
   }
-  if (event.code === 'KeyR' && !event.repeat) game.respawn();
+  if (event.code === 'KeyR' && !event.repeat) { if (online) void network.command('respawn').catch(e => toast(e.message)); else game.respawn(); }
   if (event.code === 'KeyC' && !event.repeat) faceRoute();
 });
 window.addEventListener('keyup', event => keys.delete(event.code));
@@ -168,31 +185,77 @@ function input() {
 }
 function frame(now) {
   const dt = Math.min((now - last) / 1000 || 0, .1); last = now; clock += dt;
+  if (online && latestRoom?.snapshot) {
+    game.applySnapshot(latestRoom.snapshot, 1 - Math.exp(-dt * 22));
+    if (game.falls > lastFall) { faceRoute(); toast('掉落后已回到你的存档点'); }
+    if (game.checkpoint > lastCheckpoint) toast('旗帜已点亮，继续向上！');
+    lastFall = game.falls; lastCheckpoint = game.checkpoint;
+    if (game.won && !announcedFinish) { announcedFinish = true; toast(`第 ${game.self.rank} 位登顶！等伙伴们一起到达`); view.burst(game.position); }
+    if (latestRoom.state === 'finished' && mode !== 'won') win();
+  }
   if (mode === 'playing') {
     orbit.yaw += (Number(keys.has('KeyQ')) - Number(keys.has('KeyE'))) * dt * 1.8;
-    accumulator += dt;
-    while (accumulator >= 1 / 60) {
-      game.step(input(), 1 / 60); jumpQueued = false; accumulator -= 1 / 60;
-      if (game.won) break;
+    if (online) {
+      inputElapsed += dt;
+      if (inputElapsed >= 1 / 30) {
+        network.input(network.stale || game.won ? { x: 0, z: 0, jump: false, sprint: false } : input());
+        inputElapsed = 0; jumpQueued = false;
+      }
+    } else {
+      accumulator += dt;
+      while (accumulator >= 1 / 60) { game.step(input(), 1 / 60); jumpQueued = false; accumulator -= 1 / 60; if (game.won) break; }
     }
   }
   const events = game.events.splice(0);
   for (const event of events) {
     if (event === 'jump') tone(310, .12);
-    if (event === 'star') { tone(780, .14); view.burst(game.position); }
     if (event === 'checkpoint') { toast('旗帜已点亮！下一段，换个角度继续向上'); tone(550, .25); }
     if (event === 'respawn') { faceRoute(); toast('已回到存档点。看准金色标记，再出发。'); }
     if (event === 'win') win();
   }
   $('height').textContent = Math.min(maxHeight, Math.max(0, Math.round((game.position.y - .6) * HEIGHT_SCALE)));
   $('progress').style.width = `${Math.min(100, game.highest / SUMMIT.y * 100)}%`;
-  $('stars').textContent = game.collected.size; $('timer').textContent = timeString(game.elapsed);
+  $('timer').textContent = timeString(game.self.finishedAt ?? game.elapsed);
+  if (online && network.stale) $('race-status').textContent = '连接中断，正在重连…';
   $('stage').textContent = STAGES[game.platforms[game.lastPlatform].stage].name;
   $('route-step').textContent = `${game.lastPlatform} / ${LEVEL.length - 1} 段 · ${kindLabels[game.nextPlatform.kind]}`;
   const viewMode = mode === 'menu' || (mode === 'paused' && returnMode === 'menu') ? 'menu' : 'playing';
   view.render(dt, viewMode === 'menu' ? clock : game.time, viewMode);
   if (visibility.isVisible()) animationFrame = requestAnimationFrame(frame);
 }
+function receiveRoom(room) {
+  const previousState = latestRoom?.state; latestRoom = room;
+  lobby.render(room, network.account?.id);
+  if (!game) return;
+  if (!room) {
+    if (online) { online = false; rosterKey = ''; game.setMembers([{ id: 'local', name: '我', animal: selected }]); view.setAnimal(selected); menu(); }
+    return;
+  }
+  online = true;
+  if (room.state === 'finished' && mode === 'won') {
+    $('resume').disabled = room.hostId !== network.account?.id;
+    $('resume').firstElementChild.textContent = $('resume').disabled ? '等待房主再开一局' : '再开一局';
+  }
+  const key = room.code + ':' + network.account?.id;
+  if (key !== rosterKey) { rosterKey = key; game.setMembers(room.members, network.account.id); view.setAnimal(game.self.animal); faceRoute(); }
+  if (room.state === 'waiting') {
+    game.applySnapshot(room.snapshot); mode = 'menu'; game.pause(); cameraControls?.release(); closeDialog(); showPlayingUI(false); $('lobby').classList.remove('hidden');
+    lastFall = 0; lastCheckpoint = 0; announcedFinish = false;
+  } else if (previousState === 'waiting' || mode === 'menu') {
+    $('lobby').classList.add('hidden'); closeDialog(); game.applySnapshot(room.snapshot); mode = 'playing'; showPlayingUI(true); faceRoute();
+    toast('一起出发！点击画面启用视角，左键跳跃');
+  }
+}
+const network = createNetwork({
+  onRoom: receiveRoom,
+  onAccount: (account, available) => lobby.setAccount(account, available),
+  onError: message => { lobby.error(message); toast(message); },
+  onConnection: status => { if (online && status !== 'connected') { clearInputs(); toast('连接中断，正在重连…'); } },
+});
+const lobby = mountLobby({ command: (action, fields) => network.command(action, fields), getAccount: () => network.account, getAnimal: () => selected,
+  onOpen: () => { if (mode === 'playing') openDialog('pause'); $('dialog').classList.add('hidden'); },
+  onClose: () => { if (online && latestRoom?.state !== 'waiting') openDialog('pause'); },
+});
 async function boot() {
   try {
     game = await createGame(); faceRoute(); view = createWorld(canvas, game, orbit);
@@ -204,7 +267,8 @@ async function boot() {
         document.body.classList.toggle('camera-locked', locked);
       },
     });
-    $('start').disabled = false; $('start-label').textContent = '挑战盘旋云山';
+    $('start').disabled = false; $('start-label').textContent = '单人练习';
+    if (latestRoom) receiveRoom(latestRoom);
     if (visibility.isVisible()) animationFrame = requestAnimationFrame(frame);
   } catch (error) {
     console.error(error);
@@ -219,5 +283,5 @@ const visibility = mountHostVisibility({
   onHide() { clearInputs(); if (mode === 'playing') openDialog('pause'); cameraControls?.release(); cancelAnimationFrame(animationFrame); audio?.suspend(); },
   onShow() { last = performance.now(); accumulator = 0; if (view) { cancelAnimationFrame(animationFrame); animationFrame = requestAnimationFrame(frame); } if (sound) audio?.resume(); },
 });
-window.addEventListener('beforeunload', () => { visibility.dispose(); cameraControls?.dispose(); cancelAnimationFrame(animationFrame); audio?.close(); });
+window.addEventListener('beforeunload', () => { network.dispose(); visibility.dispose(); cameraControls?.dispose(); cancelAnimationFrame(animationFrame); audio?.close(); });
 boot();

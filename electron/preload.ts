@@ -43,13 +43,19 @@ import type { CutoutRequest, CutoutResult } from './cutout'
 import type { CropId, PlacedDecor, HouseDecorPlacement, HouseSurface } from './farm/farmTypes'
 import type { BaitId, GameActionResult, GameViewState, FoodId, SupplyId, DecorId, FurnitureId } from './game/gameTypes'
 import type { FishingCastResult, FishingReelResult } from './fishing/fishingIpc'
-import type { AnimalFlipRealtimeEvent, FarmUpdatedRealtimeEvent, FarmVisitRealtimeEvent, FriendRealtimeEvent, GameAccountBridge, GamePresenceEvent, GameAccountState } from './gameAccount/types'
+import type { CloudPawsEvent, AnimalFlipRealtimeEvent, FarmUpdatedRealtimeEvent, FarmVisitRealtimeEvent, FriendRealtimeEvent, GameAccountBridge, GamePresenceEvent, GameAccountState } from './gameAccount/types'
 import { installExternalLinkHandler } from './gameAccount/externalLinks'
 
 const removeExternalLinkHandler = installExternalLinkHandler(document, url => ipcRenderer.invoke('app:open-external-link', url))
 window.addEventListener('unload', removeExternalLinkHandler, { once: true })
 
 const gameAccountBridge: GameAccountBridge = {
+  gameAccountCloudPawsCommand: command => ipcRenderer.invoke('game-account:gameAccountCloudPawsCommand', command),
+  onCloudPawsEvent: callback => {
+    const listener = (_event: Electron.IpcRendererEvent, event: CloudPawsEvent) => callback(event)
+    ipcRenderer.on('game-account:cloud-paws-event', listener)
+    return () => ipcRenderer.removeListener('game-account:cloud-paws-event', listener)
+  },
   gameAccountGetState: () => ipcRenderer.invoke('game-account:gameAccountGetState'),
   gameAccountSendEmailCode: request => ipcRenderer.invoke('game-account:gameAccountSendEmailCode', request),
   gameAccountRegister: request => ipcRenderer.invoke('game-account:gameAccountRegister', request),

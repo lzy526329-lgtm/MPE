@@ -32,7 +32,6 @@ export const LEVEL = Array.from({ length: 61 }, (_, id) => {
     w: kind === 'spinner' ? 6.4 : large ? 5.8 : narrow ? 1.45 : kind === 'steps' ? 2.5 : 3.3,
     d: kind === 'spinner' ? 6.4 : large ? 5.5 : kind === 'rotating' ? 5.6 : kind === 'bridge' ? 4.4 : kind === 'steps' ? 2.5 : 3.6,
     checkpoint, moving: kind === 'moving', rotating: kind === 'rotating', hazard: kind === 'spinner',
-    star: id > 0 && kind !== 'bridge',
     stage: Math.min(4, Math.floor(id / 12)),
   };
 });
@@ -42,7 +41,6 @@ for (const p of LEVEL) {
   p.angle = Math.atan2(after.x - before.x, after.z - before.z);
 }
 export const SUMMIT = LEVEL.at(-1);
-export const TOTAL_STARS = LEVEL.filter(p => p.star).length;
 export const CHECKPOINTS = LEVEL.filter(p => p.checkpoint).map(p => p.id);
 export const CORE = Array.from({ length: 7 }, (_, i) => ({
   x: 0, z: 0, y: i * 7 - 3, height: 7, radius: 7.5 - i * 0.48,

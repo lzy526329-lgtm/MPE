@@ -4,6 +4,7 @@ import { applyServerWalletCoins, onGameSaved } from '../game/gameStore'
 import { toGameViewState } from '../game/gameEngine'
 import { createGameApi, GameApiError, type GameApi } from './api'
 import { getGameApiBaseUrl } from './config'
+import { validateCloudPawsCommand } from './cloudPaws'
 import { createGameRealtime, getGameWebSocketUrl } from './realtime'
 import { createSessionStore, type SessionStore } from './sessionStore'
 import { clearActiveGameUser, resolveGameDataPath, setActiveGameUser } from './gameCache'
@@ -12,7 +13,7 @@ import { createAccountIpcHandler, getTrustedMainWindow } from './trustedRenderer
 import type { AccountResult, AnimalFlipAction, AuthResult, GameAccountBridge, GameAccountState, LoginRequest, RegisterRequest } from './types'
 
 type HandlerOptions = { api: any; store: SessionStore; sync: SyncCoordinator; deviceName: string; userDataPath?: string; realtime?: { start: () => void; stop: () => void; refresh?: () => void; send?: (message: Record<string, unknown>) => boolean } }
-type AccountHandlers = Omit<GameAccountBridge, 'onGameAccountStateChanged' | 'onAnimalFlipRoomEvent' | 'onGameAccountPresenceChanged' | 'onGameAccountFarmVisit' | 'onGameAccountFarmUpdated'>
+type AccountHandlers = Omit<GameAccountBridge, 'onCloudPawsEvent' | 'onGameAccountStateChanged' | 'onAnimalFlipRoomEvent' | 'onGameAccountPresenceChanged' | 'onGameAccountFarmVisit' | 'onGameAccountFarmUpdated'>
 function textField(input: unknown, field: string, optional = false): string {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new GameApiError('VALIDATION_ERROR', 'Invalid request')
   const value = (input as Record<string, unknown>)[field]
@@ -159,6 +160,14 @@ export function createGameAccountHandlers({ api, store, sync, deviceName, userDa
       }
       return api.removeFriend(token, input).then((result: unknown) => { realtime?.refresh?.(); return result })
     }),
+    gameAccountCloudPawsCommand: input => protectedCall(async () => {
+      let command
+      try { command = validateCloudPawsCommand(input) } catch (error) { throw new GameApiError('VALIDATION_ERROR', error instanceof Error ? error.message : '无效的房间操作') }
+      const { action, ...fields } = command
+      const sent = realtime?.send?.({ ...fields, type: `cloud_paws.${action}`, protocol: 1, name: store.getSession()?.nickname || '玩家' })
+      if (!sent) throw new GameApiError('SERVICE_UNAVAILABLE', '联机连接尚未就绪，请稍后重试')
+      return {}
+    }),
     gameAccountCreateAnimalFlipRoom: (input, requestArgument) => protectedCall(token => api.createAnimalFlipRoom(token, positiveId(input), requestIdField(requestArgument, true)).then(applyRoomWallet)),
     gameAccountJoinAnimalFlipRoom: (input, requestArgument) => protectedCall(token => {
       if (typeof input !== 'string' || !/^\d{6}$/.test(input)) throw new GameApiError('VALIDATION_ERROR', 'Invalid room code')
@@ -223,8 +232,10 @@ export function registerGameAccountIpc(getMain: () => BrowserWindow | null, isTr
   const realtime = createGameRealtime({
     url: getGameWebSocketUrl(apiBaseUrl),
     getToken: () => store.getSession()?.token,
+    onStatus: status => getTrustedMainWindow(authorization)?.webContents.send('game-account:cloud-paws-event', { type: 'cloud_paws.connection', status }),
     onEvent: event => {
-      if (event.type.startsWith('animal_flip.')) getTrustedMainWindow(authorization)?.webContents.send('game-account:animal-flip-event', event)
+      if (event.type.startsWith('cloud_paws.')) getTrustedMainWindow(authorization)?.webContents.send('game-account:cloud-paws-event', event)
+      else if (event.type.startsWith('animal_flip.')) getTrustedMainWindow(authorization)?.webContents.send('game-account:animal-flip-event', event)
       else if (event.type === 'friends.updated') getTrustedMainWindow(authorization)?.webContents.send('game-account:friends-updated', event)
       else if (event.type === 'farm.visit') getTrustedMainWindow(authorization)?.webContents.send('game-account:farm-visit', event)
       else if (event.type === 'farm.updated') getTrustedMainWindow(authorization)?.webContents.send('game-account:farm-updated', event)

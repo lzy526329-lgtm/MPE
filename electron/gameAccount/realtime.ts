@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module'
-import type { AnimalFlipRealtimeEvent, FarmRealtimeEvent, FarmVisitRealtimeEvent, FriendRealtimeEvent, GamePresenceEvent } from './types'
+import type { CloudPawsEvent, AnimalFlipRealtimeEvent, FarmRealtimeEvent, FarmVisitRealtimeEvent, FriendRealtimeEvent, GamePresenceEvent } from './types'
 
-export type GameRealtimeEvent = GamePresenceEvent | FriendRealtimeEvent | AnimalFlipRealtimeEvent | FarmVisitRealtimeEvent | FarmRealtimeEvent
+export type GameRealtimeEvent = CloudPawsEvent | GamePresenceEvent | FriendRealtimeEvent | AnimalFlipRealtimeEvent | FarmVisitRealtimeEvent | FarmRealtimeEvent
 
 type RealtimeSocket = { on: (event: string, listener: (payload?: unknown) => void) => unknown; send?: (payload: string) => void; close: () => void }
 type SocketConstructor = new (url: string, options: { headers: Record<string, string> }) => RealtimeSocket
@@ -20,6 +20,7 @@ function parseEvent(payload: unknown): GameRealtimeEvent | null {
     if (event.type === 'farm.visit' && (typeof event.visitorId === 'string' || typeof event.visitorId === 'number') && (event.action === 'viewed' || event.action === 'stolen')) return event as unknown as FarmVisitRealtimeEvent
     if (event.type === 'farm.subscribed' && (typeof event.ownerId === 'string' || typeof event.ownerId === 'number')) return event as unknown as FarmRealtimeEvent
     if (event.type === 'farm.updated' && (typeof event.ownerId === 'string' || typeof event.ownerId === 'number') && Number.isSafeInteger(event.revision) && event.farm && typeof event.farm === 'object') return event as unknown as FarmRealtimeEvent
+    if (typeof event.type === 'string' && event.type.startsWith('cloud_paws.')) return event as unknown as CloudPawsEvent
     if (typeof event.type === 'string' && event.type.startsWith('animal_flip.')) return event as unknown as AnimalFlipRealtimeEvent
   } catch { /* Ignore malformed frames from a disconnected peer. */ }
   return null
@@ -28,7 +29,7 @@ function parseEvent(payload: unknown): GameRealtimeEvent | null {
 export function createGameRealtime(options: Options) {
   const Socket = options.WebSocketImpl || defaultSocket(); const schedule = options.setTimeout || ((callback, delay) => setTimeout(callback, delay)); const cancel = options.clearTimeout || ((timer: Timer) => clearTimeout(timer)); let stopped = true; let socket: RealtimeSocket | null = null; let retryTimer: Timer | undefined; let retryAttempt = 0
   const farmSubscriptions = new Map<string, string | number>()
-  const sendMessage = (message: Record<string, unknown>) => { if (socket?.send) socket.send(JSON.stringify(message)); else return false; return true }
+  const sendMessage = (message: Record<string, unknown>) => { try { if (socket?.send) socket.send(JSON.stringify(message)); else return false; return true } catch { return false } }
   const clearPresence = () => options.onEvent?.({ type: 'presence.snapshot', onlineUserIds: [] })
   const clearRetry = () => { if (retryTimer !== undefined) cancel(retryTimer); retryTimer = undefined }
   const scheduleReconnect = () => { if (stopped || retryTimer !== undefined || !options.getToken()) return; const delay = Math.min(30_000, 1_000 * (2 ** Math.min(retryAttempt++, 5))); retryTimer = schedule(() => { retryTimer = undefined; connect() }, delay) }
