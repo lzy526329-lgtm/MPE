@@ -16,6 +16,7 @@ import { mountFarmPage } from './farmPage'
 import { mountShopPage } from './shopPage'
 import { mountBackpackPage } from './backpackPage'
 import { mountFishingPage } from './fishingPage'
+import { mountCloudPawsPage } from './cloudPawsPage'
 import { mountAnimalFlipPage } from './animalFlipPage'
 import { mountAnimalFlipInvitations } from './animalFlipInvitations'
 import { mountAccountPage } from './accountPage'
@@ -1016,6 +1017,10 @@ app.innerHTML = `
         <div class="panel" id="animal-flip-root"></div>
       </section>
 
+      <section class="tool-page tool-page--cloud-paws" id="cloud-paws-page" hidden>
+        <div id="cloud-paws-root"></div>
+      </section>
+
       <section class="tool-page" id="shop-page" hidden>
         <div class="panel" id="shop-root"></div>
       </section>
@@ -1525,6 +1530,7 @@ mountFarmPage()
 mountShopPage()
 mountBackpackPage()
 mountFishingPage()
+mountCloudPawsPage()
 const animalFlipPage = mountAnimalFlipPage()
 mountAnimalFlipInvitations(result => animalFlipPage?.openFriendRoom(result))
 mountAccountPage()

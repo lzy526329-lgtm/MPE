@@ -9,6 +9,7 @@ export type AppPageId =
   | 'friend-page'
   | 'fishing-page'
   | 'animal-flip-page'
+  | 'cloud-paws-page'
   | 'toolbox-page'
   | 'image-page'
   | 'cutout-page'
@@ -50,6 +51,7 @@ export const APP_PAGE_DEFINITIONS: Readonly<Record<AppPageId, AppPageDefinition>
   'farm-page': page('farm-page', '农场', '玩法', 'play'),
   'fishing-page': page('fishing-page', '鱼塘', '玩法', 'play'),
   'animal-flip-page': page('animal-flip-page', '象狮虎豹', '玩法', 'play'),
+  'cloud-paws-page': page('cloud-paws-page', '云端小爪', '玩法', 'play'),
   'shop-page': page('shop-page', '商店', '玩法', 'play'),
   'backpack-page': page('backpack-page', '背包', '玩法', 'play'),
   'account-page': page('account-page', '账号与同步', '账号', 'account'),

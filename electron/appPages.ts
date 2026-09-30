@@ -7,6 +7,7 @@ export type AppPageId =
   | 'backpack-page'
   | 'fishing-page'
   | 'animal-flip-page'
+  | 'cloud-paws-page'
   | 'image-page'
   | 'cutout-page'
   | 'watermark-page'
@@ -25,6 +26,7 @@ export const PET_GAME_MENU: { id: AppPageId; label: string }[] = [
   { id: 'farm-page', label: '农场' },
   { id: 'fishing-page', label: '鱼塘' },
   { id: 'animal-flip-page', label: '象狮虎豹' },
+  { id: 'cloud-paws-page', label: '云端小爪' },
 ]
 
 export const PET_TOOL_MENU: { id: AppPageId; label: string }[] = [

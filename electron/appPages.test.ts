@@ -8,6 +8,7 @@ describe('pet context gameplay menu', () => {
       { id: 'farm-page', label: '农场' },
       { id: 'fishing-page', label: '鱼塘' },
       { id: 'animal-flip-page', label: '象狮虎豹' },
+      { id: 'cloud-paws-page', label: '云端小爪' },
     ])
   })
 })

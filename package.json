@@ -28,7 +28,8 @@
     "site:bundle-pet": "esbuild website/pet-player.mjs --bundle --minify --format=esm --outfile=website/pet-player.bundle.js --platform=browser --target=es2020",
     "test": "vitest run",
     "generate:crop-catalog": "node scripts/generate-crop-catalog.mjs",
-    "generate:food-catalog": "node scripts/generate-food-catalog.mjs"
+    "generate:food-catalog": "node scripts/generate-food-catalog.mjs",
+    "test:cloud-paws": "node --test games/cloud-paws/tests/*.test.js"
   },
   "build": {
     "appId": "com.mpt.app",
@@ -131,6 +132,7 @@
     "vitest": "^4.1.11"
   },
   "dependencies": {
+    "@dimforge/rapier3d-compat": "0.12.0",
     "@napi-rs/canvas": "^1.0.7",
     "@pixi-spine/all-3.8": "^4.0.6",
     "@pixi/unsafe-eval": "^7.4.3",
@@ -142,6 +144,7 @@
     "pixi-spine": "^4.0.6",
     "pixi.js": "^7.4.3",
     "sharp": "^0.35.3",
+    "three": "0.178.0",
     "ws": "^8.20.0"
   }
 }

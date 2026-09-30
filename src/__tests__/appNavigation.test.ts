@@ -31,6 +31,21 @@ beforeEach(() => {
 })
 
 describe('global navigation', () => {
+  it('opens the offline climbing game for guests and selects its navigation entry', () => {
+    setGameAccountState(null)
+    const pages = ['pet-settings-page', 'account-page', 'cloud-paws-page'].map(id => ({ id, hidden: true }))
+    const button = makeButton('cloud-paws-page')
+    vi.stubGlobal('document', {
+      querySelector: () => null,
+      querySelectorAll: (selector: string) => selector === '[data-page]' ? [button] : pages,
+    })
+    navigateToPage('cloud-paws-page')
+    expect(getCurrentPage()).toBe('cloud-paws-page')
+    expect(pages.filter(page => !page.hidden).map(page => page.id)).toEqual(['cloud-paws-page'])
+    expect(button.classList.contains('active')).toBe(true)
+    expect(consumePendingGamePage()).toBeNull()
+  })
+
   it('redirects guests to the account page when they open a game page', () => {
     setGameAccountState(null)
     const pages = ['pet-settings-page', 'account-page', 'farm-page'].map((id) => ({ id, hidden: true }))

@@ -60,6 +60,7 @@ function petCharactersPlugin(): Plugin {
 }
 
 export default defineConfig(({ command }) => ({
+  base: './',
   resolve: {
     alias: {
       url: path.resolve(__dirname, 'src/shims/node-url.ts'),
@@ -73,6 +74,7 @@ export default defineConfig(({ command }) => ({
       input: {
         index: path.resolve(__dirname, 'index.html'),
         pet: path.resolve(__dirname, 'pet.html'),
+        cloudPaws: path.resolve(__dirname, 'games/cloud-paws/index.html'),
       },
     },
   },
